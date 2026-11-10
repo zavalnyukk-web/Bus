@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Автобус Кунівського ліцею</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg:#F3F5F4; --card:#FFFFFF; --ink:#0F1D1A; --muted:#62716B; --line:#DDE3E0;
+  --green:#1F6F5C; --green-soft:#E3F0EB; --bus:#F5B800; --bus-ink:#1B1600; --live:#1FA463;
+  --casing:#FFFFFF; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0C1311; --card:#141D1A; --ink:#E9F0EC; --muted:#94A39C; --line:#25312C;
+    --green:#4DBA9A; --green-soft:#17332B; --casing:#0C1311; color-scheme: dark; }
+}
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.top { background:var(--card); border-bottom:1px solid var(--line); padding:12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+.top-in { max-width:1120px; margin:0 auto; display:flex; align-items:center; gap:12px; }
+.logo { width:40px; height:40px; border-radius:10px; background:var(--bus); display:grid; place-items:center; flex:none; }
+.top h1 { font-size:17px; line-height:1.2; margin:0; font-weight:700; }
+.top p { margin:0; font-size:13px; color:var(--muted); }
+.page { max-width:1120px; margin:0 auto; padding:16px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); display:grid; gap:16px; grid-template-columns:1fr; }
+@media (min-width:900px) { .page { grid-template-columns: minmax(0,1.4fr) minmax(320px,1fr); align-items:start; } .mapwrap { position:sticky; top:16px; } }
+.mapwrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
+#map { height:min(62vh, 560px); min-height:340px; z-index:0; }
+.badge { position:absolute; left:12px; top:12px; z-index:500; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; color:var(--muted); }
+.badge.demo { color:var(--bus-ink); background:var(--bus); border-color:var(--bus); }
+.panel { display:grid; gap:14px; min-width:0; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:14px; }
+.status { padding:16px; display:grid; gap:10px; }
+.pill { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); }
+.pill i { width:9px; height:9px; border-radius:50%; background:var(--muted); display:inline-block; }
+.pill.on { color:var(--live); }
+.pill.on i { background:var(--live); box-shadow:0 0 0 0 rgba(31,164,99,.5); animation:ping 1.8s infinite; }
+@keyframes ping { 70% { box-shadow:0 0 0 8px rgba(31,164,99,0); } 100% { box-shadow:0 0 0 0 rgba(31,164,99,0); } }
+@media (prefers-reduced-motion: reduce) { .pill.on i { animation:none; } }
+.big { font-size:22px; line-height:1.2; font-weight:700; margin:0; text-wrap:balance; }
+.sub { margin:0; color:var(--muted); }
+.mine { margin:0; padding:10px 12px; border-radius:10px; background:var(--green-soft); font-size:14px; }
+.mine strong { font-weight:600; }
+.seg { display:flex; gap:4px; padding:4px; background:var(--bg); border:1px solid var(--line); border-radius:12px; }
+.seg button { flex:1; font:inherit; font-weight:600; font-size:14px; color:var(--muted); background:transparent; border:0; border-radius:9px; padding:9px 12px; cursor:pointer; }
+.seg button[aria-pressed="true"] { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.list { list-style:none; margin:0; padding:8px 0; }
+.list li { position:relative; }
+.row { width:100%; display:grid; grid-template-columns:54px 22px 1fr; align-items:center; gap:6px; padding:9px 16px; background:transparent; border:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
+.row .t { font-variant-numeric:tabular-nums; font-weight:600; }
+.row .m { position:relative; height:100%; display:grid; place-items:center; }
+.row .m::before { content:""; position:absolute; left:50%; top:-20px; bottom:-20px; width:2px; margin-left:-1px; background:var(--line); }
+li:first-child .row .m::before { top:50%; }
+li:last-child .row .m::before { bottom:50%; }
+.row .m b { position:relative; width:12px; height:12px; border-radius:50%; background:var(--card); border:3px solid var(--green); }
+.row.school .m b { background:var(--green); }
+.row.done { color:var(--muted); }
+.row.done .m b { border-color:var(--line); background:var(--line); }
+.row.next { background:var(--green-soft); }
+.row.next .m b { border-color:var(--bus-ink); background:var(--bus); width:16px; height:16px; }
+.row.sel .n { text-decoration:underline; text-underline-offset:3px; }
+.row .tag { font-size:11px; font-weight:600; color:var(--muted); margin-left:6px; text-transform:uppercase; letter-spacing:.04em; }
+.row:focus-visible, .seg button:focus-visible { outline:2px solid var(--green); outline-offset:-2px; }
+.note { font-size:12.5px; color:var(--muted); margin:0; }
+.stop-tip { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:6px; font:600 12px Inter, sans-serif; box-shadow:0 1px 3px rgba(0,0,0,.2); padding:2px 7px; }
+.stop-tip::before { display:none; }
+.leaflet-container { font-family:Inter, system-ui, sans-serif; background:var(--bg); }
+.busmark { filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="logo" aria-hidden="true"><svg width="26" height="22" viewBox="0 0 34 24"><rect x="1" y="1" width="32" height="17" rx="4" fill="#F5B800" stroke="#1B1600" stroke-width="2.5"/><rect x="5" y="5" width="6" height="5" fill="#1B1600"/><rect x="14" y="5" width="6" height="5" fill="#1B1600"/><rect x="23" y="5" width="6" height="5" fill="#1B1600"/><circle cx="9" cy="20" r="3" fill="#1B1600"/><circle cx="25" cy="20" r="3" fill="#1B1600"/></svg></div>
+  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей</p></div>
+</div></header>
+
+<main class="page">
+  <div class="mapwrap">
+    <div id="map" role="region" aria-label="Карта маршруту"></div>
+    <div class="badge" id="badge" hidden></div>
+  </div>
+  <div class="panel">
+    <section class="card status" aria-live="polite">
+      <span class="pill" id="pill"><i></i><span id="pilltxt">Перевіряю…</span></span>
+      <p class="big" id="big">Завантажую маршрут</p>
+      <p class="sub" id="sub"></p>
+      <p class="mine" id="mine"></p>
+    </section>
+    <div class="seg" role="group" aria-label="Рейс">
+      <button id="tab-am" aria-pressed="true">Ранок</button>
+      <button id="tab-pm" aria-pressed="false">Після уроків</button>
+    </div>
+    <section class="card"><ul class="list" id="list"></ul></section>
+    <p class="note">Позиція автобуса оновлюється кожні кілька секунд, поки рейс триває. Час у розкладі орієнтовний.</p>
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+(function () {
+  var STOPS = {
+    S: { n: "Кунівський ліцей", ll: [50.2445463, 26.363379], school: true },
+    M: { n: "Межиріч (Стійло)", ll: [50.263439, 26.4431041] },
+    K: { n: "Кам'янка", ll: [50.2534069, 26.4157811] },
+    A: { n: "Антонівка", ll: [50.254399, 26.3685611] },
+    B: { n: "Болотківці", ll: [50.2207911, 26.327576] },
+    D: { n: "Долочче", ll: [50.1965789, 26.298524] },
+    V: { n: "Вілія", ll: [50.1778141, 26.299162] }
+  };
+  var SCHED = {
+    am: [["M","07:25"],["K","07:28"],["A","07:32"],["S","07:40"],["B","07:50"],["S","08:00"],["V","08:22"],["D","08:40"],["S","08:53"]],
+    pm: [["A","13:37"],["K","13:42"],["M","13:45"],["S","13:55"],["D","14:10"],["S","14:20"],["B","14:50"],["S","15:25"],["A","15:30"],["K","15:32"],["M","15:35"],["S","15:50"],["D","16:00"],["V","16:16"],["S","16:40"]]
+  };
+  var DEMO = location.hash === "#demo";
+  var $ = function (id) { return document.getElementById(id); };
+  function toMin(s) { var p = s.split(":"); return +p[0] * 60 + +p[1]; }
+  function fmt(m) { m = Math.floor(m + 1e-6); var h = Math.floor(m / 60), mm = m % 60; return (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm; }
+  function dark() { return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches; }
+
+  /* карта */
+  var map = L.map("map", { zoomControl: true, attributionControl: true });
+  var tiles = dark() ? "dark_all" : "rastertiles/voyager";
+  var tileUrl = dark()
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  L.tileLayer(tileUrl, { maxZoom: 19, subdomains: "abcd", attribution: "&copy; OpenStreetMap, &copy; CARTO" }).addTo(map);
+  var all = Object.keys(STOPS).map(function (c) { return STOPS[c].ll; });
+  map.fitBounds(L.latLngBounds(all).pad(0.18));
+
+  var routeLayer = L.layerGroup().addTo(map), stopLayer = L.layerGroup().addTo(map);
+  Object.keys(STOPS).forEach(function (c) {
+    var s = STOPS[c];
+    L.circleMarker(s.ll, { radius: s.school ? 9 : 7, color: "#1F6F5C", weight: 3, fillColor: s.school ? "#1F6F5C" : "#fff", fillOpacity: 1 })
+      .bindTooltip(s.n, { permanent: true, direction: "right", offset: [9, 0], className: "stop-tip" }).addTo(stopLayer);
+  });
+
+  var busSvg = '<svg class="busmark" width="44" height="30" viewBox="0 0 34 24"><rect x="1" y="1" width="32" height="17" rx="4" fill="#F5B800" stroke="#1B1600" stroke-width="2"/><rect x="5" y="5" width="6" height="5" fill="#1B1600"/><rect x="14" y="5" width="6" height="5" fill="#1B1600"/><rect x="23" y="5" width="6" height="5" fill="#1B1600"/><circle cx="9" cy="20" r="3" fill="#1B1600"/><circle cx="25" cy="20" r="3" fill="#1B1600"/></svg>';
+  var busIcon = L.divIcon({ html: busSvg, className: "", iconSize: [44, 30], iconAnchor: [22, 15] });
+  var bus = null, busPos = null, anim = null, ring = null;
+
+  /* дороги: маршрути між зупинками через OSRM, зберігаються в пам'яті браузера */
+  var CKEY = "bus.routes.v2", cache = {};
+  try { cache = JSON.parse(localStorage.getItem(CKEY) || "{}"); } catch (e) { cache = {}; }
+  function saveCache() { try { localStorage.setItem(CKEY, JSON.stringify(cache)); } catch (e) {} }
+  var SERVERS = ["https://router.project-osrm.org/route/v1/driving/", "https://routing.openstreetmap.de/routed-car/route/v1/driving/"];
+  function legKey(a, b) { return a + ">" + b; }
+  function fetchLeg(a, b) {
+    var k = legKey(a, b);
+    if (cache[k]) return Promise.resolve(cache[k]);
+    var A = STOPS[a].ll, B = STOPS[b].ll;
+    var path = A[1] + "," + A[0] + ";" + B[1] + "," + B[0] + "?overview=full&geometries=geojson";
+    function tryServer(i) {
+      if (i >= SERVERS.length) return Promise.resolve(null);
+      return fetch(SERVERS[i] + path).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
+        if (!j.routes || !j.routes[0]) throw 0;
+        return j.routes[0].geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
+      }).catch(function () { return tryServer(i + 1); });
+    }
+    return tryServer(0).then(function (pts) { if (pts) { cache[k] = pts; saveCache(); } return pts; });
+  }
+
+  var st = { key: new Date().getHours() < 11 ? "am" : "pm", mine: null, live: null, legs: [], pts: [], routed: false };
+
+  function loadRoute() {
+    var seq = SCHED[st.key], jobs = [], pairs = [];
+    for (var i = 0; i < seq.length - 1; i++) {
+      var a = seq[i][0], b = seq[i + 1][0];
+      pairs.push([a, b]);
+      jobs.push(fetchLeg(a, b));
+    }
+    var key = st.key;
+    return Promise.all(jobs).then(function (res) {
+      if (key !== st.key) return;
+      st.legs = res.map(function (pts, i) {
+        var fb = [STOPS[pairs[i][0]].ll, STOPS[pairs[i][1]].ll];
+        return pts || fb;
+      });
+      st.routed = res.every(function (p) { return !!p; });
+      st.pts = [].concat.apply([], st.legs);
+      routeLayer.clearLayers();
+      var seen = {};
+      st.legs.forEach(function (pts, i) {
+        var k = [pairs[i][0], pairs[i][1]].sort().join("");
+        if (seen[k]) return; seen[k] = 1;
+        var opt = st.routed ? {} : { dashArray: "6 8" };
+        L.polyline(pts, L.extend({ color: dark() ? "#0C1311" : "#fff", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }, {})).addTo(routeLayer);
+        L.polyline(pts, L.extend({ color: "#1F6F5C", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }, opt)).addTo(routeLayer);
+      });
+      stopLayer.eachLayer(function (l) { l.bringToFront(); });
+      if (bus) bus.setZIndexOffset(1000);
+      refreshTexts();
+    });
+  }
+
+  /* найближча точка маршруту до GPS: автобус "прилипає" до дороги */
+  function snap(ll) {
+    var pts = st.pts; if (!pts.length || !st.routed) return ll;
+    var kx = 111320 * Math.cos(ll[0] * Math.PI / 180), ky = 110540, best = 1e12, bp = ll;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var ax = (pts[i][1] - ll[1]) * kx, ay = (pts[i][0] - ll[0]) * ky;
+      var bx = (pts[i + 1][1] - ll[1]) * kx, by = (pts[i + 1][0] - ll[0]) * ky;
+      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      var px = ax + t * dx, py = ay + t * dy, d = px * px + py * py;
+      if (d < best) { best = d; bp = [ll[0] + py / ky, ll[1] + px / kx]; }
+    }
+    return best < 60 * 60 ? bp : ll;
+  }
+  function moveBus(ll) {
+    if (!bus) { bus = L.marker(ll, { icon: busIcon, zIndexOffset: 1000, keyboard: false }).addTo(map); busPos = ll; return; }
+    var from = busPos, to = ll, t0 = performance.now(), dur = DEMO ? 120 : 3500;
+    if (anim) cancelAnimationFrame(anim);
+    (function step(now) {
+      var f = Math.min(1, (now - t0) / dur);
+      busPos = [from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f];
+      bus.setLatLng(busPos);
+      if (f < 1) anim = requestAnimationFrame(step);
+    })(t0);
+  }
+  function removeBus() { if (bus) { map.removeLayer(bus); bus = null; busPos = null; } }
+
+  function km(a, b) {
+    var R = 6371, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  /* час */
+  var demoT = null;
+  function nowMin() {
+    if (DEMO) return demoT === null ? toMin(SCHED[st.key][0][1]) : demoT;
+    var d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  }
+  function nextIndex() {
+    var seq = SCHED[st.key], n = nowMin();
+    for (var j = 0; j < seq.length; j++) if (toMin(seq[j][1]) >= n) return j;
+    return -1;
+  }
+
+  function drawList() {
+    var seq = SCHED[st.key], ni = nextIndex(), ul = $("list");
+    ul.innerHTML = "";
+    seq.forEach(function (r, idx) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      b.className = "row" + (STOPS[r[0]].school ? " school" : "") + ((ni === -1 || idx < ni) ? " done" : "") + (idx === ni ? " next" : "") + (st.mine === r[0] ? " sel" : "");
+      b.innerHTML = '<span class="t"></span><span class="m"><b></b></span><span class="n"></span>';
+      b.children[0].textContent = r[1];
+      b.children[2].textContent = STOPS[r[0]].n;
+      if (STOPS[r[0]].school) { var tg = document.createElement("span"); tg.className = "tag"; tg.textContent = "ліцей"; b.children[2].appendChild(tg); }
+      b.onclick = function () { st.mine = st.mine === r[0] ? null : r[0]; refreshTexts(); };
+      li.appendChild(b); ul.appendChild(li);
+    });
+    $("tab-am").setAttribute("aria-pressed", st.key === "am");
+    $("tab-pm").setAttribute("aria-pressed", st.key === "pm");
+  }
+
+  function refreshTexts() {
+    drawList();
+    var seq = SCHED[st.key], ni = nextIndex(), pill = $("pill"), live = st.live || (DEMO && bus);
+    pill.className = "pill" + (live ? " on" : "");
+    $("pilltxt").textContent = live ? "Автобус у рейсі" : "Автобус не в рейсі";
+    if (ni === -1) { $("big").textContent = "Рейси на сьогодні завершено"; $("sub").textContent = "Наступний рейс: " + (st.key === "am" ? "після уроків" : "завтра зранку") + "."; }
+    else {
+      var nx = seq[ni], eta = toMin(nx[1]) - nowMin();
+      $("big").textContent = live ? "Наступна зупинка: " + STOPS[nx[0]].n : "Найближча зупинка: " + STOPS[nx[0]].n;
+      $("sub").textContent = "За розкладом о " + nx[1] + (eta >= 1 ? ", через " + Math.ceil(eta) + " хв." : ", вже зараз.") + (st.live ? " Автобус за " + km([st.live.lat, st.live.lng], STOPS[nx[0]].ll).toFixed(1) + " км по прямій." : "");
+    }
+    if (ring) { map.removeLayer(ring); ring = null; }
+    var el = $("mine");
+    if (!st.mine) { el.textContent = "Натисніть свою зупинку в розкладі, щоб побачити час прибуття."; return; }
+    var s = STOPS[st.mine], n = nowMin(), t = null;
+    ring = L.circleMarker(s.ll, { radius: 15, color: "#F5B800", weight: 3, fill: false }).addTo(map);
+    for (var i = 0; i < seq.length; i++) if (seq[i][0] === st.mine && toMin(seq[i][1]) >= n) { t = seq[i][1]; break; }
+    el.innerHTML = "<strong>" + s.n + "</strong>: " + (t ? "автобус за розкладом о " + t + "." : "на сьогодні рейсів більше немає.");
+  }
+
+  /* справжній GPS */
+  function setLive(d) {
+    st.live = d;
+    if (d) moveBus(snap([d.lat, d.lng])); else removeBus();
+    refreshTexts();
+  }
+  function poll() {
+    var C = window.CONFIG;
+    if (!C || String(C.dbUrl).indexOf("ВАШ") !== -1) return;
+    fetch(C.dbUrl + "/bus/" + C.key + ".json", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { setLive(d && d.ts && Date.now() - d.ts < 90000 ? d : null); })
+      .catch(function () {});
+  }
+
+  /* демонстрація: адреса сайту з #demo, автобус їде по дорогах за розкладом */
+  function demoPos(t) {
+    var seq = SCHED[st.key], i;
+    for (i = 0; i < seq.length - 1; i++) if (t < toMin(seq[i + 1][1])) break;
+    if (i >= seq.length - 1) i = seq.length - 2;
+    var leg = st.legs[i]; if (!leg) return null;
+    var t0 = toMin(seq[i][1]), t1 = toMin(seq[i + 1][1]), f = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+    var cum = [0], k;
+    for (k = 1; k < leg.length; k++) cum.push(cum[k - 1] + km(leg[k - 1], leg[k]));
+    var target = cum[cum.length - 1] * f;
+    for (k = 1; k < cum.length; k++) if (cum[k] >= target) break;
+    if (k >= cum.length) return leg[leg.length - 1];
+    var seg = cum[k] - cum[k - 1], u = seg ? (target - cum[k - 1]) / seg : 0;
+    return [leg[k - 1][0] + (leg[k][0] - leg[k - 1][0]) * u, leg[k - 1][1] + (leg[k][1] - leg[k - 1][1]) * u];
+  }
+  function startDemo() {
+    $("badge").hidden = false; $("badge").className = "badge demo"; $("badge").textContent = "Демонстрація: час прискорено";
+    var seq = SCHED[st.key], last = performance.now(), end = toMin(seq[seq.length - 1][1]);
+    demoT = toMin(seq[0][1]);
+    var tick = 0;
+    (function loop(now) {
+      demoT += (now - last) / 1000 * 2; last = now;
+      if (demoT > end) demoT = toMin(SCHED[st.key][0][1]);
+      var p = demoPos(demoT); if (p) moveBus(p);
+      if (now - tick > 500) { tick = now; refreshTexts(); }
+      requestAnimationFrame(loop);
+    })(last);
+  }
+
+  $("tab-am").onclick = function () { st.key = "am"; demoT = null; st.pts = []; loadRoute(); refreshTexts(); };
+  $("tab-pm").onclick = function () { st.key = "pm"; demoT = null; st.pts = []; loadRoute(); refreshTexts(); };
+
+  drawList();
+  refreshTexts();
+  loadRoute().then(function () { if (DEMO) startDemo(); });
+  if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refreshTexts, 30000); }
+})();
+</script>
+</body>
+</html>
