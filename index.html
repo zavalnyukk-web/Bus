@@ -107,7 +107,7 @@ li:last-child .row .m::before { bottom:50%; }
     M: { n: "Межиріч (Стійло)", ll: [50.263439, 26.4431041] },
     K: { n: "Кам'янка", ll: [50.2534069, 26.4157811] },
     A: { n: "Антонівка", ll: [50.254399, 26.3685611] },
-    B: { n: "Болотківці", ll: [50.2207911, 26.327576] },
+    B: { n: "Болотківці", ll: [50.2583845, 26.3775641] },
     D: { n: "Долочче", ll: [50.1965789, 26.298524] },
     V: { n: "Вілія", ll: [50.1778141, 26.299162] }
   };
@@ -139,7 +139,7 @@ li:last-child .row .m::before { bottom:50%; }
   var bus = null, busPos = null, anim = null, ring = null;
 
   /* дороги: маршрути між зупинками через OSRM, зберігаються в пам'яті браузера */
-  var CKEY = "bus.routes.v2", cache = {};
+  var CKEY = "bus.routes.v3", cache = {};
   try { cache = JSON.parse(localStorage.getItem(CKEY) || "{}"); } catch (e) { cache = {}; }
   function saveCache() { try { localStorage.setItem(CKEY, JSON.stringify(cache)); } catch (e) {} }
   var SERVERS = ["https://router.project-osrm.org/route/v1/driving/", "https://routing.openstreetmap.de/routed-car/route/v1/driving/"];
