@@ -2,79 +2,140 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0C3329">
 <title>Автобус Кунівського ліцею</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
 <style>
-:root {
-  --bg:#F3F5F4; --card:#FFFFFF; --ink:#0F1D1A; --muted:#62716B; --line:#DDE3E0;
-  --green:#1F6F5C; --green-soft:#E3F0EB; --bus:#F5B800; --bus-ink:#1B1600; --live:#1FA463;
-  --casing:#FFFFFF; color-scheme: light;
+:root{
+  --bg:#EDF2EF; --card:#FFFFFF; --card2:#F6F9F7; --ink:#0E1B17; --muted:#5E6F68; --line:#DCE4E0;
+  --green:#1F6F5C; --green2:#2E9C80; --green-soft:#E2F1EB; --bus:#F5B800; --bus-ink:#1B1600; --live:#1FA463;
+  --shadow:0 1px 2px rgba(14,27,23,.06),0 8px 24px rgba(14,27,23,.07);
+  --hero1:#0C3329; --hero2:#1F6F5C; --tile-filter:none; color-scheme:light;
+  --display:"Unbounded","Inter",system-ui,sans-serif; --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#0C1311; --card:#141D1A; --ink:#E9F0EC; --muted:#94A39C; --line:#25312C;
-    --green:#4DBA9A; --green-soft:#17332B; --casing:#0C1311; color-scheme: dark; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#09100E; --card:#121B18; --card2:#0F1714; --ink:#E9F0EC; --muted:#93A39C; --line:#22302B;
+    --green:#4DBA9A; --green2:#3FA886; --green-soft:#16302A; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+    --hero1:#06120F; --hero2:#124A3C; --tile-filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.8); color-scheme:dark;
+  }
 }
-* { box-sizing:border-box; }
-html, body { margin:0; }
-body { background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
-.top { background:var(--card); border-bottom:1px solid var(--line); padding:12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
-.top-in { max-width:1120px; margin:0 auto; display:flex; align-items:center; gap:12px; }
-.logo { width:52px; height:40px; border-radius:10px; background:var(--card); border:1px solid var(--line); display:grid; place-items:center; flex:none; }
-.top h1 { font-size:17px; line-height:1.2; margin:0; font-weight:700; }
-.top p { margin:0; font-size:13px; color:var(--muted); }
-.page { max-width:1120px; margin:0 auto; padding:16px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); display:grid; gap:16px; grid-template-columns:1fr; }
-@media (min-width:900px) { .page { grid-template-columns: minmax(0,1.4fr) minmax(320px,1fr); align-items:start; } .mapwrap { position:sticky; top:16px; } }
-.mapwrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
-#map { height:min(62vh, 560px); min-height:340px; z-index:0; }
-.badge { position:absolute; left:12px; top:12px; z-index:500; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; color:var(--muted); }
-.badge.demo { color:var(--bus-ink); background:var(--bus); border-color:var(--bus); }
-.panel { display:grid; gap:14px; min-width:0; }
-.card { background:var(--card); border:1px solid var(--line); border-radius:14px; }
-.status { padding:16px; display:grid; gap:10px; }
-.pill { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); }
-.pill i { width:9px; height:9px; border-radius:50%; background:var(--muted); display:inline-block; }
-.pill.on { color:var(--live); }
-.pill.on i { background:var(--live); box-shadow:0 0 0 0 rgba(31,164,99,.5); animation:ping 1.8s infinite; }
-@keyframes ping { 70% { box-shadow:0 0 0 8px rgba(31,164,99,0); } 100% { box-shadow:0 0 0 0 rgba(31,164,99,0); } }
-@media (prefers-reduced-motion: reduce) { .pill.on i { animation:none; } }
-.big { font-size:22px; line-height:1.2; font-weight:700; margin:0; text-wrap:balance; }
-.sub { margin:0; color:var(--muted); }
-.mine { margin:0; padding:10px 12px; border-radius:10px; background:var(--green-soft); font-size:14px; }
-.mine strong { font-weight:600; }
-.seg { display:flex; gap:4px; padding:4px; background:var(--bg); border:1px solid var(--line); border-radius:12px; }
-.seg button { flex:1; font:inherit; font-weight:600; font-size:14px; color:var(--muted); background:transparent; border:0; border-radius:9px; padding:9px 12px; cursor:pointer; }
-.seg button[aria-pressed="true"] { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); }
-.list { list-style:none; margin:0; padding:8px 0; }
-.list li { position:relative; }
-.row { width:100%; display:grid; grid-template-columns:54px 22px 1fr; align-items:center; gap:6px; padding:9px 16px; background:transparent; border:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
-.row .t { font-variant-numeric:tabular-nums; font-weight:600; }
-.row .m { position:relative; height:100%; display:grid; place-items:center; }
-.row .m::before { content:""; position:absolute; left:50%; top:-20px; bottom:-20px; width:2px; margin-left:-1px; background:var(--line); }
-li:first-child .row .m::before { top:50%; }
-li:last-child .row .m::before { bottom:50%; }
-.row .m b { position:relative; width:12px; height:12px; border-radius:50%; background:var(--card); border:3px solid var(--green); }
-.row.school .m b { background:var(--green); }
-.row.done { color:var(--muted); }
-.row.done .m b { border-color:var(--line); background:var(--line); }
-.row.next { background:var(--green-soft); }
-.row.next .m b { border-color:var(--bus-ink); background:var(--bus); width:16px; height:16px; }
-.row.sel .n { text-decoration:underline; text-underline-offset:3px; }
-.row .tag { font-size:11px; font-weight:600; color:var(--muted); margin-left:6px; text-transform:uppercase; letter-spacing:.04em; }
-.row:focus-visible, .seg button:focus-visible { outline:2px solid var(--green); outline-offset:-2px; }
-.note { font-size:12.5px; color:var(--muted); margin:0; }
-.stop-tip { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:6px; font:600 12px Inter, sans-serif; box-shadow:0 1px 3px rgba(0,0,0,.2); padding:2px 7px; }
-.stop-tip::before { display:none; }
-.leaflet-container { font-family:Inter, system-ui, sans-serif; background:var(--bg); }
-.busmark { filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+:root[data-theme="dark"]{
+  --bg:#09100E; --card:#121B18; --card2:#0F1714; --ink:#E9F0EC; --muted:#93A39C; --line:#22302B;
+  --green:#4DBA9A; --green2:#3FA886; --green-soft:#16302A; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+  --hero1:#06120F; --hero2:#124A3C; --tile-filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.8); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
+body.has-mini{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+button{font-family:inherit}
+.hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(1200px 300px at 85% -40%,rgba(245,184,0,.28),transparent 60%),linear-gradient(135deg,var(--hero1),var(--hero2));padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 70px max(16px,env(safe-area-inset-left))}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:46px;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.45) 0 22px,transparent 22px 44px);opacity:.5}
+.hero-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.logo{width:62px;height:46px;border-radius:14px;background:#fff;display:grid;place-items:center;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.hero h1{font:700 clamp(19px,4.6vw,26px)/1.15 var(--display);margin:0;letter-spacing:-.01em}
+.hero p{margin:3px 0 0;font-size:13px;opacity:.85}
+.tools{margin-left:auto;display:flex;gap:8px}
+.ibtn{width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px)}
+.ibtn:hover{background:rgba(255,255,255,.2)}
+.ibtn:focus-visible,.seg button:focus-visible,.row:focus-visible,.rb:focus-visible,.trk:focus-visible{outline:2px solid var(--bus);outline-offset:2px}
+.page{max-width:1120px;margin:-48px auto 0;position:relative;padding:0 max(16px,env(safe-area-inset-right)) 36px max(16px,env(safe-area-inset-left));display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:900px){.page{grid-template-columns:minmax(0,1.4fr) minmax(330px,1fr);align-items:start}.mapwrap{position:sticky;top:16px}}
+.mapwrap{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow)}
+#map{height:min(64vh,580px);min-height:360px;z-index:0}
+.leaflet-tile-pane{filter:var(--tile-filter)}
+.leaflet-container{font-family:var(--body);background:var(--bg)}
+.badge{position:absolute;left:14px;top:14px;z-index:500;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--muted);box-shadow:var(--shadow)}
+.badge.demo{color:var(--bus-ink);background:var(--bus);border-color:var(--bus)}
+.panel{display:grid;gap:16px;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.status{padding:20px;display:grid;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:max-content;padding:5px 11px 5px 9px;border-radius:999px;background:var(--card2);border:1px solid var(--line)}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.pill.on{color:var(--live);background:rgba(31,164,99,.1);border-color:rgba(31,164,99,.3)}
+.pill.on i{background:var(--live);animation:ping 1.8s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(31,164,99,.55)}70%,100%{box-shadow:0 0 0 9px rgba(31,164,99,0)}}
+.big{font:700 clamp(19px,4.5vw,23px)/1.2 var(--display);margin:2px 0 0;letter-spacing:-.01em;text-wrap:balance}
+.sub{margin:0;color:var(--muted)}
+.mine{margin:2px 0 0;padding:12px 14px;border-radius:14px;background:var(--green-soft);font-size:14px;border:1px solid var(--line)}
+.mine strong{font-weight:700}
+.seg{display:flex;gap:4px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.seg button{flex:1;font-weight:600;font-size:14px;color:var(--muted);background:transparent;border:0;border-radius:12px;padding:11px 12px;cursor:pointer;transition:background .2s,color .2s}
+.seg button[aria-pressed="true"]{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;box-shadow:0 4px 12px rgba(31,111,92,.35)}
+.list{list-style:none;margin:0;padding:10px 0}
+.list li{position:relative}
+.row{width:100%;display:grid;grid-template-columns:56px 22px 1fr;align-items:center;gap:8px;padding:10px 18px;background:transparent;border:0;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.row:hover{background:var(--card2)}
+.row .t{font-variant-numeric:tabular-nums;font-weight:700}
+.row .m{position:relative;height:100%;display:grid;place-items:center}
+.row .m::before{content:"";position:absolute;left:50%;top:-22px;bottom:-22px;width:3px;margin-left:-1.5px;background:var(--line);border-radius:2px}
+li:first-child .row .m::before{top:50%}
+li:last-child .row .m::before{bottom:50%}
+.row .m b{position:relative;width:12px;height:12px;border-radius:50%;background:var(--card);border:3px solid var(--green)}
+.row.school .m b{background:var(--green)}
+.row.done{color:var(--muted)}
+.row.done .m b{border-color:var(--line);background:var(--line)}
+.row.next{background:var(--green-soft)}
+.row.next .n{font-weight:700}
+.row.next .m b{border-color:var(--bus-ink);background:var(--bus);width:17px;height:17px;box-shadow:0 0 0 5px rgba(245,184,0,.25)}
+.row.sel .n{text-decoration:underline;text-underline-offset:3px}
+.note{font-size:12.5px;color:var(--muted);margin:0;padding:0 4px}
+.stop-tip{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:600 12px var(--body);box-shadow:0 2px 6px rgba(0,0,0,.2);padding:3px 8px}
+.stop-tip::before{display:none}
+.busmark{filter:drop-shadow(0 3px 4px rgba(0,0,0,.45))}
+/* радіо */
+.radio{padding:20px;display:grid;gap:14px}
+.radio[hidden]{display:none}
+.rhead{display:flex;align-items:center;gap:14px}
+.disc{width:78px;height:78px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font:700 28px var(--display);background:conic-gradient(from 210deg,#1F6F5C,#F5B800,#E4572E,#6C4BC1,#1F6F5C);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.disc::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:var(--card);border:3px solid rgba(0,0,0,.15)}
+.disc span{position:relative;z-index:0;opacity:0}
+.disc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.disc.spin{animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.disc.spin{animation:none}.pill.on i{animation:none}}
+.rmeta{min-width:0}
+.rmeta .eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
+.rmeta .rt{font:700 17px/1.25 var(--display);margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rmeta .ra{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar span:last-child{text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--green) var(--p,0%),var(--line) var(--p,0%));outline:none;margin:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--card);border:3px solid var(--green);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--green);cursor:pointer}
+.ctrl{display:flex;align-items:center;justify-content:center;gap:10px}
+.rb{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.rb:hover{background:var(--green-soft)}
+.rb.on{color:var(--green);border-color:var(--green)}
+.rb.play{width:62px;height:62px;background:linear-gradient(135deg,var(--bus),#FFD24D);color:var(--bus-ink);border:0;box-shadow:0 6px 16px rgba(245,184,0,.4)}
+.vol{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.trks{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:220px;overflow:auto}
+.trk{width:100%;display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:center;text-align:left;border:0;background:transparent;color:var(--ink);padding:8px 10px;border-radius:12px;cursor:pointer;font:inherit}
+.trk:hover{background:var(--card2)}
+.trk.cur{background:var(--green-soft);font-weight:600}
+.trk small{display:block;color:var(--muted);font-weight:400}
+.trk .no{color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+.mini{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));width:min(560px,calc(100% - 24px));z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 8px;border-radius:20px;background:var(--card);border:1px solid var(--line);box-shadow:0 12px 36px rgba(0,0,0,.28)}
+.mini[hidden]{display:none}
+.mini .disc{width:46px;height:46px}
+.mini .disc::after{width:12px;height:12px;border-width:2px}
+.mini .mt{min-width:0;flex:1}
+.mini .mt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .mt small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.mini .rb{width:40px;height:40px}
+.mini .rb.play{width:46px;height:46px}
+.foot{max-width:1120px;margin:0 auto;padding:0 16px 28px;text-align:center;color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
-<header class="top"><div class="top-in">
+<header class="hero"><div class="hero-in">
   <div class="logo" aria-hidden="true"><svg width="34" height="20" viewBox="0 0 60 34"><path d="M3 9 Q3 4 8 4 H43 Q46 4 48 7 L56 17 Q57 18.5 57 20 V27 Q57 28.5 55.5 28.5 H4.5 Q3 28.5 3 27 Z" fill="#F5B800" stroke="#1B1600" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="18" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="29" y="9" width="9" height="8" rx="1" fill="#1B1600"/><path d="M41 9 H45 Q46.5 9 47.5 10.5 L52 17 H41 Z" fill="#1B1600"/><rect x="3" y="20.5" width="54" height="2.6" fill="#1B1600"/><rect x="53" y="22" width="3" height="3" rx="1" fill="#fff"/><circle cx="15" cy="29" r="5" fill="#1B1600"/><circle cx="15" cy="29" r="1.8" fill="#bbb"/><circle cx="44" cy="29" r="5" fill="#1B1600"/><circle cx="44" cy="29" r="1.8" fill="#bbb"/></svg></div>
   <div><h1>Шкільний автобус</h1><p>Кунівський ліцей · БАЗ А079</p></div>
+  <div class="tools"><button class="ibtn" id="theme" type="button" aria-label="Змінити тему"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
 </div></header>
 
 <main class="page">
@@ -94,12 +155,38 @@ li:last-child .row .m::before { bottom:50%; }
       <button id="tab-pm" aria-pressed="false">Після уроків</button>
     </div>
     <section class="card"><ul class="list" id="list"></ul></section>
+
+    <section class="card radio" id="radio" hidden aria-label="Радіо">
+      <div class="rhead">
+        <div class="disc" id="disc"><span id="disc-l">♪</span></div>
+        <div class="rmeta"><div class="eyebrow" id="rname">Радіо</div><div class="rt" id="rtitle">Оберіть трек</div><div class="ra" id="rartist"></div></div>
+      </div>
+      <div class="bar"><span id="rcur">0:00</span><input type="range" id="rseek" min="0" max="1000" value="0" aria-label="Перемотування"><span id="rdur">0:00</span></div>
+      <div class="ctrl">
+        <button class="rb" id="rshuf" type="button" aria-label="Перемішати" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+        <button class="rb" id="rprev" type="button" aria-label="Попередній"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="rb play" id="rplay" type="button" aria-label="Грати"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="rb" id="rnext" type="button" aria-label="Наступний"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+      </div>
+      <div class="vol"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><input type="range" id="rvol" min="0" max="100" value="80" aria-label="Гучність"></div>
+      <ul class="trks" id="rlist"></ul>
+    </section>
     <p class="note">Позиція автобуса оновлюється кожні кілька секунд, поки рейс триває. Час у розкладі орієнтовний.</p>
   </div>
 </main>
+<div class="foot">Розробник: zavalnyuk</div>
+
+<div class="mini" id="mini" hidden>
+  <div class="disc" id="mdisc"><span>♪</span></div>
+  <div class="mt"><b id="mtitle"></b><small id="martist"></small></div>
+  <button class="rb" id="mprev" type="button" aria-label="Попередній"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+  <button class="rb play" id="mplay" type="button" aria-label="Грати"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+  <button class="rb" id="mnext" type="button" aria-label="Наступний"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
+<script src="tracks.js"></script>
 <script>
 (function () {
   var STOPS = {
@@ -325,6 +412,120 @@ li:last-child .row .m::before { bottom:50%; }
   refreshTexts();
   loadRoute().then(function () { if (DEMO) startDemo(); });
   if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refreshTexts, 30000); }
+})();
+
+
+/* ===== Радіо: треки з файлу tracks.js ===== */
+(function(){
+  var T=(window.TRACKS||[]).filter(function(t){return t&&t.src;});
+  var card=document.getElementById("radio");
+  if(!T.length||!card)return;
+  card.hidden=false;
+  var $=function(id){return document.getElementById(id);};
+  var ICON={play:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',pause:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>'};
+  var audio=new Audio();audio.preload="none";
+  var cur=-1,shuffle=true,order=[],pos=0,seeking=false;
+  try{var v=localStorage.getItem("bus.radio.vol");if(v!==null)$("rvol").value=v;}catch(e){}
+  audio.volume=$("rvol").value/100;
+  function fmt(s){if(!isFinite(s))return"0:00";s=Math.floor(s);return Math.floor(s/60)+":"+(s%60<10?"0":"")+(s%60);}
+  function setRange(el){el.style.setProperty("--p",(el.value-el.min)/(el.max-el.min)*100+"%");}
+  function build(){
+    order=T.map(function(_,i){return i;});
+    if(shuffle)for(var i=order.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),x=order[i];order[i]=order[j];order[j]=x;}
+  }
+  function drawList(){
+    var ul=$("rlist");ul.innerHTML="";
+    T.forEach(function(t,i){
+      var li=document.createElement("li"),b=document.createElement("button");
+      b.type="button";b.className="trk"+(i===cur?" cur":"");
+      b.innerHTML='<span class="no"></span><span><span class="tt"></span><small></small></span>';
+      b.querySelector(".no").textContent=i===cur&&!audio.paused?"▶":String(i+1);
+      b.querySelector(".tt").textContent=t.title||("Трек "+(i+1));
+      b.querySelector("small").textContent=t.artist||"";
+      b.onclick=function(){load(i);play();};
+      li.appendChild(b);ul.appendChild(li);
+    });
+  }
+  function meta(){
+    var t=T[cur]||{};
+    $("rtitle").textContent=t.title||"Оберіть трек";
+    $("rartist").textContent=t.artist||"";
+    $("mtitle").textContent=t.title||"";$("martist").textContent=t.artist||"";
+    $("disc-l").textContent=(t.title||"♪").charAt(0).toUpperCase();
+    ["disc","mdisc"].forEach(function(id){
+      var d=$(id),im=d.querySelector("img");
+      if(t.cover){if(!im){im=document.createElement("img");im.alt="";d.insertBefore(im,d.firstChild);}im.src=t.cover;}
+      else if(im)im.remove();
+    });
+    if("mediaSession" in navigator&&window.MediaMetadata){
+      navigator.mediaSession.metadata=new MediaMetadata({title:t.title||"",artist:t.artist||"",album:window.RADIO_NAME||"Радіо",artwork:t.cover?[{src:t.cover}]:[]});
+    }
+  }
+  function load(i){
+    cur=(i+T.length)%T.length;
+    audio.src=T[cur].src;
+    var k=order.indexOf(cur);if(k>=0)pos=k;
+    meta();drawList();
+    $("rseek").value=0;setRange($("rseek"));$("rcur").textContent="0:00";$("rdur").textContent="0:00";
+  }
+  function play(){var p=audio.play();if(p&&p.catch)p.catch(function(){});}
+  function step(d){
+    if(!order.length)build();
+    pos=(pos+d+order.length)%order.length;
+    load(order[pos]);play();
+  }
+  function ui(){
+    var on=!audio.paused;
+    ["rplay","mplay"].forEach(function(id){$(id).innerHTML=on?ICON.pause:ICON.play;$(id).setAttribute("aria-label",on?"Пауза":"Грати");});
+    ["disc","mdisc"].forEach(function(id){$(id).classList.toggle("spin",on);});
+    $("mini").hidden=cur<0;
+    document.body.classList.toggle("has-mini",cur>=0);
+    drawList();
+  }
+  $("rname").textContent=window.RADIO_NAME||"Радіо";
+  $("rplay").onclick=$("mplay").onclick=function(){
+    if(cur<0){build();pos=0;load(order[0]);play();return;}
+    if(audio.paused)play();else audio.pause();
+  };
+  $("rnext").onclick=$("mnext").onclick=function(){if(cur<0)build();step(1);};
+  $("rprev").onclick=$("mprev").onclick=function(){
+    if(cur>=0&&audio.currentTime>4){audio.currentTime=0;return;}
+    if(cur<0)build();step(-1);
+  };
+  $("rshuf").onclick=function(){shuffle=!shuffle;this.setAttribute("aria-pressed",shuffle);this.classList.toggle("on",shuffle);build();var k=order.indexOf(cur);pos=k<0?0:k;};
+  $("rshuf").classList.add("on");
+  $("rvol").oninput=function(){audio.volume=this.value/100;setRange(this);try{localStorage.setItem("bus.radio.vol",this.value);}catch(e){}};
+  setRange($("rvol"));setRange($("rseek"));
+  $("rseek").oninput=function(){seeking=true;setRange(this);$("rcur").textContent=fmt(audio.duration*this.value/1000);};
+  $("rseek").onchange=function(){if(isFinite(audio.duration))audio.currentTime=audio.duration*this.value/1000;seeking=false;};
+  audio.addEventListener("timeupdate",function(){
+    if(seeking||!isFinite(audio.duration))return;
+    var r=$("rseek");r.value=Math.round(audio.currentTime/audio.duration*1000);setRange(r);
+    $("rcur").textContent=fmt(audio.currentTime);$("rdur").textContent=fmt(audio.duration);
+  });
+  audio.addEventListener("loadedmetadata",function(){$("rdur").textContent=fmt(audio.duration);});
+  audio.addEventListener("play",ui);audio.addEventListener("pause",ui);
+  audio.addEventListener("ended",function(){step(1);});
+  audio.addEventListener("error",function(){if(cur>=0&&T.length>1)setTimeout(function(){step(1);},800);});
+  if("mediaSession" in navigator){
+    try{
+      navigator.mediaSession.setActionHandler("play",play);
+      navigator.mediaSession.setActionHandler("pause",function(){audio.pause();});
+      navigator.mediaSession.setActionHandler("nexttrack",function(){step(1);});
+      navigator.mediaSession.setActionHandler("previoustrack",function(){step(-1);});
+    }catch(e){}
+  }
+  build();drawList();
+})();
+/* ===== Тема ===== */
+(function(){
+  var root=document.documentElement,b=document.getElementById("theme");
+  try{var s=localStorage.getItem("bus.theme");if(s)root.setAttribute("data-theme",s);}catch(e){}
+  if(b)b.onclick=function(){
+    var dark=root.getAttribute("data-theme")?root.getAttribute("data-theme")==="dark":(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+    var n=dark?"light":"dark";root.setAttribute("data-theme",n);
+    try{localStorage.setItem("bus.theme",n);}catch(e){}
+  };
 })();
 </script>
 </body>
