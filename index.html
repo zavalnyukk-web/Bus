@@ -133,6 +133,12 @@ li:last-child .row .m::before{bottom:50%}
 .disc span{position:relative;z-index:0;opacity:0}
 .disc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .disc.spin{animation:spin 6s linear infinite}
+.disc.has-cover{border-radius:22px;background:#0b1a16;animation:none}
+.disc.has-cover::after{display:none}
+.disc.has-cover.spin{animation:beat 1.4s ease-in-out infinite alternate}
+@keyframes beat{from{transform:scale(1)}to{transform:scale(1.045)}}
+.mini .disc.has-cover{border-radius:12px}
+.rhead .disc{width:112px;height:112px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.disc.spin{animation:none}.pill.on i{animation:none}}
 .rmeta{min-width:0}
@@ -540,18 +546,19 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     });
   }
   function meta(){
-    var t=T[cur]||{};
+    var t=T[cur]||{},cv=t.cover||window.RADIO_COVER||"";
     $("rtitle").textContent=t.title||"Оберіть трек";
     $("rartist").textContent=t.artist||"";
     $("mtitle").textContent=t.title||"";$("martist").textContent=t.artist||"";
     $("disc-l").textContent=(t.title||"♪").charAt(0).toUpperCase();
     ["disc","mdisc"].forEach(function(id){
       var d=$(id),im=d.querySelector("img");
-      if(t.cover){if(!im){im=document.createElement("img");im.alt="";d.insertBefore(im,d.firstChild);}im.src=t.cover;}
+      d.classList.toggle("has-cover",!!cv);
+      if(cv){if(!im){im=document.createElement("img");im.alt="";d.insertBefore(im,d.firstChild);}im.src=cv;}
       else if(im)im.remove();
     });
     if("mediaSession" in navigator&&window.MediaMetadata){
-      navigator.mediaSession.metadata=new MediaMetadata({title:t.title||"",artist:t.artist||"",album:window.RADIO_NAME||"Радіо",artwork:t.cover?[{src:t.cover}]:[]});
+      navigator.mediaSession.metadata=new MediaMetadata({title:t.title||"",artist:t.artist||"",album:window.RADIO_NAME||"Радіо",artwork:cv?[{src:cv}]:[]});
     }
   }
   function load(i){
@@ -608,6 +615,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
       navigator.mediaSession.setActionHandler("previoustrack",function(){step(-1);});
     }catch(e){}
   }
+  if(window.RADIO_COVER){var d0=$("disc"),i0=document.createElement("img");i0.alt="";i0.src=window.RADIO_COVER;d0.insertBefore(i0,d0.firstChild);d0.classList.add("has-cover");}
   build();drawList();
 })();
 
