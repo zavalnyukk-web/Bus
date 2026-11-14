@@ -1,7 +1,6 @@
-/* Радіо на сайті. Покладіть mp3-файли в папку music/ цього репозиторію
-   і впишіть їх нижче. Якщо список порожній, радіо на сайті не показується.
-   cover (обкладинка) не обов'язкова: можна вказати шлях до картинки, наприклад "music/cover1.jpg". */
-window.RADIO_NAME = "Радіо Автобус";
+window.RADIO_NAME = "Радіо Артурович";
 window.TRACKS = [
-  // { title: "Назва треку", artist: "zavalnyuk", src: "music/track1.mp3", cover: "music/cover1.jpg" },
+  { title: "Перший трек", artist: "zavalnyuk", src:My_angel_is_by_my_side "music/track1.mp3" },
+  { title: "Другий трек", artist: "zavalnyuk", src: "music/track2.mp3" },
+  { title: "Третій трек", artist: "zavalnyuk", src: "music/track3.mp3" },
 ];
