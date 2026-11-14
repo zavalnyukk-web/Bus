@@ -47,6 +47,7 @@ button{font-family:inherit}
 @media(min-width:900px){.page{grid-template-columns:minmax(0,1.4fr) minmax(330px,1fr);align-items:start}.mapwrap{position:sticky;top:16px}}
 .mapwrap{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow)}
 #map{height:min(64vh,580px);min-height:360px;z-index:0}
+@media(max-width:899px){#map{height:40vh;min-height:270px}}
 .leaflet-tile-pane{filter:var(--tile-filter)}
 .leaflet-container{font-family:var(--body);background:var(--bg)}
 .badge{position:absolute;left:14px;top:14px;z-index:500;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--muted);box-shadow:var(--shadow)}
@@ -83,6 +84,31 @@ li:last-child .row .m::before{bottom:50%}
 .row.next .n{font-weight:700}
 .row.next .m b{border-color:var(--bus-ink);background:var(--bus);width:17px;height:17px;box-shadow:0 0 0 5px rgba(245,184,0,.25)}
 .row.sel .n{text-decoration:underline;text-underline-offset:3px}
+.delay{margin:0;font-weight:700;font-size:15px;padding:9px 14px;border-radius:12px;width:max-content;max-width:100%}
+.delay[hidden]{display:none}
+.delay.ok{background:rgba(31,164,99,.14);color:var(--live)}
+.delay.late{background:rgba(228,87,46,.14);color:#D2461F}
+.delay.early{background:rgba(245,184,0,.2);color:#9A6E00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .delay.late{color:#FF8A66}:root:not([data-theme="light"]) .delay.early{color:#FFD24D}}
+:root[data-theme="dark"] .delay.late{color:#FF8A66}:root[data-theme="dark"] .delay.early{color:#FFD24D}
+.eta{margin-left:8px;font-size:12.5px;font-weight:700;color:#D2461F;font-variant-numeric:tabular-nums}
+:root[data-theme="dark"] .eta{color:#FF8A66}
+/* погода */
+.wx{padding:18px 20px;display:grid;gap:12px}
+.wx[hidden]{display:none}
+.wx-top{display:flex;align-items:center;gap:14px}
+.wx-ico{font-size:44px;line-height:1}
+.wx-t{font:700 34px/1 var(--display);letter-spacing:-.02em}
+.wx-d{color:var(--muted);font-size:14px}
+.wx-h{margin-left:auto;text-align:right;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.wx-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wx-two div{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;color:var(--muted)}
+.wx-two b{display:block;color:var(--ink);font-size:16px}
+.wx-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.wx-h1{flex:none;width:54px;text-align:center;padding:8px 0;border-radius:12px;background:var(--card2);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.wx-h1 span{display:block;font-size:20px;margin:2px 0}
+.wx-h1 b{display:block;color:var(--ink);font-size:14px}
+.wx-tip{margin:0;font-size:13.5px;padding:9px 12px;border-radius:12px;background:var(--green-soft)}
 .note{font-size:12.5px;color:var(--muted);margin:0;padding:0 4px}
 .stop-tip{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:600 12px var(--body);box-shadow:0 2px 6px rgba(0,0,0,.2);padding:3px 8px}
 .stop-tip::before{display:none}
@@ -134,7 +160,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
 <body>
 <header class="hero"><div class="hero-in">
   <div class="logo" aria-hidden="true"><svg width="34" height="20" viewBox="0 0 60 34"><path d="M3 9 Q3 4 8 4 H43 Q46 4 48 7 L56 17 Q57 18.5 57 20 V27 Q57 28.5 55.5 28.5 H4.5 Q3 28.5 3 27 Z" fill="#F5B800" stroke="#1B1600" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="18" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="29" y="9" width="9" height="8" rx="1" fill="#1B1600"/><path d="M41 9 H45 Q46.5 9 47.5 10.5 L52 17 H41 Z" fill="#1B1600"/><rect x="3" y="20.5" width="54" height="2.6" fill="#1B1600"/><rect x="53" y="22" width="3" height="3" rx="1" fill="#fff"/><circle cx="15" cy="29" r="5" fill="#1B1600"/><circle cx="15" cy="29" r="1.8" fill="#bbb"/><circle cx="44" cy="29" r="5" fill="#1B1600"/><circle cx="44" cy="29" r="1.8" fill="#bbb"/></svg></div>
-  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей · БАЗ А079</p></div>
+  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей</p></div>
   <div class="tools"><button class="ibtn" id="theme" type="button" aria-label="Змінити тему"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
 </div></header>
 
@@ -148,8 +174,10 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
       <span class="pill" id="pill"><i></i><span id="pilltxt">Перевіряю…</span></span>
       <p class="big" id="big">Завантажую маршрут</p>
       <p class="sub" id="sub"></p>
+      <p class="delay" id="delay" hidden></p>
       <p class="mine" id="mine"></p>
     </section>
+    <section class="card wx" id="wx" aria-label="Погода" hidden></section>
     <div class="seg" role="group" aria-label="Рейс">
       <button id="tab-am" aria-pressed="true">Ранок</button>
       <button id="tab-pm" aria-pressed="false">Після уроків</button>
@@ -246,7 +274,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     return tryServer(0).then(function (pts) { if (pts) { cache[k] = pts; saveCache(); } return pts; });
   }
 
-  var st = { key: new Date().getHours() < 11 ? "am" : "pm", mine: null, live: null, legs: [], pts: [], routed: false };
+  var st = { key: new Date().getHours() < 11 ? "am" : "pm", mine: null, live: null, legs: [], pts: [], routed: false, delay: null, dl: [] };
 
   function loadRoute() {
     var seq = SCHED[st.key], jobs = [], pairs = [];
@@ -311,6 +339,55 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     return 2 * R * Math.asin(Math.sqrt(h));
   }
 
+  /* відстань до ламаної та позиція вздовж неї, метри */
+  function projLeg(pts, ll) {
+    var kx = 111320 * Math.cos(ll[0] * Math.PI / 180), ky = 110540, best = 1e18, bs = 0, acc = 0, i;
+    for (i = 0; i < pts.length - 1; i++) {
+      var ax = (pts[i][1] - ll[1]) * kx, ay = (pts[i][0] - ll[0]) * ky;
+      var bx = (pts[i + 1][1] - ll[1]) * kx, by = (pts[i + 1][0] - ll[0]) * ky;
+      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, len = Math.sqrt(l2);
+      var t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      var px = ax + t * dx, py = ay + t * dy, d2 = px * px + py * py;
+      if (d2 < best) { best = d2; bs = acc + t * len; }
+      acc += len;
+    }
+    return { d: Math.sqrt(best), s: bs, L: acc };
+  }
+  /* на скільки хвилин автобус відстає від розкладу (мінус: випереджає) */
+  function liveDelay(ll) {
+    var seq = SCHED[st.key], n = nowMin(), bi = -1, bsc = 1e18, bf = 0, bd = 0, i;
+    for (i = 0; i < seq.length - 1; i++) {
+      var pts = st.legs[i] || [STOPS[seq[i][0]].ll, STOPS[seq[i + 1][0]].ll];
+      var pr = projLeg(pts, ll); if (!pr.L) continue;
+      var t0 = toMin(seq[i][1]), t1 = toMin(seq[i + 1][1]);
+      var out = Math.max(0, Math.abs(n - (t0 + t1) / 2) - (t1 - t0) / 2);
+      var sc = pr.d + 40 * out;
+      if (sc < bsc) { bsc = sc; bi = i; bf = pr.s / pr.L; bd = pr.d; }
+    }
+    if (bi < 0 || bd > 400) return null;
+    st.legI = bi;
+    var a = toMin(seq[bi][1]), b = toMin(seq[bi + 1][1]);
+    return n - (a + bf * (b - a));
+  }
+  function updateDelay(d) {
+    if (!d) { st.delay = null; st.dl = []; st.legI = null; return; }
+    var v = liveDelay([d.lat, d.lng]);
+    if (v === null) { st.delay = null; st.dl = []; st.legI = null; return; }
+    v = Math.max(-30, Math.min(90, v));
+    st.dl.push(v); if (st.dl.length > 5) st.dl.shift();
+    var s = st.dl.slice().sort(function (x, y) { return x - y; });
+    st.delay = s[Math.floor(s.length / 2)];
+  }
+  function dTxt() {
+    if (st.delay === null || !(st.live || (DEMO && bus))) return null;
+    var r = Math.round(st.delay);
+    if (Math.abs(r) < 2) return { t: "Їдемо за графіком", c: "ok" };
+    if (r > 0) return { t: "Запізнюємось на " + r + " хв", c: "late" };
+    return { t: "Випереджаємо графік на " + (-r) + " хв", c: "early" };
+  }
+  function lateMin() { return (st.delay !== null && (st.live || (DEMO && bus))) ? Math.max(0, Math.round(st.delay)) : 0; }
+  function etaOf(sched) { return fmt(toMin(sched) + lateMin()); }
+
   /* час */
   var demoT = null;
   function nowMin() {
@@ -319,6 +396,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   }
   function nextIndex() {
     var seq = SCHED[st.key], n = nowMin();
+    if (st.delay !== null && st.legI != null && (st.live || (DEMO && bus))) return st.legI + 1;
     for (var j = 0; j < seq.length; j++) if (toMin(seq[j][1]) >= n) return j;
     return -1;
   }
@@ -333,6 +411,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
       b.innerHTML = '<span class="t"></span><span class="m"><b></b></span><span class="n"></span>';
       b.children[0].textContent = r[1];
       b.children[2].textContent = STOPS[r[0]].n;
+      if (lateMin() >= 2 && ni >= 0 && idx >= ni) { var ev = document.createElement("span"); ev.className = "eta"; ev.textContent = "~" + etaOf(r[1]); b.children[2].appendChild(ev); }
       b.onclick = function () { st.mine = st.mine === r[0] ? null : r[0]; refreshTexts(); };
       li.appendChild(b); ul.appendChild(li);
     });
@@ -350,20 +429,23 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     else {
       var nx = seq[ni], eta = toMin(nx[1]) - nowMin();
       $("big").textContent = live ? "Наступна зупинка: " + STOPS[nx[0]].n : "Найближча зупинка: " + STOPS[nx[0]].n;
-      $("sub").textContent = "За розкладом о " + nx[1] + (eta >= 1 ? ", через " + Math.ceil(eta) + " хв." : ", вже зараз.") + (st.live ? " Автобус за " + km([st.live.lat, st.live.lng], STOPS[nx[0]].ll).toFixed(1) + " км по прямій." : "");
+      $("sub").textContent = "За розкладом о " + nx[1] + "." + (lateMin() >= 2 ? " Орієнтовно прибудемо о " + etaOf(nx[1]) + (eta + lateMin() >= 1 ? " (через " + Math.ceil(eta + lateMin()) + " хв)." : " (вже зараз).") : (eta >= 1 ? " Через " + Math.ceil(eta) + " хв." : " Вже зараз.")) + (st.live ? " Автобус за " + km([st.live.lat, st.live.lng], STOPS[nx[0]].ll).toFixed(1) + " км по прямій." : "");
     }
+    var dd = dTxt(), de = $("delay");
+    if (dd) { de.hidden = false; de.className = "delay " + dd.c; de.textContent = dd.t; } else { de.hidden = true; }
     if (ring) { map.removeLayer(ring); ring = null; }
     var el = $("mine");
     if (!st.mine) { el.textContent = "Натисніть свою зупинку в розкладі, щоб побачити час прибуття."; return; }
     var s = STOPS[st.mine], n = nowMin(), t = null;
     ring = L.circleMarker(s.ll, { radius: 15, color: "#F5B800", weight: 3, fill: false }).addTo(map);
     for (var i = 0; i < seq.length; i++) if (seq[i][0] === st.mine && toMin(seq[i][1]) >= n) { t = seq[i][1]; break; }
-    el.innerHTML = "<strong>" + s.n + "</strong>: " + (t ? "автобус за розкладом о " + t + "." : "на сьогодні рейсів більше немає.");
+    el.innerHTML = "<strong>" + s.n + "</strong>: " + (t ? "автобус за розкладом о " + t + "." + (lateMin() >= 2 ? " Орієнтовно о " + etaOf(t) + " (+" + lateMin() + " хв)." : "") : "на сьогодні рейсів більше немає.");
   }
 
   /* справжній GPS */
   function setLive(d) {
     st.live = d;
+    updateDelay(d);
     if (d) moveBus(snap([d.lat, d.lng])); else removeBus();
     refreshTexts();
   }
@@ -399,7 +481,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     (function loop(now) {
       demoT += (now - last) / 1000 * 2; last = now;
       if (demoT > end) demoT = toMin(SCHED[st.key][0][1]);
-      var p = demoPos(demoT); if (p) moveBus(p);
+      var p = demoPos(demoT); if (p) { moveBus(p); updateDelay({ lat: p[0], lng: p[1] }); }
       if (now - tick > 500) { tick = now; refreshTexts(); }
       requestAnimationFrame(loop);
     })(last);
@@ -517,6 +599,54 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   }
   build();drawList();
 })();
+
+/* ===== Погода: Open-Meteo (без ключа) ===== */
+(function(){
+  var card=document.getElementById("wx");
+  var LAT=50.2445,LON=26.3634;
+  function info(c){
+    if(c===0)return["☀️","Ясно"];if(c===1)return["🌤️","Переважно ясно"];if(c===2)return["⛅","Мінлива хмарність"];if(c===3)return["☁️","Хмарно"];
+    if(c===45||c===48)return["🌫️","Туман"];if(c>=51&&c<=57)return["🌦️","Мряка"];if(c===61||c===63||c===65)return["🌧️","Дощ"];
+    if(c===66||c===67)return["🌧️","Крижаний дощ"];if(c>=71&&c<=75||c===77)return["🌨️","Сніг"];if(c>=80&&c<=82)return["🌦️","Злива"];
+    if(c===85||c===86)return["🌨️","Снігопад"];if(c>=95)return["⛈️","Гроза"];return["🌡️","—"];
+  }
+  function deg(v){var r=Math.round(v);return(r>0?"+":"")+r+"°";}
+  function render(d){
+    var cur=d.current,h=d.hourly,i,now=cur.time.slice(0,13),start=0;
+    for(i=0;i<h.time.length;i++){if(h.time[i].slice(0,13)>=now){start=i;break;}}
+    var ci=info(cur.weather_code),strip="",maxP=0;
+    for(i=start;i<Math.min(start+12,h.time.length);i++){
+      var hi=info(h.weather_code[i]),p=h.precipitation_probability?h.precipitation_probability[i]:0;
+      if(i<start+6&&p>maxP)maxP=p;
+      strip+='<div class="wx-h1">'+h.time[i].slice(11,16)+'<span>'+hi[0]+'</span><b>'+deg(h.temperature_2m[i])+'</b>'+(p>=30?p+'%':'&nbsp;')+'</div>';
+    }
+    function at(hh){
+      var day=cur.time.slice(0,10),k=h.time.indexOf(day+"T"+hh+":00");
+      if(k<0||k<start-1){var nd=h.time.filter(function(x){return x.slice(11,16)===hh+":00"&&x.slice(0,10)>day;})[0];k=nd?h.time.indexOf(nd):-1;}
+      return k<0?"—":deg(h.temperature_2m[k])+" "+info(h.weather_code[k])[0];
+    }
+    var tip="";
+    if(cur.apparent_temperature<=0)tip="Мороз, вдягніться тепліше.";
+    else if(maxP>=50)tip="Можливі опади найближчим часом: візьміть парасольку.";
+    else if(cur.wind_speed_10m>=10)tip="Сильний вітер.";
+    card.innerHTML='<div class="wx-top"><div class="wx-ico">'+ci[0]+'</div><div><div class="wx-t">'+deg(cur.temperature_2m)+'</div><div class="wx-d">'+ci[1]+' · відчувається '+deg(cur.apparent_temperature)+'</div></div><div class="wx-h">Погода<br>Кунів</div></div>'+
+      '<div class="wx-two"><div>Вранці о 07:00<b>'+at("07")+'</b></div><div>Після уроків о 14:00<b>'+at("14")+'</b></div></div>'+
+      '<div class="wx-strip">'+strip+'</div>'+
+      '<div class="wx-d">Вітер '+Math.round(cur.wind_speed_10m)+' м/с'+(cur.precipitation>0?' · опади '+cur.precipitation+' мм':'')+'</div>'+
+      (tip?'<p class="wx-tip">'+tip+'</p>':'');
+    card.hidden=false;
+  }
+  function load(){
+    var u="https://api.open-meteo.com/v1/forecast?latitude="+LAT+"&longitude="+LON+"&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation&hourly=temperature_2m,precipitation_probability,weather_code&timezone=auto&forecast_days=2&wind_speed_unit=ms";
+    fetch(u).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(d){
+      if(!d||!d.current||!d.hourly)throw 0;render(d);
+    }).catch(function(){
+      if(card.hidden){card.hidden=false;card.innerHTML='<div class="wx-d">Погода тимчасово недоступна.</div>';}
+    });
+  }
+  if(card){load();setInterval(load,20*60*1000);}
+})();
+
 /* ===== Тема ===== */
 (function(){
   var root=document.documentElement,b=document.getElementById("theme");
