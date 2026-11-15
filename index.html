@@ -151,6 +151,17 @@ li:last-child .row .m::before { bottom:50%; }
 .rlist button .n { color:var(--muted); width:22px; flex:none; font-variant-numeric:tabular-nums; }
 .rlist button[aria-current="true"] { font-weight:700; color:var(--green); }
 details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4px 0; }
+
+/* міні-плеєр унизу екрана */
+.mini { position:fixed; left:0; right:0; bottom:0; z-index:1000; display:flex; align-items:center; gap:10px; padding:8px max(12px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background:var(--card); border-top:1px solid var(--line); box-shadow:0 -2px 10px rgba(0,0,0,.12); }
+.mini[hidden] { display:none; }
+.mini .mt { flex:1; min-width:0; background:transparent; border:0; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer; display:grid; gap:1px; }
+.mini .mt b { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mini .mt span { font-size:12px; color:var(--muted); }
+.mini .ibtn { width:40px; height:40px; }
+.mini .ibtn.main { width:46px; height:46px; }
+.mini .ibtn.main svg { width:22px; height:22px; }
+body.has-mini { padding-bottom:70px; }
 </style>
 </head>
 <body>
@@ -211,6 +222,12 @@ details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4
   </div>
 </main>
 
+<div class="mini" id="mini" hidden role="region" aria-label="Радіо">
+  <button type="button" class="mt" id="mtitle" aria-label="Перейти до радіо"><b id="mt1"></b><span id="mt2"></span></button>
+  <button type="button" class="ibtn" id="mprev" aria-label="Попередній"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+  <button type="button" class="ibtn main" id="mplay" aria-label="Пауза"><svg viewBox="0 0 24 24" id="mplayicon"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+  <button type="button" class="ibtn" id="mnext" aria-label="Наступний"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7L4 19z"/></svg></button>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
 <script src="tracks.js"></script>
@@ -680,6 +697,7 @@ details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4
   function setMeta() {
     var t = tracks[idx];
     $("rtitle").textContent = t.title; $("rartist").textContent = t.artist || "";
+    $("mt1").textContent = t.title; $("mt2").textContent = window.RADIO_NAME || "Радіо";
     markList();
     if ("mediaSession" in navigator) {
       try { navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist || "", album: window.RADIO_NAME || "Радіо", artwork: window.RADIO_COVER ? [{ src: new URL(encodeURI(window.RADIO_COVER), location.href).href }] : [] }); } catch (e) {}
@@ -705,11 +723,14 @@ details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4
   });
   $("rplay").onclick = function () { if (audio.paused) audio.play().catch(function () { msg("Не вдалося запустити. Спробуйте ще раз."); }); else audio.pause(); };
   $("rnext").onclick = function () { next(1); };
+  $("mplay").onclick = $("rplay").onclick; $("mnext").onclick = $("rnext").onclick;
+  $("mprev").onclick = function () { $("rprev").onclick(); };
+  $("mtitle").onclick = function () { $("radio").scrollIntoView({ behavior: "smooth", block: "center" }); };
   $("rprev").onclick = function () { if (audio.currentTime > 4) audio.currentTime = 0; else next(-1); };
   $("rshuf").setAttribute("aria-pressed", shuffle);
   $("rshuf").onclick = function () { shuffle = !shuffle; $("rshuf").setAttribute("aria-pressed", shuffle); try { localStorage.setItem("bus.radio.shuffle", shuffle ? "1" : "0"); } catch (e) {} };
-  audio.addEventListener("play", function () { $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
-  audio.addEventListener("pause", function () { $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
+  audio.addEventListener("play", function () { $("mini").hidden = false; document.body.classList.add("has-mini"); $("mplayicon").innerHTML = PAUSE; $("mplay").setAttribute("aria-label", "Пауза"); $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
+  audio.addEventListener("pause", function () { $("mplayicon").innerHTML = PLAY; $("mplay").setAttribute("aria-label", "Грати"); $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
   audio.addEventListener("ended", function () { next(1); });
   audio.addEventListener("loadedmetadata", function () { $("rdur").textContent = mmss(audio.duration); });
   audio.addEventListener("timeupdate", function () {
