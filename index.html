@@ -162,6 +162,17 @@ details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4
 .mini .ibtn.main { width:46px; height:46px; }
 .mini .ibtn.main svg { width:22px; height:22px; }
 body.has-mini { padding-bottom:70px; }
+
+.wxhint { margin:0; font-size:13.5px; font-weight:600; background:var(--green-soft); color:var(--green); border-radius:10px; padding:8px 12px; }
+.wxhint[hidden], .wxerr[hidden] { display:none; }
+.wxerr { margin:0; font-size:14px; color:var(--muted); }
+.wxhours { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin; }
+.wxh { flex:none; width:58px; display:grid; justify-items:center; gap:2px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.wxh svg { width:28px; height:28px; }
+.wxh b { color:var(--ink); font-size:14px; }
+.rcover { border-radius:50%; }
+.mcover { width:40px; height:40px; border-radius:50%; object-fit:cover; flex:none; border:1px solid var(--line); }
+.mcover[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -198,7 +209,10 @@ body.has-mini { padding-bottom:70px; }
       <h2>Погода в Кунові <small id="wxupd"></small></h2>
       <div class="wxplace">с. Кунів, Плужненська громада, Шепетівський район, Хмельницька область</div>
       <div class="wxnow"><span id="wxicon" aria-hidden="true"></span><div><div class="wxtemp" id="wxtemp"></div><div class="wxdesc" id="wxdesc"></div></div></div>
+      <p class="wxhint" id="wxhint" hidden></p>
       <div class="wxtrips" id="wxtrips"></div>
+      <div class="wxhours" id="wxhours" aria-label="Прогноз на 12 годин"></div>
+      <p class="wxerr" id="wxerr" hidden>Погода тимчасово недоступна</p>
     </section>
     <div class="seg" role="group" aria-label="Рейс">
       <button id="tab-am" aria-pressed="true">Ранок</button>
@@ -223,6 +237,7 @@ body.has-mini { padding-bottom:70px; }
 </main>
 
 <div class="mini" id="mini" hidden role="region" aria-label="Радіо">
+  <img class="mcover" id="mcover" alt="" hidden>
   <button type="button" class="mt" id="mtitle" aria-label="Перейти до радіо"><b id="mt1"></b><span id="mt2"></span></button>
   <button type="button" class="ibtn" id="mprev" aria-label="Попередній"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
   <button type="button" class="ibtn main" id="mplay" aria-label="Пауза"><svg viewBox="0 0 24 24" id="mplayicon"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
@@ -644,7 +659,7 @@ body.has-mini { padding-bottom:70px; }
     return b + CLOUD + '</svg>';
   }
   function r(x) { return Math.round(x); }
-  function t(x) { return (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(r(x)) + "°"; }
+  function t(x) { var n = r(x); return (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n) + "°"; }
   function render(d) {
     var c = d.current, h = d.hourly, now = new Date();
     $("wxicon").innerHTML = icon(KIND(c.weather_code));
@@ -668,14 +683,34 @@ body.has-mini { padding-bottom:70px; }
       el.querySelector(".r").textContent = (TXT[h.weather_code[idx]] || "") + (pr !== null ? ", опади " + pr + "%" : "");
       box.appendChild(el);
     });
+    var hrs = $("wxhours"); hrs.innerHTML = ""; var cnt = 0, maxP = 0, minT = 99, maxT = -99;
+    for (var k = 0; k < h.time.length && cnt < 12; k++) {
+      var dk = new Date(h.time[k]);
+      if (dk.getTime() < now.getTime() - 1800 * 1000) continue;
+      cnt++;
+      var p2 = h.precipitation_probability ? h.precipitation_probability[k] : 0;
+      maxP = Math.max(maxP, p2 || 0); minT = Math.min(minT, h.temperature_2m[k]); maxT = Math.max(maxT, h.temperature_2m[k]);
+      var hd = document.createElement("div"); hd.className = "wxh";
+      hd.innerHTML = "<span></span>" + icon(KIND(h.weather_code[k])) + "<b></b><span></span>";
+      hd.children[0].textContent = ("0" + dk.getHours()).slice(-2) + ":00";
+      hd.children[2].textContent = t(h.temperature_2m[k]);
+      hd.children[3].textContent = p2 ? p2 + "%" : "";
+      hrs.appendChild(hd);
+    }
+    var tips = [];
+    if (maxP >= 40) tips.push("Можливі опади — візьміть парасольку");
+    if (Math.min(minT, c.temperature_2m) <= 0) tips.push("Мороз — вдягніться тепліше");
+    if (c.wind_speed_10m >= 10) tips.push("Сильний вітер");
+    var hint = $("wxhint"); hint.hidden = !tips.length; hint.textContent = tips.join(". ");
+    $("wxerr").hidden = true; $("wxtrips").hidden = false; $("wxhours").hidden = false;
     $("wx").hidden = false;
   }
   function load() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
       "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code&timezone=Europe%2FKyiv&forecast_days=2&wind_speed_unit=ms";
-    fetch(url).then(function (x) { if (!x.ok) throw 0; return x.json(); }).then(function (d) { try { render(d); } catch (e) {} }).catch(function () {});
+    fetch(url).then(function (x) { if (!x.ok) throw 0; return x.json(); }).then(function (d) { render(d); }).catch(function () { if ($("wx").hidden) { $("wxtemp").textContent = ""; $("wxdesc").textContent = ""; $("wxicon").innerHTML = ""; $("wxtrips").hidden = true; $("wxhours").hidden = true; $("wxhint").hidden = true; $("wxerr").hidden = false; $("wx").hidden = false; } else { $("wxupd").textContent = "не оновилось"; } });
   }
-  load(); setInterval(load, 15 * 60 * 1000);
+  load(); setInterval(load, 20 * 60 * 1000);
 })();
 </script>
 <script>
@@ -686,7 +721,7 @@ body.has-mini { padding-bottom:70px; }
   if (!tracks.length) return;
   $("radio").hidden = false;
   $("rname").textContent = window.RADIO_NAME || "Радіо";
-  if (window.RADIO_COVER) { var cv = $("rcover"); cv.src = encodeURI(window.RADIO_COVER); cv.hidden = false; cv.onerror = function () { cv.hidden = true; }; }
+  if (window.RADIO_COVER) { var cv = $("rcover"); cv.src = encodeURI(window.RADIO_COVER); cv.hidden = false; cv.onerror = function () { cv.hidden = true; $("mcover").hidden = true; }; var mc = $("mcover"); mc.src = cv.src; mc.hidden = false; }
   var audio = new Audio(); audio.preload = "none";
   var idx = 0, shuffle = false, fails = 0, seeking = false;
   try { shuffle = localStorage.getItem("bus.radio.shuffle") === "1"; } catch (e) {}
