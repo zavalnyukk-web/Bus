@@ -2,183 +2,105 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0C3329">
-<title>Шкільний автобус: де він зараз?</title>
-<meta name="description" content="Позиція шкільного автобуса Кунівського ліцею на карті, час прибуття на вашу зупинку, запізнення й погода.">
-<meta property="og:type" content="website">
-<meta property="og:locale" content="uk_UA">
-<meta property="og:site_name" content="Шкільний автобус · Кунівський ліцей">
-<meta property="og:title" content="Де зараз шкільний автобус?">
-<meta property="og:description" content="Карта в реальному часі, час прибуття на зупинку, запізнення й погода в Кунові.">
-<meta property="og:url" content="https://zavalnyukk-web.github.io/Bus/">
-<meta property="og:image" content="https://zavalnyukk-web.github.io/Bus/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1F6F5C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Автобус Кунівського ліцею</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
-:root{
-  --bg:#EDF2EF; --card:#FFFFFF; --card2:#F6F9F7; --ink:#0E1B17; --muted:#5E6F68; --line:#DCE4E0;
-  --green:#1F6F5C; --green2:#2E9C80; --green-soft:#E2F1EB; --bus:#F5B800; --bus-ink:#1B1600; --live:#1FA463;
-  --shadow:0 1px 2px rgba(14,27,23,.06),0 8px 24px rgba(14,27,23,.07);
-  --hero1:#0C3329; --hero2:#1F6F5C; --tile-filter:none; color-scheme:light;
-  --display:"Unbounded","Inter",system-ui,sans-serif; --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+:root {
+  --bg:#F3F5F4; --card:#FFFFFF; --ink:#0F1D1A; --muted:#62716B; --line:#DDE3E0;
+  --green:#1F6F5C; --green-soft:#E3F0EB; --bus:#F5B800; --bus-ink:#1B1600; --live:#1FA463;
+  --casing:#FFFFFF; color-scheme: light;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#09100E; --card:#121B18; --card2:#0F1714; --ink:#E9F0EC; --muted:#93A39C; --line:#22302B;
-    --green:#4DBA9A; --green2:#3FA886; --green-soft:#16302A; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
-    --hero1:#06120F; --hero2:#124A3C; --tile-filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.8); color-scheme:dark;
-  }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0C1311; --card:#141D1A; --ink:#E9F0EC; --muted:#94A39C; --line:#25312C;
+    --green:#4DBA9A; --green-soft:#17332B; --casing:#0C1311; color-scheme: dark; }
 }
-:root[data-theme="dark"]{
-  --bg:#09100E; --card:#121B18; --card2:#0F1714; --ink:#E9F0EC; --muted:#93A39C; --line:#22302B;
-  --green:#4DBA9A; --green2:#3FA886; --green-soft:#16302A; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
-  --hero1:#06120F; --hero2:#124A3C; --tile-filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.8); color-scheme:dark;
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.top { background:var(--card); border-bottom:1px solid var(--line); padding:12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+.top-in { max-width:1120px; margin:0 auto; display:flex; align-items:center; gap:12px; }
+.logo { width:52px; height:40px; border-radius:10px; background:var(--card); border:1px solid var(--line); display:grid; place-items:center; flex:none; }
+.top h1 { font-size:17px; line-height:1.2; margin:0; font-weight:700; }
+.top p { margin:0; font-size:13px; color:var(--muted); }
+.page { max-width:1120px; margin:0 auto; padding:16px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); display:grid; gap:16px; grid-template-columns:1fr; }
+@media (min-width:900px) { .page { grid-template-columns: minmax(0,1.4fr) minmax(320px,1fr); align-items:start; } .mapwrap { position:sticky; top:16px; } }
+/* на телефоні спершу статус і час прибуття, потім карта */
+@media (max-width:899px) {
+  .panel { display:contents; }
+  .notice { order:1; } .status { order:2; } .mycard { order:3; } .mapwrap { order:4; } .seg { order:5; } .listcard { order:6; } .note { order:7; }
+  #map { height:min(48vh, 420px); min-height:300px; }
 }
-*{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
-body.has-mini{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
-button{font-family:inherit}
-.hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(1200px 300px at 85% -40%,rgba(245,184,0,.28),transparent 60%),linear-gradient(135deg,var(--hero1),var(--hero2));padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 70px max(16px,env(safe-area-inset-left))}
-.hero::after{content:"";position:absolute;left:0;right:0;bottom:46px;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.45) 0 22px,transparent 22px 44px);opacity:.5}
-.hero-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:14px}
-.logo{width:62px;height:46px;border-radius:14px;background:#fff;display:grid;place-items:center;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}
-.hero h1{font:700 clamp(19px,4.6vw,26px)/1.15 var(--display);margin:0;letter-spacing:-.01em}
-.hero p{margin:3px 0 0;font-size:13px;opacity:.85}
-.tools{margin-left:auto;display:flex;gap:8px}
-.ibtn{width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px)}
-.ibtn:hover{background:rgba(255,255,255,.2)}
-.ibtn:focus-visible,.seg button:focus-visible,.row:focus-visible,.rb:focus-visible,.trk:focus-visible{outline:2px solid var(--bus);outline-offset:2px}
-.page{max-width:1120px;margin:-48px auto 0;position:relative;padding:0 max(16px,env(safe-area-inset-right)) 36px max(16px,env(safe-area-inset-left));display:grid;gap:18px;grid-template-columns:1fr}
-@media(min-width:900px){.page{grid-template-columns:minmax(0,1.4fr) minmax(330px,1fr);align-items:start}.mapwrap{position:sticky;top:16px}}
-.mapwrap{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow)}
-#map{height:min(64vh,580px);min-height:360px;z-index:0}
-@media(max-width:899px){#map{height:40vh;min-height:270px}}
-.leaflet-tile-pane{filter:var(--tile-filter)}
-.leaflet-container{font-family:var(--body);background:var(--bg)}
-.badge{position:absolute;left:14px;top:14px;z-index:500;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--muted);box-shadow:var(--shadow)}
-.badge.demo{color:var(--bus-ink);background:var(--bus);border-color:var(--bus)}
-.panel{display:grid;gap:16px;min-width:0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
-.status{padding:20px;display:grid;gap:10px}
-.pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:max-content;padding:5px 11px 5px 9px;border-radius:999px;background:var(--card2);border:1px solid var(--line)}
-.pill i{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
-.pill.on{color:var(--live);background:rgba(31,164,99,.1);border-color:rgba(31,164,99,.3)}
-.pill.on i{background:var(--live);animation:ping 1.8s infinite}
-@keyframes ping{0%{box-shadow:0 0 0 0 rgba(31,164,99,.55)}70%,100%{box-shadow:0 0 0 9px rgba(31,164,99,0)}}
-.big{font:700 clamp(19px,4.5vw,23px)/1.2 var(--display);margin:2px 0 0;letter-spacing:-.01em;text-wrap:balance}
-.sub{margin:0;color:var(--muted)}
-.mine{margin:2px 0 0;padding:12px 14px;border-radius:14px;background:var(--green-soft);font-size:14px;border:1px solid var(--line)}
-.mine strong{font-weight:700}
-.seg{display:flex;gap:4px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
-.seg button{flex:1;font-weight:600;font-size:14px;color:var(--muted);background:transparent;border:0;border-radius:12px;padding:11px 12px;cursor:pointer;transition:background .2s,color .2s}
-.seg button[aria-pressed="true"]{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;box-shadow:0 4px 12px rgba(31,111,92,.35)}
-.list{list-style:none;margin:0;padding:10px 0}
-.list li{position:relative}
-.row{width:100%;display:grid;grid-template-columns:56px 22px 1fr;align-items:center;gap:8px;padding:10px 18px;background:transparent;border:0;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
-.row:hover{background:var(--card2)}
-.row .t{font-variant-numeric:tabular-nums;font-weight:700}
-.row .m{position:relative;height:100%;display:grid;place-items:center}
-.row .m::before{content:"";position:absolute;left:50%;top:-22px;bottom:-22px;width:3px;margin-left:-1.5px;background:var(--line);border-radius:2px}
-li:first-child .row .m::before{top:50%}
-li:last-child .row .m::before{bottom:50%}
-.row .m b{position:relative;width:12px;height:12px;border-radius:50%;background:var(--card);border:3px solid var(--green)}
-.row.school .m b{background:var(--green)}
-.row.done{color:var(--muted)}
-.row.done .m b{border-color:var(--line);background:var(--line)}
-.row.next{background:var(--green-soft)}
-.row.next .n{font-weight:700}
-.row.next .m b{border-color:var(--bus-ink);background:var(--bus);width:17px;height:17px;box-shadow:0 0 0 5px rgba(245,184,0,.25)}
-.row.sel .n{text-decoration:underline;text-underline-offset:3px}
-.delay{margin:0;font-weight:700;font-size:15px;padding:9px 14px;border-radius:12px;width:max-content;max-width:100%}
-.delay[hidden]{display:none}
-.delay.ok{background:rgba(31,164,99,.14);color:var(--live)}
-.delay.late{background:rgba(228,87,46,.14);color:#D2461F}
-.delay.early{background:rgba(245,184,0,.2);color:#9A6E00}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .delay.late{color:#FF8A66}:root:not([data-theme="light"]) .delay.early{color:#FFD24D}}
-:root[data-theme="dark"] .delay.late{color:#FF8A66}:root[data-theme="dark"] .delay.early{color:#FFD24D}
-.eta{margin-left:8px;font-size:12.5px;font-weight:700;color:#D2461F;font-variant-numeric:tabular-nums}
-:root[data-theme="dark"] .eta{color:#FF8A66}
-/* погода */
-.wx{padding:18px 20px;display:grid;gap:12px}
-.wx[hidden]{display:none}
-.wx-top{display:flex;align-items:center;gap:14px}
-.wx-ico{font-size:44px;line-height:1}
-.wx-t{font:700 34px/1 var(--display);letter-spacing:-.02em}
-.wx-d{color:var(--muted);font-size:14px}
-.wx-h{margin-left:auto;text-align:right;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
-.wx-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.wx-two div{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;color:var(--muted)}
-.wx-two b{display:block;color:var(--ink);font-size:16px}
-.wx-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
-.wx-h1{flex:none;width:54px;text-align:center;padding:8px 0;border-radius:12px;background:var(--card2);border:1px solid var(--line);font-size:12px;color:var(--muted)}
-.wx-h1 span{display:block;font-size:20px;margin:2px 0}
-.wx-h1 b{display:block;color:var(--ink);font-size:14px}
-.wx-tip{margin:0;font-size:13.5px;padding:9px 12px;border-radius:12px;background:var(--green-soft)}
-.note{font-size:12.5px;color:var(--muted);margin:0;padding:0 4px}
-.stop-tip{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:600 12px var(--body);box-shadow:0 2px 6px rgba(0,0,0,.2);padding:3px 8px}
-.stop-tip::before{display:none}
-.busmark{filter:drop-shadow(0 3px 4px rgba(0,0,0,.45))}
-/* радіо */
-.radio{padding:20px;display:grid;gap:14px}
-.radio[hidden]{display:none}
-.rhead{display:flex;align-items:center;gap:14px}
-.disc{width:78px;height:78px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font:700 28px var(--display);background:conic-gradient(from 210deg,#1F6F5C,#F5B800,#E4572E,#6C4BC1,#1F6F5C);box-shadow:var(--shadow);position:relative;overflow:hidden}
-.disc::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:var(--card);border:3px solid rgba(0,0,0,.15)}
-.disc span{position:relative;z-index:0;opacity:0}
-.disc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.disc.spin{animation:spin 6s linear infinite}
-.disc.has-cover{border-radius:22px;background:#0b1a16;animation:none}
-.disc.has-cover::after{display:none}
-.disc.has-cover.spin{animation:beat 1.4s ease-in-out infinite alternate}
-@keyframes beat{from{transform:scale(1)}to{transform:scale(1.045)}}
-.mini .disc.has-cover{border-radius:12px}
-.rhead .disc{width:112px;height:112px}
-@keyframes spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.disc.spin{animation:none}.pill.on i{animation:none}}
-.rmeta{min-width:0}
-.rmeta .eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
-.rmeta .rt{font:700 17px/1.25 var(--display);margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rmeta .ra{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.bar span:last-child{text-align:right}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--green) var(--p,0%),var(--line) var(--p,0%));outline:none;margin:0}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--card);border:3px solid var(--green);cursor:pointer}
-input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--green);cursor:pointer}
-.ctrl{display:flex;align-items:center;justify-content:center;gap:10px}
-.rb{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--ink);display:grid;place-items:center;cursor:pointer}
-.rb:hover{background:var(--green-soft)}
-.rb.on{color:var(--green);border-color:var(--green)}
-.rb.play{width:62px;height:62px;background:linear-gradient(135deg,var(--bus),#FFD24D);color:var(--bus-ink);border:0;box-shadow:0 6px 16px rgba(245,184,0,.4)}
-.vol{display:flex;align-items:center;gap:10px;color:var(--muted)}
-.trks{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:220px;overflow:auto}
-.trk{width:100%;display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:center;text-align:left;border:0;background:transparent;color:var(--ink);padding:8px 10px;border-radius:12px;cursor:pointer;font:inherit}
-.trk:hover{background:var(--card2)}
-.trk.cur{background:var(--green-soft);font-weight:600}
-.trk small{display:block;color:var(--muted);font-weight:400}
-.trk .no{color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
-.mini{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));width:min(560px,calc(100% - 24px));z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 8px;border-radius:20px;background:var(--card);border:1px solid var(--line);box-shadow:0 12px 36px rgba(0,0,0,.28)}
-.mini[hidden]{display:none}
-.mini .disc{width:46px;height:46px}
-.mini .disc::after{width:12px;height:12px;border-width:2px}
-.mini .mt{min-width:0;flex:1}
-.mini .mt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mini .mt small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.mini .rb{width:40px;height:40px}
-.mini .rb.play{width:46px;height:46px}
-.foot{max-width:1120px;margin:0 auto;padding:0 16px 28px;text-align:center;color:var(--muted);font-size:12px}
+.mapwrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
+#map { height:min(62vh, 560px); min-height:340px; z-index:0; }
+.badge { position:absolute; left:12px; top:12px; z-index:500; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; color:var(--muted); }
+.badge.demo { color:var(--bus-ink); background:var(--bus); border-color:var(--bus); }
+.panel { display:grid; gap:14px; min-width:0; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:14px; }
+.status { padding:16px; display:grid; gap:10px; }
+.pill { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); }
+.pill i { width:9px; height:9px; border-radius:50%; background:var(--muted); display:inline-block; }
+.pill.on { color:var(--live); }
+.pill.on i { background:var(--live); box-shadow:0 0 0 0 rgba(31,164,99,.5); animation:ping 1.8s infinite; }
+@keyframes ping { 70% { box-shadow:0 0 0 8px rgba(31,164,99,0); } 100% { box-shadow:0 0 0 0 rgba(31,164,99,0); } }
+@media (prefers-reduced-motion: reduce) { .pill.on i { animation:none; } }
+.big { font-size:22px; line-height:1.2; font-weight:700; margin:0; text-wrap:balance; }
+.sub { margin:0; color:var(--muted); }
+.mine { margin:0; padding:10px 12px; border-radius:10px; background:var(--green-soft); font-size:14px; }
+.mine strong { font-weight:600; }
+.seg { display:flex; gap:4px; padding:4px; background:var(--bg); border:1px solid var(--line); border-radius:12px; }
+.seg button { flex:1; font:inherit; font-weight:600; font-size:14px; color:var(--muted); background:transparent; border:0; border-radius:9px; padding:9px 12px; cursor:pointer; }
+.seg button[aria-pressed="true"] { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.list { list-style:none; margin:0; padding:8px 0; }
+.list li { position:relative; }
+.row { width:100%; display:grid; grid-template-columns:54px 22px 1fr; align-items:center; gap:6px; padding:9px 16px; background:transparent; border:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
+.row .t { font-variant-numeric:tabular-nums; font-weight:600; }
+.row .m { position:relative; height:100%; display:grid; place-items:center; }
+.row .m::before { content:""; position:absolute; left:50%; top:-20px; bottom:-20px; width:2px; margin-left:-1px; background:var(--line); }
+li:first-child .row .m::before { top:50%; }
+li:last-child .row .m::before { bottom:50%; }
+.row .m b { position:relative; width:12px; height:12px; border-radius:50%; background:var(--card); border:3px solid var(--green); }
+.row.school .m b { background:var(--green); }
+.row.done { color:var(--muted); }
+.row.done .m b { border-color:var(--line); background:var(--line); }
+.row.next { background:var(--green-soft); }
+.row.next .m b { border-color:var(--bus-ink); background:var(--bus); width:16px; height:16px; }
+.row.sel .n { text-decoration:underline; text-underline-offset:3px; }
+.row .tag { font-size:11px; font-weight:600; color:var(--muted); margin-left:6px; text-transform:uppercase; letter-spacing:.04em; }
+.row:focus-visible, .seg button:focus-visible { outline:2px solid var(--green); outline-offset:-2px; }
+.note { font-size:12.5px; color:var(--muted); margin:0; }
+.stop-tip { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:6px; font:600 12px Inter, sans-serif; box-shadow:0 1px 3px rgba(0,0,0,.2); padding:2px 7px; }
+.stop-tip::before { display:none; }
+.leaflet-container { font-family:Inter, system-ui, sans-serif; background:var(--bg); }
+.busmark { filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+
+.notice { padding:12px 14px; border-radius:14px; background:var(--bus); color:var(--bus-ink); font-weight:600; display:grid; gap:2px; }
+.notice small { font-weight:500; opacity:.8; }
+.delay { font-size:13px; font-weight:600; }
+.delay.late { color:#B4560A; } .delay.ok { color:var(--live); } .delay.early { color:var(--green); }
+@media (prefers-color-scheme: dark) { .delay.late { color:#F0A25A; } }
+.mycard { padding:16px; display:grid; gap:10px; }
+.mycard h2 { margin:0; font-size:15px; font-weight:700; }
+.field { width:100%; font:inherit; font-size:15px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+.res { margin:0; font-size:14px; }
+.res b { font-weight:700; }
+.btn { font:inherit; font-weight:600; font-size:14px; border:0; border-radius:10px; padding:10px 14px; cursor:pointer; background:var(--green); color:#fff; }
+.btn.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+.btns { display:flex; gap:8px; flex-wrap:wrap; }
+.hint { margin:0; font-size:12.5px; color:var(--muted); }
+.field:focus-visible, .btn:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
 </style>
 </head>
 <body>
-<header class="hero"><div class="hero-in">
+<header class="top"><div class="top-in">
   <div class="logo" aria-hidden="true"><svg width="34" height="20" viewBox="0 0 60 34"><path d="M3 9 Q3 4 8 4 H43 Q46 4 48 7 L56 17 Q57 18.5 57 20 V27 Q57 28.5 55.5 28.5 H4.5 Q3 28.5 3 27 Z" fill="#F5B800" stroke="#1B1600" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="18" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="29" y="9" width="9" height="8" rx="1" fill="#1B1600"/><path d="M41 9 H45 Q46.5 9 47.5 10.5 L52 17 H41 Z" fill="#1B1600"/><rect x="3" y="20.5" width="54" height="2.6" fill="#1B1600"/><rect x="53" y="22" width="3" height="3" rx="1" fill="#fff"/><circle cx="15" cy="29" r="5" fill="#1B1600"/><circle cx="15" cy="29" r="1.8" fill="#bbb"/><circle cx="44" cy="29" r="5" fill="#1B1600"/><circle cx="44" cy="29" r="1.8" fill="#bbb"/></svg></div>
-  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей</p></div>
-  <div class="tools"><button class="ibtn" id="theme" type="button" aria-label="Змінити тему"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>
+  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей · БАЗ А079</p></div>
 </div></header>
 
 <main class="page">
@@ -187,51 +109,35 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     <div class="badge" id="badge" hidden></div>
   </div>
   <div class="panel">
+    <div class="notice" id="notice" role="status" hidden><span id="noticetxt"></span><small id="noticetime"></small></div>
     <section class="card status" aria-live="polite">
       <span class="pill" id="pill"><i></i><span id="pilltxt">Перевіряю…</span></span>
       <p class="big" id="big">Завантажую маршрут</p>
       <p class="sub" id="sub"></p>
       <p class="delay" id="delay" hidden></p>
-      <p class="mine" id="mine"></p>
     </section>
-    <section class="card wx" id="wx" aria-label="Погода" hidden></section>
+    <section class="card mycard">
+      <h2>Моя зупинка</h2>
+      <select class="field" id="mystop" aria-label="Оберіть свою зупинку"></select>
+      <p class="res" id="mine">Оберіть зупинку, і сайт покаже, коли до неї приїде автобус.</p>
+      <div class="btns">
+        <button type="button" class="btn" id="notifybtn" hidden>Сповістити, коли автобус буде поруч</button>
+        <button type="button" class="btn" id="installbtn" hidden>Додати на головний екран</button>
+      </div>
+      <p class="hint" id="notifyhint" hidden></p>
+      <p class="hint" id="installhint" hidden></p>
+    </section>
     <div class="seg" role="group" aria-label="Рейс">
       <button id="tab-am" aria-pressed="true">Ранок</button>
       <button id="tab-pm" aria-pressed="false">Після уроків</button>
     </div>
-    <section class="card"><ul class="list" id="list"></ul></section>
-
-    <section class="card radio" id="radio" hidden aria-label="Радіо">
-      <div class="rhead">
-        <div class="disc" id="disc"><span id="disc-l">♪</span></div>
-        <div class="rmeta"><div class="eyebrow" id="rname">Радіо</div><div class="rt" id="rtitle">Оберіть трек</div><div class="ra" id="rartist"></div></div>
-      </div>
-      <div class="bar"><span id="rcur">0:00</span><input type="range" id="rseek" min="0" max="1000" value="0" aria-label="Перемотування"><span id="rdur">0:00</span></div>
-      <div class="ctrl">
-        <button class="rb" id="rshuf" type="button" aria-label="Перемішати" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
-        <button class="rb" id="rprev" type="button" aria-label="Попередній"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-        <button class="rb play" id="rplay" type="button" aria-label="Грати"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-        <button class="rb" id="rnext" type="button" aria-label="Наступний"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
-      </div>
-      <div class="vol"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><input type="range" id="rvol" min="0" max="100" value="80" aria-label="Гучність"></div>
-      <ul class="trks" id="rlist"></ul>
-    </section>
+    <section class="card listcard"><ul class="list" id="list"></ul></section>
     <p class="note">Позиція автобуса оновлюється кожні кілька секунд, поки рейс триває. Час у розкладі орієнтовний.</p>
   </div>
 </main>
-<div class="foot">Розробник: zavalnyuk</div>
-
-<div class="mini" id="mini" hidden>
-  <div class="disc" id="mdisc"><span>♪</span></div>
-  <div class="mt"><b id="mtitle"></b><small id="martist"></small></div>
-  <button class="rb" id="mprev" type="button" aria-label="Попередній"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-  <button class="rb play" id="mplay" type="button" aria-label="Грати"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-  <button class="rb" id="mnext" type="button" aria-label="Наступний"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
-</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
-<script src="tracks.js"></script>
 <script>
 (function () {
   var STOPS = {
@@ -247,38 +153,37 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     am: [["M","07:25"],["K","07:28"],["A","07:32"],["S","07:40"],["B","07:50"],["S","08:00"],["V","08:22"],["D","08:40"],["S","08:53"]],
     pm: [["A","13:37"],["K","13:42"],["M","13:45"],["S","13:55"],["D","14:10"],["S","14:20"],["B","14:50"],["S","15:25"],["A","15:30"],["K","15:32"],["M","15:35"],["S","15:50"],["D","16:00"],["V","16:16"],["S","16:40"]]
   };
-  var DEMO = location.hash === "#demo";
+  var DEMO = /^#demo/.test(location.hash), DEMO_LATE = location.hash === "#demo-late" ? 6 : 0;
   var $ = function (id) { return document.getElementById(id); };
   function toMin(s) { var p = s.split(":"); return +p[0] * 60 + +p[1]; }
   function fmt(m) { m = Math.floor(m + 1e-6); var h = Math.floor(m / 60), mm = m % 60; return (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm; }
-  function dark() { return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches; }
+  function kmTxt(m) { return (m / 1000).toFixed(1).replace(".", ",") + " км"; }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} return null; }
 
   /* карта */
   var map = L.map("map", { zoomControl: true, attributionControl: true });
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
   var all = Object.keys(STOPS).map(function (c) { return STOPS[c].ll; });
   map.fitBounds(L.latLngBounds(all).pad(0.18));
-
   var routeLayer = L.layerGroup().addTo(map), stopLayer = L.layerGroup().addTo(map);
   Object.keys(STOPS).forEach(function (c) {
     var s = STOPS[c];
     L.circleMarker(s.ll, { radius: s.school ? 9 : 7, color: "#1F6F5C", weight: 3, fillColor: s.school ? "#1F6F5C" : "#fff", fillOpacity: 1 })
       .bindTooltip(s.n, { permanent: true, direction: "right", offset: [9, 0], className: "stop-tip" }).addTo(stopLayer);
   });
-
   var busSvg = '<svg class="busmark" width="58" height="34" viewBox="0 0 60 34"><path d="M3 9 Q3 4 8 4 H43 Q46 4 48 7 L56 17 Q57 18.5 57 20 V27 Q57 28.5 55.5 28.5 H4.5 Q3 28.5 3 27 Z" fill="#F5B800" stroke="#1B1600" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="18" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="29" y="9" width="9" height="8" rx="1" fill="#1B1600"/><path d="M41 9 H45 Q46.5 9 47.5 10.5 L52 17 H41 Z" fill="#1B1600"/><rect x="3" y="20.5" width="54" height="2.6" fill="#1B1600"/><rect x="53" y="22" width="3" height="3" rx="1" fill="#fff"/><circle cx="15" cy="29" r="5" fill="#1B1600"/><circle cx="15" cy="29" r="1.8" fill="#bbb"/><circle cx="44" cy="29" r="5" fill="#1B1600"/><circle cx="44" cy="29" r="1.8" fill="#bbb"/></svg>';
   var busIcon = L.divIcon({ html: busSvg, className: "", iconSize: [58, 34], iconAnchor: [29, 17] });
   var bus = null, busPos = null, anim = null, ring = null;
 
-  /* дороги: маршрути між зупинками через OSRM, зберігаються в пам'яті браузера */
+  /* дороги: відрізки між зупинками через OSRM, зберігаються в пам'яті браузера */
   var CKEY = "bus.routes.v4", cache = {};
   try { cache = JSON.parse(localStorage.getItem(CKEY) || "{}"); } catch (e) { cache = {}; }
   function saveCache() { try { localStorage.setItem(CKEY, JSON.stringify(cache)); } catch (e) {} }
   var SERVERS = ["https://router.project-osrm.org/route/v1/driving/", "https://routing.openstreetmap.de/routed-car/route/v1/driving/"];
-  function legKey(a, b) { return a + ">" + b; }
   function fetchLeg(a, b) {
-    var k = legKey(a, b);
+    var k = a + ">" + b, rk = b + ">" + a;
     if (cache[k]) return Promise.resolve(cache[k]);
+    if (cache[rk]) return Promise.resolve(cache[rk].slice().reverse());
     var A = STOPS[a].ll, B = STOPS[b].ll;
     var path = A[1] + "," + A[0] + ";" + B[1] + "," + B[0] + "?overview=full&geometries=geojson";
     function tryServer(i) {
@@ -290,120 +195,48 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     }
     return tryServer(0).then(function (pts) { if (pts) { cache[k] = pts; saveCache(); } return pts; });
   }
-
-  var st = { key: new Date().getHours() < 11 ? "am" : "pm", mine: null, live: null, legs: [], pts: [], routed: false, delay: null, dl: [] };
-
-  function loadRoute() {
-    var seq = SCHED[st.key], jobs = [], pairs = [];
-    for (var i = 0; i < seq.length - 1; i++) {
-      var a = seq[i][0], b = seq[i + 1][0];
-      pairs.push([a, b]);
-      jobs.push(fetchLeg(a, b));
-    }
-    var key = st.key;
-    return Promise.all(jobs).then(function (res) {
-      if (key !== st.key) return;
-      st.legs = res.map(function (pts, i) {
-        var fb = [STOPS[pairs[i][0]].ll, STOPS[pairs[i][1]].ll];
-        return pts || fb;
-      });
-      st.routed = res.every(function (p) { return !!p; });
-      st.pts = [].concat.apply([], st.legs);
-      routeLayer.clearLayers();
-      var seen = {};
-      st.legs.forEach(function (pts, i) {
-        var k = [pairs[i][0], pairs[i][1]].sort().join("");
-        if (seen[k]) return; seen[k] = 1;
-        var opt = st.routed ? {} : { dashArray: "6 8" };
-        L.polyline(pts, L.extend({ color: "#fff", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }, {})).addTo(routeLayer);
-        L.polyline(pts, L.extend({ color: "#1F6F5C", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }, opt)).addTo(routeLayer);
-      });
-      stopLayer.eachLayer(function (l) { l.bringToFront(); });
-      if (bus) bus.setZIndexOffset(1000);
-      refreshTexts();
-    });
-  }
-
-  /* найближча точка маршруту до GPS: автобус "прилипає" до дороги */
-  function snap(ll) {
-    var pts = st.pts; if (!pts.length || !st.routed) return ll;
-    var kx = 111320 * Math.cos(ll[0] * Math.PI / 180), ky = 110540, best = 1e12, bp = ll;
-    for (var i = 0; i < pts.length - 1; i++) {
-      var ax = (pts[i][1] - ll[1]) * kx, ay = (pts[i][0] - ll[0]) * ky;
-      var bx = (pts[i + 1][1] - ll[1]) * kx, by = (pts[i + 1][0] - ll[0]) * ky;
-      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
-      var px = ax + t * dx, py = ay + t * dy, d = px * px + py * py;
-      if (d < best) { best = d; bp = [ll[0] + py / ky, ll[1] + px / kx]; }
-    }
-    return best < 60 * 60 ? bp : ll;
-  }
-  function moveBus(ll) {
-    if (!bus) { bus = L.marker(ll, { icon: busIcon, zIndexOffset: 1000, keyboard: false }).addTo(map); busPos = ll; return; }
-    var from = busPos, to = ll, t0 = performance.now(), dur = DEMO ? 120 : 3500;
-    if (anim) cancelAnimationFrame(anim);
-    (function step(now) {
-      var f = Math.min(1, (now - t0) / dur);
-      busPos = [from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f];
-      bus.setLatLng(busPos);
-      if (f < 1) anim = requestAnimationFrame(step);
-    })(t0);
-  }
-  function removeBus() { if (bus) { map.removeLayer(bus); bus = null; busPos = null; } }
-
   function km(a, b) {
     var R = 6371, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
     var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     return 2 * R * Math.asin(Math.sqrt(h));
   }
+  function mkLeg(pts) {
+    var cum = [0];
+    for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + km(pts[i - 1], pts[i]) * 1000);
+    return { pts: pts, cum: cum, len: cum[cum.length - 1] };
+  }
+  var legsData = { am: null, pm: null }, routed = { am: false, pm: false };
+  function loadKey(key) {
+    var seq = SCHED[key], res = [], p = Promise.resolve();
+    for (var i = 0; i < seq.length - 1; i++) (function (i) {
+      p = p.then(function () { return fetchLeg(seq[i][0], seq[i + 1][0]).then(function (pts) { res[i] = pts; }); });
+    })(i);
+    return p.then(function () {
+      var ok = true;
+      legsData[key] = res.map(function (pts, i) {
+        if (!pts) { ok = false; pts = [STOPS[seq[i][0]].ll, STOPS[seq[i + 1][0]].ll]; }
+        return mkLeg(pts);
+      });
+      routed[key] = ok;
+    });
+  }
+  function drawRoute() {
+    var legs = legsData[st.key]; if (!legs) return;
+    var seq = SCHED[st.key], seen = {};
+    routeLayer.clearLayers();
+    legs.forEach(function (leg, i) {
+      var k = [seq[i][0], seq[i + 1][0]].sort().join("");
+      if (seen[k]) return; seen[k] = 1;
+      var opt = routed[st.key] ? {} : { dashArray: "6 8" };
+      L.polyline(leg.pts, { color: "#fff", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(routeLayer);
+      L.polyline(leg.pts, L.extend({ color: "#1F6F5C", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }, opt)).addTo(routeLayer);
+    });
+    stopLayer.eachLayer(function (l) { l.bringToFront(); });
+    if (bus) bus.setZIndexOffset(1000);
+  }
 
-  /* відстань до ламаної та позиція вздовж неї, метри */
-  function projLeg(pts, ll) {
-    var kx = 111320 * Math.cos(ll[0] * Math.PI / 180), ky = 110540, best = 1e18, bs = 0, acc = 0, i;
-    for (i = 0; i < pts.length - 1; i++) {
-      var ax = (pts[i][1] - ll[1]) * kx, ay = (pts[i][0] - ll[0]) * ky;
-      var bx = (pts[i + 1][1] - ll[1]) * kx, by = (pts[i + 1][0] - ll[0]) * ky;
-      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, len = Math.sqrt(l2);
-      var t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
-      var px = ax + t * dx, py = ay + t * dy, d2 = px * px + py * py;
-      if (d2 < best) { best = d2; bs = acc + t * len; }
-      acc += len;
-    }
-    return { d: Math.sqrt(best), s: bs, L: acc };
-  }
-  /* на скільки хвилин автобус відстає від розкладу (мінус: випереджає) */
-  function liveDelay(ll) {
-    var seq = SCHED[st.key], n = nowMin(), bi = -1, bsc = 1e18, bf = 0, bd = 0, i;
-    for (i = 0; i < seq.length - 1; i++) {
-      var pts = st.legs[i] || [STOPS[seq[i][0]].ll, STOPS[seq[i + 1][0]].ll];
-      var pr = projLeg(pts, ll); if (!pr.L) continue;
-      var t0 = toMin(seq[i][1]), t1 = toMin(seq[i + 1][1]);
-      var out = Math.max(0, Math.abs(n - (t0 + t1) / 2) - (t1 - t0) / 2);
-      var sc = pr.d + 40 * out;
-      if (sc < bsc) { bsc = sc; bi = i; bf = pr.s / pr.L; bd = pr.d; }
-    }
-    if (bi < 0 || bd > 400) return null;
-    st.legI = bi;
-    var a = toMin(seq[bi][1]), b = toMin(seq[bi + 1][1]);
-    return n - (a + bf * (b - a));
-  }
-  function updateDelay(d) {
-    if (!d) { st.delay = null; st.dl = []; st.legI = null; return; }
-    var v = liveDelay([d.lat, d.lng]);
-    if (v === null) { st.delay = null; st.dl = []; st.legI = null; return; }
-    v = Math.max(-30, Math.min(90, v));
-    st.dl.push(v); if (st.dl.length > 5) st.dl.shift();
-    var s = st.dl.slice().sort(function (x, y) { return x - y; });
-    st.delay = s[Math.floor(s.length / 2)];
-  }
-  function dTxt() {
-    if (st.delay === null || !(st.live || (DEMO && bus))) return null;
-    var r = Math.round(st.delay);
-    if (Math.abs(r) < 2) return { t: "Їдемо за графіком", c: "ok" };
-    if (r > 0) return { t: "Запізнюємось на " + r + " хв", c: "late" };
-    return { t: "Випереджаємо графік на " + (-r) + " хв", c: "early" };
-  }
-  function lateMin() { return (st.delay !== null && (st.live || (DEMO && bus))) ? Math.max(0, Math.round(st.delay)) : 0; }
-  function etaOf(sched) { return fmt(toMin(sched) + lateMin()); }
+  var st = { key: new Date().getHours() < 11 ? "am" : "pm", mine: store("bus.mine"), live: null, notice: null, est: null };
+  if (st.mine && !STOPS[st.mine]) st.mine = null;
 
   /* час */
   var demoT = null;
@@ -411,15 +244,65 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     if (DEMO) return demoT === null ? toMin(SCHED[st.key][0][1]) : demoT;
     var d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
   }
-  function nextIndex() {
-    var seq = SCHED[st.key], n = nowMin();
-    if (st.delay !== null && st.legI != null && (st.live || (DEMO && bus))) return st.legI + 1;
+  function activeKey() { return DEMO ? st.key : (nowMin() < 11 * 60 ? "am" : "pm"); }
+
+  /* положення автобуса на маршруті: де він, скільки лишилось і наскільки він відстає */
+  function projectOnLeg(ll, leg) {
+    var pts = leg.pts, kx = 111320 * Math.cos(ll[0] * Math.PI / 180), ky = 110540, best = 1e18, bf = 0, bp = pts[0];
+    for (var i = 0; i < pts.length - 1; i++) {
+      var ax = (pts[i][1] - ll[1]) * kx, ay = (pts[i][0] - ll[0]) * ky, bx = (pts[i + 1][1] - ll[1]) * kx, by = (pts[i + 1][0] - ll[0]) * ky;
+      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      var px = ax + t * dx, py = ay + t * dy, d = px * px + py * py;
+      if (d < best) { best = d; bp = [ll[0] + py / ky, ll[1] + px / kx]; bf = leg.cum[i] + t * (leg.cum[i + 1] - leg.cum[i]); }
+    }
+    return { d: Math.sqrt(best), f: leg.len ? bf / leg.len : 0, pt: bp };
+  }
+  function estimate(ll) {
+    var key = activeKey(), legs = legsData[key];
+    if (!legs || !routed[key] || !ll) return null;
+    var n = nowMin(), seq = SCHED[key], best = null;
+    legs.forEach(function (leg, i) {
+      var p = projectOnLeg(ll, leg); if (p.d > 150) return;
+      var t0 = toMin(seq[i][1]), t1 = toMin(seq[i + 1][1]), e = t0 + p.f * (t1 - t0), diff = Math.abs(e - n);
+      if (!best || diff < best.diff) best = { key: key, leg: i, f: p.f, pt: p.pt, expected: e, diff: diff, delay: n - e };
+    });
+    return best;
+  }
+  function remainM(est, j) {
+    var legs = legsData[est.key], m = legs[est.leg].len * (1 - est.f);
+    for (var k = est.leg + 1; k < j; k++) m += legs[k].len;
+    return m;
+  }
+  function snap(ll) {
+    var legs = legsData[activeKey()]; if (!legs || !routed[activeKey()]) return ll;
+    var best = null;
+    legs.forEach(function (leg) { var p = projectOnLeg(ll, leg); if (!best || p.d < best.d) best = p; });
+    return best && best.d < 60 ? best.pt : ll;
+  }
+  function moveBus(ll) {
+    if (!bus) { bus = L.marker(ll, { icon: busIcon, zIndexOffset: 1000, keyboard: false }).addTo(map); busPos = ll; return; }
+    var from = busPos, to = ll, t0 = performance.now(), dur = DEMO ? 120 : 3500;
+    if (anim) cancelAnimationFrame(anim);
+    (function step(now) {
+      if (!bus) return;
+      var f = Math.min(1, (now - t0) / dur);
+      busPos = [from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f];
+      bus.setLatLng(busPos);
+      if (f < 1) anim = requestAnimationFrame(step);
+    })(t0);
+  }
+  function removeBus() { if (anim) { cancelAnimationFrame(anim); anim = null; } if (bus) { map.removeLayer(bus); bus = null; busPos = null; } }
+
+  function viewNext() {
+    var seq = SCHED[st.key];
+    if (st.live && st.est && st.est.key === st.key) return Math.min(st.est.leg + 1, seq.length - 1);
+    var n = nowMin();
     for (var j = 0; j < seq.length; j++) if (toMin(seq[j][1]) >= n) return j;
     return -1;
   }
 
   function drawList() {
-    var seq = SCHED[st.key], ni = nextIndex(), ul = $("list");
+    var seq = SCHED[st.key], ni = viewNext(), ul = $("list");
     ul.innerHTML = "";
     seq.forEach(function (r, idx) {
       var li = document.createElement("li"), b = document.createElement("button");
@@ -428,253 +311,219 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
       b.innerHTML = '<span class="t"></span><span class="m"><b></b></span><span class="n"></span>';
       b.children[0].textContent = r[1];
       b.children[2].textContent = STOPS[r[0]].n;
-      if (lateMin() >= 2 && ni >= 0 && idx >= ni) { var ev = document.createElement("span"); ev.className = "eta"; ev.textContent = "~" + etaOf(r[1]); b.children[2].appendChild(ev); }
-      b.onclick = function () { st.mine = st.mine === r[0] ? null : r[0]; refreshTexts(); };
+      b.onclick = function () { if (STOPS[r[0]].school) return; setMine(r[0]); };
       li.appendChild(b); ul.appendChild(li);
     });
     $("tab-am").setAttribute("aria-pressed", st.key === "am");
     $("tab-pm").setAttribute("aria-pressed", st.key === "pm");
   }
 
-  function refreshTexts() {
+  function delayInfo(est) {
+    if (!est) return null;
+    var d = est.delay, a = Math.round(Math.abs(d));
+    if (a < 2) return { cls: "ok", txt: "Рухається за розкладом" };
+    return d > 0 ? { cls: "late", txt: "Запізнюється на " + a + " хв" } : { cls: "early", txt: "Випереджає розклад на " + a + " хв" };
+  }
+
+  /* найближчий приїзд автобуса на обрану зупинку, з урахуванням запізнення */
+  function nextMine() {
+    if (!st.mine) return null;
+    var n = nowMin(), best = null;
+    ["am", "pm"].forEach(function (key) {
+      SCHED[key].forEach(function (r, j) {
+        if (r[0] !== st.mine) return;
+        var t = toMin(r[1]), onRun = st.live && st.est && st.est.key === key, d = onRun ? st.est.delay : 0;
+        if (onRun && j <= st.est.leg) return;
+        var eff = t + d;
+        if (eff >= n - 1 && (!best || eff < best.eff)) best = { key: key, j: j, t: t, eff: eff, onRun: onRun };
+      });
+    });
+    return best;
+  }
+
+  var notified = {};
+  function notify(title, body) {
+    var opt = { body: body, icon: "icon-192.png", badge: "icon-192.png", tag: "bus", vibrate: [200, 100, 200] };
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (reg) {
+          if (reg && reg.showNotification) reg.showNotification(title, opt); else new Notification(title, opt);
+        }).catch(function () { try { new Notification(title, opt); } catch (e) {} });
+      } else new Notification(title, opt);
+    } catch (e) {}
+  }
+  function notifyOn() { return store("bus.notify") === "1" && window.Notification && Notification.permission === "granted"; }
+
+  function renderMine(nm) {
+    var el = $("mine");
+    if (ring) { map.removeLayer(ring); ring = null; }
+    if (!st.mine) { el.textContent = "Оберіть зупинку, і сайт покаже, коли до неї приїде автобус."; return; }
+    var s = STOPS[st.mine];
+    ring = L.circleMarker(s.ll, { radius: 15, color: "#F5B800", weight: 3, fill: false }).addTo(map);
+    if (!nm) { el.innerHTML = "<b>" + s.n + "</b>: на сьогодні рейсів більше немає."; return; }
+    var left = nm.eff - nowMin(), txt = "<b>" + s.n + "</b>: автобус буде о <b>" + fmt(nm.eff) + "</b>";
+    if (nm.onRun) {
+      var m = remainM(st.est, nm.j);
+      txt += ", їде до вас " + kmTxt(m) + " дорогою";
+      if (Math.abs(nm.eff - nm.t) >= 2) txt += " (за розкладом " + fmt(nm.t) + ")";
+      txt += left < 1 ? ". Він уже біля вас." : ". Приблизно через " + Math.ceil(left) + " хв.";
+      if (notifyOn() && (left <= 5 || m <= 1500)) {
+        var nk = new Date().toDateString() + nm.key + nm.j;
+        if (!notified[nk]) { notified[nk] = 1; notify("Автобус поруч", s.n + ": буде приблизно через " + Math.max(1, Math.ceil(left)) + " хв (" + kmTxt(m) + ")."); }
+      }
+    } else {
+      txt += " за розкладом" + (left >= 1 ? " (через " + Math.ceil(left) + " хв)" : "") + ".";
+    }
+    el.innerHTML = txt;
+  }
+
+  function renderNotice() {
+    var n = st.notice, box = $("notice");
+    if (n && n.text && n.ts && Date.now() - n.ts < 18 * 3600 * 1000) {
+      $("noticetxt").textContent = n.text;
+      var d = new Date(n.ts); $("noticetime").textContent = "Повідомлено о " + fmt(d.getHours() * 60 + d.getMinutes());
+      box.hidden = false;
+    } else box.hidden = true;
+  }
+
+  function refresh() {
+    st.est = st.live ? estimate([st.live.lat, st.live.lng]) : null;
     drawList();
-    var seq = SCHED[st.key], ni = nextIndex(), pill = $("pill"), live = st.live || (DEMO && bus);
-    pill.className = "pill" + (live ? " on" : "");
+    var seq = SCHED[st.key], ni = viewNext(), live = !!st.live;
+    $("pill").className = "pill" + (live ? " on" : "");
     $("pilltxt").textContent = live ? "Автобус у рейсі" : "Автобус не в рейсі";
+    var di = delayInfo(st.est), dl = $("delay");
+    if (di) { dl.hidden = false; dl.className = "delay " + di.cls; dl.textContent = di.txt; } else dl.hidden = true;
+    var off = live && !st.est && routed[activeKey()];
     if (ni === -1 && live) { $("big").textContent = "Автобус ще в дорозі"; $("sub").textContent = "Це вже після запланованого розкладу."; }
     else if (ni === -1) { $("big").textContent = "Рейси на сьогодні завершено"; $("sub").textContent = "Наступний рейс: " + (st.key === "am" ? "після уроків" : "завтра зранку") + "."; }
     else {
       var nx = seq[ni], eta = toMin(nx[1]) - nowMin();
-      $("big").textContent = live ? "Наступна зупинка: " + STOPS[nx[0]].n : "Найближча зупинка: " + STOPS[nx[0]].n;
-      $("sub").textContent = "За розкладом о " + nx[1] + "." + (lateMin() >= 2 ? " Орієнтовно прибудемо о " + etaOf(nx[1]) + (eta + lateMin() >= 1 ? " (через " + Math.ceil(eta + lateMin()) + " хв)." : " (вже зараз).") : (eta >= 1 ? " Через " + Math.ceil(eta) + " хв." : " Вже зараз.")) + (st.live ? " Автобус за " + km([st.live.lat, st.live.lng], STOPS[nx[0]].ll).toFixed(1) + " км по прямій." : "");
+      $("big").textContent = (live ? "Наступна зупинка: " : "Найближча зупинка: ") + STOPS[nx[0]].n;
+      var s = "За розкладом о " + nx[1] + (eta >= 1 ? ", через " + Math.ceil(eta) + " хв." : ", вже зараз.");
+      if (live && st.est && st.est.key === st.key) s += " До неї " + kmTxt(remainM(st.est, ni)) + " дорогою.";
+      else if (live) s += " Автобус за " + km([st.live.lat, st.live.lng], STOPS[nx[0]].ll).toFixed(1).replace(".", ",") + " км по прямій.";
+      $("sub").textContent = s;
     }
-    var dd = dTxt(), de = $("delay");
-    if (dd) { de.hidden = false; de.className = "delay " + dd.c; de.textContent = dd.t; } else { de.hidden = true; }
-    if (ring) { map.removeLayer(ring); ring = null; }
-    var el = $("mine");
-    if (!st.mine) { el.textContent = "Натисніть свою зупинку в розкладі, щоб побачити час прибуття."; return; }
-    var s = STOPS[st.mine], n = nowMin(), t = null;
-    ring = L.circleMarker(s.ll, { radius: 15, color: "#F5B800", weight: 3, fill: false }).addTo(map);
-    for (var i = 0; i < seq.length; i++) if (seq[i][0] === st.mine && toMin(seq[i][1]) >= n) { t = seq[i][1]; break; }
-    el.innerHTML = "<strong>" + s.n + "</strong>: " + (t ? "автобус за розкладом о " + t + "." + (lateMin() >= 2 ? " Орієнтовно о " + etaOf(t) + " (+" + lateMin() + " хв)." : "") : "на сьогодні рейсів більше немає.");
+    $("mystop").value = st.mine || "";
+    renderMine(nextMine());
+    renderNotice();
+  }
+
+  function setMine(code) {
+    st.mine = code || null;
+    store("bus.mine", st.mine);
+    refresh();
   }
 
   /* справжній GPS */
   function setLive(d) {
     st.live = d;
-    updateDelay(d);
     if (d) moveBus(snap([d.lat, d.lng])); else removeBus();
-    refreshTexts();
+    refresh();
   }
   function poll() {
     var C = window.CONFIG;
     if (!C || String(C.dbUrl).indexOf("ВАШ") !== -1) return;
     fetch(C.dbUrl + "/bus/" + C.key + ".json", { cache: "no-store" })
       .then(function (r) { return r.json(); })
-      .then(function (d) { setLive(d && d.ts && Date.now() - d.ts < 90000 ? d : null); })
+      .then(function (d) {
+        var pos = null, notice = null;
+        if (d) {
+          var p = d.pos || (d.lat !== undefined ? d : null);
+          if (p && p.ts && Date.now() - p.ts < 90000) pos = p;
+          if (d.notice && d.notice.text) notice = d.notice;
+        }
+        st.notice = notice;
+        setLive(pos);
+      })
       .catch(function () {});
   }
 
-  /* демонстрація: адреса сайту з #demo, автобус їде по дорогах за розкладом */
+  /* демонстрація: адреса сайту з #demo (або #demo-late), автобус їде по дорогах за розкладом */
   function demoPos(t) {
-    var seq = SCHED[st.key], i;
+    var seq = SCHED[st.key], legs = legsData[st.key], i;
+    if (!legs) return null;
     for (i = 0; i < seq.length - 1; i++) if (t < toMin(seq[i + 1][1])) break;
     if (i >= seq.length - 1) i = seq.length - 2;
-    var leg = st.legs[i]; if (!leg) return null;
+    var leg = legs[i].pts;
     var t0 = toMin(seq[i][1]), t1 = toMin(seq[i + 1][1]), f = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
-    var cum = [0], k;
-    for (k = 1; k < leg.length; k++) cum.push(cum[k - 1] + km(leg[k - 1], leg[k]));
-    var target = cum[cum.length - 1] * f;
+    var cum = legs[i].cum, target = legs[i].len * f, k;
     for (k = 1; k < cum.length; k++) if (cum[k] >= target) break;
     if (k >= cum.length) return leg[leg.length - 1];
     var seg = cum[k] - cum[k - 1], u = seg ? (target - cum[k - 1]) / seg : 0;
     return [leg[k - 1][0] + (leg[k][0] - leg[k - 1][0]) * u, leg[k - 1][1] + (leg[k][1] - leg[k - 1][1]) * u];
   }
   function startDemo() {
-    $("badge").hidden = false; $("badge").className = "badge demo"; $("badge").textContent = "Демонстрація: час прискорено";
-    var seq = SCHED[st.key], last = performance.now(), end = toMin(seq[seq.length - 1][1]);
-    demoT = toMin(seq[0][1]);
-    var tick = 0;
+    $("badge").hidden = false; $("badge").className = "badge demo"; $("badge").textContent = DEMO_LATE ? "Демонстрація: автобус запізнюється" : "Демонстрація: час прискорено";
+    st.notice = { text: "Це приклад об’яви: сьогодні автобус може затримуватись на 10 хв.", ts: Date.now() };
+    var seq = SCHED[st.key], last = performance.now(), tick = 0;
+    demoT = toMin(seq[0][1]) + DEMO_LATE;
     (function loop(now) {
+      var sq = SCHED[st.key], end = toMin(sq[sq.length - 1][1]);
+      if (demoT === null) demoT = toMin(sq[0][1]) + DEMO_LATE;
       demoT += (now - last) / 1000 * 2; last = now;
-      if (demoT > end) demoT = toMin(SCHED[st.key][0][1]);
-      var p = demoPos(demoT); if (p) { moveBus(p); updateDelay({ lat: p[0], lng: p[1] }); }
-      if (now - tick > 500) { tick = now; refreshTexts(); }
+      if (demoT > end + DEMO_LATE) demoT = toMin(sq[0][1]) + DEMO_LATE;
+      var p = demoPos(demoT - DEMO_LATE);
+      if (p) { st.live = { lat: p[0], lng: p[1], ts: Date.now() }; moveBus(p); }
+      if (now - tick > 500) { tick = now; refresh(); }
       requestAnimationFrame(loop);
     })(last);
   }
 
-  $("tab-am").onclick = function () { st.key = "am"; demoT = null; st.pts = []; loadRoute(); refreshTexts(); };
-  $("tab-pm").onclick = function () { st.key = "pm"; demoT = null; st.pts = []; loadRoute(); refreshTexts(); };
-
-  drawList();
-  refreshTexts();
-  loadRoute().then(function () { if (DEMO) startDemo(); });
-  if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refreshTexts, 30000); }
-})();
-
-
-/* ===== Радіо: треки з файлу tracks.js ===== */
-(function(){
-  var T=(window.TRACKS||[]).filter(function(t){return t&&t.src;});
-  var card=document.getElementById("radio");
-  if(!T.length||!card)return;
-  card.hidden=false;
-  var $=function(id){return document.getElementById(id);};
-  var ICON={play:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',pause:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>'};
-  var audio=new Audio();audio.preload="none";
-  var cur=-1,shuffle=true,order=[],pos=0,seeking=false;
-  try{var v=localStorage.getItem("bus.radio.vol");if(v!==null)$("rvol").value=v;}catch(e){}
-  audio.volume=$("rvol").value/100;
-  function fmt(s){if(!isFinite(s))return"0:00";s=Math.floor(s);return Math.floor(s/60)+":"+(s%60<10?"0":"")+(s%60);}
-  function setRange(el){el.style.setProperty("--p",(el.value-el.min)/(el.max-el.min)*100+"%");}
-  function build(){
-    order=T.map(function(_,i){return i;});
-    if(shuffle)for(var i=order.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),x=order[i];order[i]=order[j];order[j]=x;}
-  }
-  function drawList(){
-    var ul=$("rlist");ul.innerHTML="";
-    T.forEach(function(t,i){
-      var li=document.createElement("li"),b=document.createElement("button");
-      b.type="button";b.className="trk"+(i===cur?" cur":"");
-      b.innerHTML='<span class="no"></span><span><span class="tt"></span><small></small></span>';
-      b.querySelector(".no").textContent=i===cur&&!audio.paused?"▶":String(i+1);
-      b.querySelector(".tt").textContent=t.title||("Трек "+(i+1));
-      b.querySelector("small").textContent=t.artist||"";
-      b.onclick=function(){load(i);play();};
-      li.appendChild(b);ul.appendChild(li);
+  /* вибір зупинки */
+  (function () {
+    var sel = $("mystop"), o = document.createElement("option");
+    o.value = ""; o.textContent = "Оберіть зупинку"; sel.appendChild(o);
+    Object.keys(STOPS).forEach(function (c) {
+      if (STOPS[c].school) return;
+      var op = document.createElement("option"); op.value = c; op.textContent = STOPS[c].n; sel.appendChild(op);
     });
-  }
-  function meta(){
-    var t=T[cur]||{},cv=t.cover||window.RADIO_COVER||"";
-    $("rtitle").textContent=t.title||"Оберіть трек";
-    $("rartist").textContent=t.artist||"";
-    $("mtitle").textContent=t.title||"";$("martist").textContent=t.artist||"";
-    $("disc-l").textContent=(t.title||"♪").charAt(0).toUpperCase();
-    ["disc","mdisc"].forEach(function(id){
-      var d=$(id),im=d.querySelector("img");
-      d.classList.toggle("has-cover",!!cv);
-      if(cv){if(!im){im=document.createElement("img");im.alt="";d.insertBefore(im,d.firstChild);}im.src=cv;}
-      else if(im)im.remove();
-    });
-    if("mediaSession" in navigator&&window.MediaMetadata){
-      navigator.mediaSession.metadata=new MediaMetadata({title:t.title||"",artist:t.artist||"",album:window.RADIO_NAME||"Радіо",artwork:cv?[{src:cv}]:[]});
-    }
-  }
-  function load(i){
-    cur=(i+T.length)%T.length;
-    audio.src=T[cur].src;
-    var k=order.indexOf(cur);if(k>=0)pos=k;
-    meta();drawList();
-    $("rseek").value=0;setRange($("rseek"));$("rcur").textContent="0:00";$("rdur").textContent="0:00";
-  }
-  function play(){var p=audio.play();if(p&&p.catch)p.catch(function(){});}
-  function step(d){
-    if(!order.length)build();
-    pos=(pos+d+order.length)%order.length;
-    load(order[pos]);play();
-  }
-  function ui(){
-    var on=!audio.paused;
-    ["rplay","mplay"].forEach(function(id){$(id).innerHTML=on?ICON.pause:ICON.play;$(id).setAttribute("aria-label",on?"Пауза":"Грати");});
-    ["disc","mdisc"].forEach(function(id){$(id).classList.toggle("spin",on);});
-    $("mini").hidden=cur<0;
-    document.body.classList.toggle("has-mini",cur>=0);
-    drawList();
-  }
-  $("rname").textContent=window.RADIO_NAME||"Радіо";
-  $("rplay").onclick=$("mplay").onclick=function(){
-    if(cur<0){build();pos=0;load(order[0]);play();return;}
-    if(audio.paused)play();else audio.pause();
-  };
-  $("rnext").onclick=$("mnext").onclick=function(){if(cur<0)build();step(1);};
-  $("rprev").onclick=$("mprev").onclick=function(){
-    if(cur>=0&&audio.currentTime>4){audio.currentTime=0;return;}
-    if(cur<0)build();step(-1);
-  };
-  $("rshuf").onclick=function(){shuffle=!shuffle;this.setAttribute("aria-pressed",shuffle);this.classList.toggle("on",shuffle);build();var k=order.indexOf(cur);pos=k<0?0:k;};
-  $("rshuf").classList.add("on");
-  $("rvol").oninput=function(){audio.volume=this.value/100;setRange(this);try{localStorage.setItem("bus.radio.vol",this.value);}catch(e){}};
-  setRange($("rvol"));setRange($("rseek"));
-  $("rseek").oninput=function(){seeking=true;setRange(this);$("rcur").textContent=fmt(audio.duration*this.value/1000);};
-  $("rseek").onchange=function(){if(isFinite(audio.duration))audio.currentTime=audio.duration*this.value/1000;seeking=false;};
-  audio.addEventListener("timeupdate",function(){
-    if(seeking||!isFinite(audio.duration))return;
-    var r=$("rseek");r.value=Math.round(audio.currentTime/audio.duration*1000);setRange(r);
-    $("rcur").textContent=fmt(audio.currentTime);$("rdur").textContent=fmt(audio.duration);
-  });
-  audio.addEventListener("loadedmetadata",function(){$("rdur").textContent=fmt(audio.duration);});
-  audio.addEventListener("play",ui);audio.addEventListener("pause",ui);
-  audio.addEventListener("ended",function(){step(1);});
-  audio.addEventListener("error",function(){if(cur>=0&&T.length>1)setTimeout(function(){step(1);},800);});
-  if("mediaSession" in navigator){
-    try{
-      navigator.mediaSession.setActionHandler("play",play);
-      navigator.mediaSession.setActionHandler("pause",function(){audio.pause();});
-      navigator.mediaSession.setActionHandler("nexttrack",function(){step(1);});
-      navigator.mediaSession.setActionHandler("previoustrack",function(){step(-1);});
-    }catch(e){}
-  }
-  if(window.RADIO_COVER){var d0=$("disc"),i0=document.createElement("img");i0.alt="";i0.src=window.RADIO_COVER;d0.insertBefore(i0,d0.firstChild);d0.classList.add("has-cover");}
-  build();drawList();
-})();
+    sel.onchange = function () { setMine(sel.value); };
+  })();
 
-/* ===== Погода: Open-Meteo (без ключа) ===== */
-(function(){
-  var card=document.getElementById("wx");
-  var LAT=50.2445,LON=26.3634;
-  function info(c){
-    if(c===0)return["☀️","Ясно"];if(c===1)return["🌤️","Переважно ясно"];if(c===2)return["⛅","Мінлива хмарність"];if(c===3)return["☁️","Хмарно"];
-    if(c===45||c===48)return["🌫️","Туман"];if(c>=51&&c<=57)return["🌦️","Мряка"];if(c===61||c===63||c===65)return["🌧️","Дощ"];
-    if(c===66||c===67)return["🌧️","Крижаний дощ"];if(c>=71&&c<=75||c===77)return["🌨️","Сніг"];if(c>=80&&c<=82)return["🌦️","Злива"];
-    if(c===85||c===86)return["🌨️","Снігопад"];if(c>=95)return["⛈️","Гроза"];return["🌡️","—"];
+  /* сповіщення */
+  function syncNotifyUi() {
+    var b = $("notifybtn"), h = $("notifyhint");
+    if (!window.Notification) { b.hidden = true; h.hidden = false; h.textContent = "Цей браузер не показує сповіщень."; return; }
+    if (Notification.permission === "denied") { b.hidden = true; h.hidden = false; h.textContent = "Сповіщення заблоковані в налаштуваннях браузера для цього сайту."; return; }
+    b.hidden = false; h.hidden = false;
+    if (notifyOn()) { b.textContent = "Вимкнути сповіщення"; b.className = "btn ghost"; h.textContent = "Телефон сповістить за 5 хвилин до вашої зупинки, поки сайт відкритий у браузері. Якщо закрити вкладку, сповіщення не прийде."; }
+    else { b.textContent = "Сповістити, коли автобус буде поруч"; b.className = "btn"; h.textContent = "Працює, поки сайт відкритий у браузері."; }
   }
-  function deg(v){var r=Math.round(v);return(r>0?"+":"")+r+"°";}
-  function render(d){
-    var cur=d.current,h=d.hourly,i,now=cur.time.slice(0,13),start=0;
-    for(i=0;i<h.time.length;i++){if(h.time[i].slice(0,13)>=now){start=i;break;}}
-    var ci=info(cur.weather_code),strip="",maxP=0;
-    for(i=start;i<Math.min(start+12,h.time.length);i++){
-      var hi=info(h.weather_code[i]),p=h.precipitation_probability?h.precipitation_probability[i]:0;
-      if(i<start+6&&p>maxP)maxP=p;
-      strip+='<div class="wx-h1">'+h.time[i].slice(11,16)+'<span>'+hi[0]+'</span><b>'+deg(h.temperature_2m[i])+'</b>'+(p>=30?p+'%':'&nbsp;')+'</div>';
-    }
-    function at(hh){
-      var day=cur.time.slice(0,10),k=h.time.indexOf(day+"T"+hh+":00");
-      if(k<0||k<start-1){var nd=h.time.filter(function(x){return x.slice(11,16)===hh+":00"&&x.slice(0,10)>day;})[0];k=nd?h.time.indexOf(nd):-1;}
-      return k<0?"—":deg(h.temperature_2m[k])+" "+info(h.weather_code[k])[0];
-    }
-    var tip="";
-    if(cur.apparent_temperature<=0)tip="Мороз, вдягніться тепліше.";
-    else if(maxP>=50)tip="Можливі опади найближчим часом: візьміть парасольку.";
-    else if(cur.wind_speed_10m>=10)tip="Сильний вітер.";
-    card.innerHTML='<div class="wx-top"><div class="wx-ico">'+ci[0]+'</div><div><div class="wx-t">'+deg(cur.temperature_2m)+'</div><div class="wx-d">'+ci[1]+' · відчувається '+deg(cur.apparent_temperature)+'</div></div><div class="wx-h">Погода<br>Кунів</div></div>'+
-      '<div class="wx-two"><div>Вранці о 07:00<b>'+at("07")+'</b></div><div>Після уроків о 14:00<b>'+at("14")+'</b></div></div>'+
-      '<div class="wx-strip">'+strip+'</div>'+
-      '<div class="wx-d">Вітер '+Math.round(cur.wind_speed_10m)+' м/с'+(cur.precipitation>0?' · опади '+cur.precipitation+' мм':'')+'</div>'+
-      (tip?'<p class="wx-tip">'+tip+'</p>':'');
-    card.hidden=false;
-  }
-  function load(){
-    var u="https://api.open-meteo.com/v1/forecast?latitude="+LAT+"&longitude="+LON+"&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation&hourly=temperature_2m,precipitation_probability,weather_code&timezone=auto&forecast_days=2&wind_speed_unit=ms";
-    fetch(u).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(d){
-      if(!d||!d.current||!d.hourly)throw 0;render(d);
-    }).catch(function(){
-      if(card.hidden){card.hidden=false;card.innerHTML='<div class="wx-d">Погода тимчасово недоступна.</div>';}
+  $("notifybtn").onclick = function () {
+    if (notifyOn()) { store("bus.notify", "0"); syncNotifyUi(); return; }
+    if (!st.mine) { $("notifyhint").hidden = false; $("notifyhint").textContent = "Спочатку оберіть свою зупинку."; return; }
+    Notification.requestPermission().then(function (p) {
+      if (p === "granted") { store("bus.notify", "1"); notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою."); }
+      syncNotifyUi(); refresh();
     });
-  }
-  if(card){load();setInterval(load,20*60*1000);}
-})();
-
-/* ===== Тема ===== */
-(function(){
-  var root=document.documentElement,b=document.getElementById("theme");
-  try{var s=localStorage.getItem("bus.theme");if(s)root.setAttribute("data-theme",s);}catch(e){}
-  if(b)b.onclick=function(){
-    var dark=root.getAttribute("data-theme")?root.getAttribute("data-theme")==="dark":(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
-    var n=dark?"light":"dark";root.setAttribute("data-theme",n);
-    try{localStorage.setItem("bus.theme",n);}catch(e){}
   };
+  syncNotifyUi();
+
+  /* додати на головний екран */
+  var standalone = window.matchMedia && (matchMedia("(display-mode: standalone)").matches || navigator.standalone);
+  var deferred = null;
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(function () {});
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; if (!standalone) { $("installbtn").hidden = false; $("installhint").hidden = true; } });
+  window.addEventListener("appinstalled", function () { $("installbtn").hidden = true; $("installhint").hidden = true; });
+  $("installbtn").onclick = function () { if (!deferred) return; deferred.prompt(); deferred = null; $("installbtn").hidden = true; };
+  if (!standalone) setTimeout(function () {
+    if (!deferred) { var h = $("installhint"); h.hidden = false; h.textContent = "Щоб відкривати сайт одним дотиком: у Chrome натисніть меню ⋮ і виберіть «Додати на головний екран»."; }
+  }, 2500);
+
+  $("tab-am").onclick = function () { st.key = "am"; demoT = null; drawRoute(); refresh(); if (DEMO) startDemoRestart(); };
+  $("tab-pm").onclick = function () { st.key = "pm"; demoT = null; drawRoute(); refresh(); if (DEMO) startDemoRestart(); };
+  function startDemoRestart() { demoT = toMin(SCHED[st.key][0][1]) + DEMO_LATE; }
+
+  drawList(); refresh();
+  loadKey(st.key).then(function () {
+    drawRoute(); refresh();
+    if (DEMO) startDemo();
+    return loadKey(st.key === "am" ? "pm" : "am");
+  }).then(function () { refresh(); });
+  if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refresh, 30000); }
+  window.__bus = { st: st, STOPS: STOPS, SCHED: SCHED, estimate: estimate, remainM: remainM, nextMine: nextMine, refresh: refresh, legsData: legsData, setLive: setLive, nowMin: nowMin };
 })();
 </script>
 </body>

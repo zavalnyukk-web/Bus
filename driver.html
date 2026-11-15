@@ -34,7 +34,7 @@
 <script src="config.js"></script>
 <script>
 (function () {
-  var C = window.CONFIG, url = C.dbUrl + "/bus/" + C.key + ".json";
+  var C = window.CONFIG, url = C.dbUrl + "/bus/" + C.key + "/pos.json";
   var watchId = null, timer = null, latest = null, wake = null;
   var $ = function (id) { return document.getElementById(id); };
   function setErr(t) { $("err").textContent = t || ""; }
