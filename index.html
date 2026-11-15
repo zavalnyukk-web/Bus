@@ -48,7 +48,7 @@ body { background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, 
 /* на телефоні спершу статус і час прибуття, потім карта */
 @media (max-width:899px) {
   .panel { display:contents; }
-  .notice { order:1; } .status { order:2; } .mycard { order:3; } .mapwrap { order:4; } .seg { order:5; } .listcard { order:6; } .note { order:7; }
+  .notice { order:1; } .status { order:2; } .mycard { order:3; } .wxcard { order:4; } .mapwrap { order:5; } .seg { order:6; } .listcard { order:7; } .radiocard { order:8; } .note { order:9; }
   #map { height:min(48vh, 420px); min-height:300px; }
 }
 .mapwrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
@@ -113,6 +113,43 @@ li:last-child .row .m::before { bottom:50%; }
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .hero-wrap { max-width:1120px; margin:0 auto; padding:16px max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
 .hero { display:block; width:100%; height:auto; border-radius:14px; border:1px solid var(--line); }
+
+/* погода */
+.wxcard { padding:16px; display:grid; gap:12px; }
+.wxcard h2, .radiocard h2 { margin:0; font-size:15px; font-weight:700; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.wxcard h2 small, .radiocard h2 small { font-size:12px; font-weight:500; color:var(--muted); }
+.wxnow { display:flex; align-items:center; gap:14px; }
+.wxnow svg { width:52px; height:52px; flex:none; }
+.wxtemp { font-size:34px; line-height:1; font-weight:700; font-variant-numeric:tabular-nums; }
+.wxdesc { font-size:14px; color:var(--muted); margin-top:4px; }
+.wxtrips { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.wxtrip { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:grid; gap:2px; }
+.wxtrip .l { font-size:12px; color:var(--muted); font-weight:600; }
+.wxtrip .v { display:flex; align-items:center; gap:8px; font-weight:700; font-variant-numeric:tabular-nums; }
+.wxtrip .v svg { width:26px; height:26px; flex:none; }
+.wxtrip .r { font-size:12.5px; color:var(--muted); }
+/* радіо */
+.radiocard { padding:16px; display:grid; gap:12px; }
+.rhead { display:flex; gap:14px; align-items:center; }
+.rcover { width:76px; height:76px; border-radius:12px; object-fit:cover; flex:none; background:var(--green-soft); border:1px solid var(--line); }
+.rinfo { min-width:0; display:grid; gap:2px; }
+.rtitle { font-weight:700; font-size:16px; overflow-wrap:anywhere; }
+.rartist { font-size:13px; color:var(--muted); }
+.rctl { display:flex; align-items:center; justify-content:center; gap:14px; }
+.ibtn { width:46px; height:46px; border-radius:50%; border:1px solid var(--line); background:var(--bg); color:var(--ink); display:grid; place-items:center; cursor:pointer; padding:0; }
+.ibtn svg { width:22px; height:22px; fill:currentColor; }
+.ibtn.main { width:58px; height:58px; background:var(--bus); border-color:var(--bus); color:var(--bus-ink); }
+.ibtn.main svg { width:26px; height:26px; }
+.ibtn[aria-pressed="true"] { background:var(--green-soft); border-color:var(--green); color:var(--green); }
+.ibtn:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+.rbar { display:grid; grid-template-columns:42px 1fr 42px; gap:8px; align-items:center; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.rbar input { width:100%; accent-color:var(--green); }
+.rmsg { margin:0; font-size:13px; color:#B4560A; }
+.rlist { margin:0; padding:0; list-style:none; display:grid; }
+.rlist button { width:100%; text-align:left; font:inherit; font-size:14px; color:var(--ink); background:transparent; border:0; border-top:1px solid var(--line); padding:10px 4px; cursor:pointer; display:flex; gap:10px; }
+.rlist button .n { color:var(--muted); width:22px; flex:none; font-variant-numeric:tabular-nums; }
+.rlist button[aria-current="true"] { font-weight:700; color:var(--green); }
+details.rpl summary { cursor:pointer; font-size:14px; font-weight:600; padding:4px 0; }
 </style>
 </head>
 <body>
@@ -145,17 +182,36 @@ li:last-child .row .m::before { bottom:50%; }
       <p class="hint" id="notifyhint" hidden></p>
       <p class="hint" id="installhint" hidden></p>
     </section>
+    <section class="card wxcard" id="wx" hidden aria-label="Погода в Кунові">
+      <h2>Погода в Кунові <small id="wxupd"></small></h2>
+      <div class="wxnow"><span id="wxicon" aria-hidden="true"></span><div><div class="wxtemp" id="wxtemp"></div><div class="wxdesc" id="wxdesc"></div></div></div>
+      <div class="wxtrips" id="wxtrips"></div>
+    </section>
     <div class="seg" role="group" aria-label="Рейс">
       <button id="tab-am" aria-pressed="true">Ранок</button>
       <button id="tab-pm" aria-pressed="false">Після уроків</button>
     </div>
     <section class="card listcard"><ul class="list" id="list"></ul></section>
+    <section class="card radiocard" id="radio" hidden aria-label="Радіо">
+      <h2><span id="rname">Радіо</span><small>слухайте в дорозі</small></h2>
+      <div class="rhead"><img class="rcover" id="rcover" alt="" hidden><div class="rinfo"><div class="rtitle" id="rtitle"></div><div class="rartist" id="rartist"></div></div></div>
+      <div class="rbar"><span id="rcur">0:00</span><input type="range" id="rseek" min="0" max="1000" value="0" aria-label="Перемотування"><span id="rdur">0:00</span></div>
+      <div class="rctl">
+        <button type="button" class="ibtn" id="rshuf" aria-pressed="false" aria-label="Випадковий порядок"><svg viewBox="0 0 24 24"><path d="M16 3h5v5l-2-2-4.6 4.6-1.4-1.4L17.6 4.6 16 3zM3 6h4.5l9 11H21v2h-5.5l-9-11H3V6zm0 11h3.5l2.4-2.9 1.4 1.6L7.5 19H3v-2zm13.4-1.2 1.4 1.4L19 16l-1.2 1.2L21 20.4V21h-5l2-2-1.6-1.6z"/></svg></button>
+        <button type="button" class="ibtn" id="rprev" aria-label="Попередній"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button type="button" class="ibtn main" id="rplay" aria-label="Грати"><svg viewBox="0 0 24 24" id="rplayicon"><path d="M8 5v14l11-7z"/></svg></button>
+        <button type="button" class="ibtn" id="rnext" aria-label="Наступний"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7L4 19z"/></svg></button>
+      </div>
+      <p class="rmsg" id="rmsg" hidden></p>
+      <details class="rpl"><summary>Усі пісні</summary><ul class="rlist" id="rlist"></ul></details>
+    </section>
     <p class="note">Позиція автобуса оновлюється кожні кілька секунд, поки рейс триває. Час у розкладі орієнтовний.</p>
   </div>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
+<script src="tracks.js"></script>
 <script>
 (function () {
   var STOPS = {
@@ -542,6 +598,138 @@ li:last-child .row .m::before { bottom:50%; }
   }).then(function () { refresh(); });
   if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refresh, 30000); }
   window.__bus = { st: st, STOPS: STOPS, SCHED: SCHED, estimate: estimate, remainM: remainM, nextMine: nextMine, refresh: refresh, legsData: legsData, setLive: setLive, nowMin: nowMin };
+})();
+</script>
+<script>
+/* погода в Кунові (open-meteo.com, без ключа) */
+(function () {
+  var LAT = 50.2445, LON = 26.3634;
+  var $ = function (id) { return document.getElementById(id); };
+  var KIND = function (c) {
+    if (c === 0) return "sun"; if (c === 1 || c === 2) return "partly"; if (c === 3) return "cloud";
+    if (c === 45 || c === 48) return "fog"; if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return "rain";
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return "snow"; if (c >= 95) return "storm"; return "cloud";
+  };
+  var TXT = { 0: "Ясно", 1: "Переважно ясно", 2: "Мінлива хмарність", 3: "Хмарно", 45: "Туман", 48: "Паморозь і туман", 51: "Легка мряка", 53: "Мряка", 55: "Сильна мряка",
+    56: "Крижана мряка", 57: "Крижана мряка", 61: "Слабкий дощ", 63: "Дощ", 65: "Сильний дощ", 66: "Крижаний дощ", 67: "Крижаний дощ", 71: "Слабкий сніг", 73: "Сніг", 75: "Сильний сніг",
+    77: "Снігові зерна", 80: "Невеликі зливи", 81: "Зливи", 82: "Сильні зливи", 85: "Снігопад", 86: "Сильний снігопад", 95: "Гроза", 96: "Гроза з градом", 99: "Гроза з градом" };
+  var CLOUD = '<path d="M17 38h22a9 9 0 0 0 .8-17.9A12 12 0 0 0 16.6 23 8 8 0 0 0 17 38z" fill="#C9D3D0" stroke="#7C8B86" stroke-width="2" stroke-linejoin="round"/>';
+  function icon(k) {
+    var b = '<svg viewBox="0 0 56 56" role="img" aria-hidden="true">';
+    if (k === "sun") return b + '<circle cx="28" cy="28" r="10" fill="#F5B800" stroke="#B98900" stroke-width="2"/><g stroke="#F5B800" stroke-width="3" stroke-linecap="round"><path d="M28 6v6M28 44v6M6 28h6M44 28h6M12.5 12.5l4 4M39.5 39.5l4 4M12.5 43.5l4-4M39.5 16.5l4-4"/></g></svg>';
+    if (k === "partly") return b + '<circle cx="21" cy="21" r="8" fill="#F5B800" stroke="#B98900" stroke-width="2"/><g transform="translate(6 8)">' + CLOUD + '</g></svg>';
+    if (k === "fog") return b + CLOUD + '<g stroke="#7C8B86" stroke-width="3" stroke-linecap="round"><path d="M14 44h28M18 50h24"/></g></svg>';
+    if (k === "rain") return b + CLOUD + '<g stroke="#2D7DD2" stroke-width="3" stroke-linecap="round"><path d="M20 44l-3 6M30 44l-3 6M40 44l-3 6"/></g></svg>';
+    if (k === "snow") return b + CLOUD + '<g fill="#5BA7E6"><circle cx="20" cy="47" r="2.6"/><circle cx="30" cy="50" r="2.6"/><circle cx="40" cy="47" r="2.6"/></g></svg>';
+    if (k === "storm") return b + CLOUD + '<path d="M31 40l-7 9h6l-3 7 10-11h-6l4-5z" fill="#F5B800" stroke="#B98900" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    return b + CLOUD + '</svg>';
+  }
+  function r(x) { return Math.round(x); }
+  function t(x) { return (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(r(x)) + "°"; }
+  function render(d) {
+    var c = d.current, h = d.hourly, now = new Date();
+    $("wxicon").innerHTML = icon(KIND(c.weather_code));
+    $("wxtemp").textContent = t(c.temperature_2m);
+    $("wxdesc").textContent = (TXT[c.weather_code] || "") + ", відчувається як " + t(c.apparent_temperature) + ", вітер " + r(c.wind_speed_10m) + " м/с";
+    var upd = new Date(); $("wxupd").textContent = "оновлено " + ("0" + upd.getHours()).slice(-2) + ":" + ("0" + upd.getMinutes()).slice(-2);
+    var box = $("wxtrips"); box.innerHTML = "";
+    [["Ранковий рейс", 7], ["Після уроків", 14]].forEach(function (tr) {
+      var idx = -1, day = new Date(now);
+      for (var i = 0; i < h.time.length; i++) {
+        var dt = new Date(h.time[i]);
+        if (dt.getHours() === tr[1] && dt.getTime() > now.getTime() - 3600 * 1000) { idx = i; break; }
+      }
+      if (idx < 0) return;
+      var dt2 = new Date(h.time[idx]), same = dt2.toDateString() === now.toDateString();
+      var el = document.createElement("div"); el.className = "wxtrip";
+      var pr = h.precipitation_probability ? h.precipitation_probability[idx] : null;
+      el.innerHTML = '<div class="l"></div><div class="v">' + icon(KIND(h.weather_code[idx])) + '<span></span></div><div class="r"></div>';
+      el.querySelector(".l").textContent = tr[0] + (same ? "" : ", завтра") + " · " + tr[1] + ":00";
+      el.querySelector(".v span").textContent = t(h.temperature_2m[idx]);
+      el.querySelector(".r").textContent = (TXT[h.weather_code[idx]] || "") + (pr !== null ? ", опади " + pr + "%" : "");
+      box.appendChild(el);
+    });
+    $("wx").hidden = false;
+  }
+  function load() {
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
+      "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code&timezone=Europe%2FKyiv&forecast_days=2&wind_speed_unit=ms";
+    fetch(url).then(function (x) { if (!x.ok) throw 0; return x.json(); }).then(function (d) { try { render(d); } catch (e) {} }).catch(function () {});
+  }
+  load(); setInterval(load, 15 * 60 * 1000);
+})();
+</script>
+<script>
+/* радіо: пісні беруться з файлу tracks.js */
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var tracks = window.TRACKS || [];
+  if (!tracks.length) return;
+  $("radio").hidden = false;
+  $("rname").textContent = window.RADIO_NAME || "Радіо";
+  if (window.RADIO_COVER) { var cv = $("rcover"); cv.src = encodeURI(window.RADIO_COVER); cv.hidden = false; cv.onerror = function () { cv.hidden = true; }; }
+  var audio = new Audio(); audio.preload = "none";
+  var idx = 0, shuffle = false, fails = 0, seeking = false;
+  try { shuffle = localStorage.getItem("bus.radio.shuffle") === "1"; } catch (e) {}
+  var PLAY = '<path d="M8 5v14l11-7z"/>', PAUSE = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+  function mmss(s) { if (!isFinite(s)) return "0:00"; s = Math.floor(s); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+  function msg(t) { var m = $("rmsg"); m.hidden = !t; m.textContent = t || ""; }
+  function markList() { var bs = $("rlist").querySelectorAll("button"); for (var i = 0; i < bs.length; i++) bs[i].setAttribute("aria-current", i === idx ? "true" : "false"); }
+  function setMeta() {
+    var t = tracks[idx];
+    $("rtitle").textContent = t.title; $("rartist").textContent = t.artist || "";
+    markList();
+    if ("mediaSession" in navigator) {
+      try { navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist || "", album: window.RADIO_NAME || "Радіо", artwork: window.RADIO_COVER ? [{ src: new URL(encodeURI(window.RADIO_COVER), location.href).href }] : [] }); } catch (e) {}
+    }
+  }
+  function load(i, play) {
+    idx = (i + tracks.length) % tracks.length;
+    audio.src = encodeURI(tracks[idx].src);
+    $("rseek").value = 0; $("rcur").textContent = "0:00"; $("rdur").textContent = "0:00";
+    setMeta(); msg("");
+    if (play) audio.play().catch(function () {});
+  }
+  function next(dir) {
+    if (shuffle && tracks.length > 1 && dir > 0) { var j; do { j = Math.floor(Math.random() * tracks.length); } while (j === idx); load(j, true); }
+    else load(idx + dir, true);
+  }
+  tracks.forEach(function (t, i) {
+    var li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.innerHTML = '<span class="n"></span><span class="t"></span>';
+    b.children[0].textContent = i + 1; b.children[1].textContent = t.title;
+    b.onclick = function () { load(i, true); };
+    li.appendChild(b); $("rlist").appendChild(li);
+  });
+  $("rplay").onclick = function () { if (audio.paused) audio.play().catch(function () { msg("Не вдалося запустити. Спробуйте ще раз."); }); else audio.pause(); };
+  $("rnext").onclick = function () { next(1); };
+  $("rprev").onclick = function () { if (audio.currentTime > 4) audio.currentTime = 0; else next(-1); };
+  $("rshuf").setAttribute("aria-pressed", shuffle);
+  $("rshuf").onclick = function () { shuffle = !shuffle; $("rshuf").setAttribute("aria-pressed", shuffle); try { localStorage.setItem("bus.radio.shuffle", shuffle ? "1" : "0"); } catch (e) {} };
+  audio.addEventListener("play", function () { $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
+  audio.addEventListener("pause", function () { $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
+  audio.addEventListener("ended", function () { next(1); });
+  audio.addEventListener("loadedmetadata", function () { $("rdur").textContent = mmss(audio.duration); });
+  audio.addEventListener("timeupdate", function () {
+    $("rcur").textContent = mmss(audio.currentTime);
+    if (!seeking && audio.duration) $("rseek").value = Math.round(audio.currentTime / audio.duration * 1000);
+  });
+  audio.addEventListener("error", function () {
+    fails++;
+    if (fails < tracks.length) { msg("Не вдалося завантажити «" + tracks[idx].title + "». Перемикаю на наступну."); setTimeout(function () { next(1); }, 1200); }
+    else msg("Пісні не завантажуються. Перевірте інтернет і наявність папки music на сайті.");
+  });
+  $("rseek").addEventListener("input", function () { seeking = true; });
+  $("rseek").addEventListener("change", function () { if (audio.duration) audio.currentTime = $("rseek").value / 1000 * audio.duration; seeking = false; });
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler("play", function () { audio.play(); });
+      navigator.mediaSession.setActionHandler("pause", function () { audio.pause(); });
+      navigator.mediaSession.setActionHandler("nexttrack", function () { next(1); });
+      navigator.mediaSession.setActionHandler("previoustrack", function () { next(-1); });
+    } catch (e) {}
+  }
+  load(0, false);
 })();
 </script>
 </body>
