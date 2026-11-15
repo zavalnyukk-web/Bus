@@ -4,6 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#1F6F5C">
+<meta name="description" content="Де зараз шкільний автобус Кунівського ліцею і коли він приїде на вашу зупинку.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="uk_UA">
+<meta property="og:site_name" content="Кунівський ліцей">
+<meta property="og:title" content="Шкільний автобус Кунівського ліцею">
+<meta property="og:description" content="Слідкуйте за автобусом на карті в реальному часі: де він зараз і коли буде на вашій зупинці.">
+<meta property="og:url" content="https://zavalnyukk-web.github.io/Bus/?v=2">
+<meta property="og:image" content="https://zavalnyukk-web.github.io/Bus/bus-banner.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta property="og:image:alt" content="Жовтий шкільний автобус біля Кунівського ліцею">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://zavalnyukk-web.github.io/Bus/bus-banner.jpg">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -95,13 +109,17 @@ li:last-child .row .m::before { bottom:50%; }
 .btns { display:flex; gap:8px; flex-wrap:wrap; }
 .hint { margin:0; font-size:12.5px; color:var(--muted); }
 .field:focus-visible, .btn:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.hero-wrap { max-width:1120px; margin:0 auto; padding:16px max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
+.hero { display:block; width:100%; height:auto; border-radius:14px; border:1px solid var(--line); }
 </style>
 </head>
 <body>
-<header class="top"><div class="top-in">
-  <div class="logo" aria-hidden="true"><svg width="34" height="20" viewBox="0 0 60 34"><path d="M3 9 Q3 4 8 4 H43 Q46 4 48 7 L56 17 Q57 18.5 57 20 V27 Q57 28.5 55.5 28.5 H4.5 Q3 28.5 3 27 Z" fill="#F5B800" stroke="#1B1600" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="18" y="9" width="9" height="8" rx="1" fill="#1B1600"/><rect x="29" y="9" width="9" height="8" rx="1" fill="#1B1600"/><path d="M41 9 H45 Q46.5 9 47.5 10.5 L52 17 H41 Z" fill="#1B1600"/><rect x="3" y="20.5" width="54" height="2.6" fill="#1B1600"/><rect x="53" y="22" width="3" height="3" rx="1" fill="#fff"/><circle cx="15" cy="29" r="5" fill="#1B1600"/><circle cx="15" cy="29" r="1.8" fill="#bbb"/><circle cx="44" cy="29" r="5" fill="#1B1600"/><circle cx="44" cy="29" r="1.8" fill="#bbb"/></svg></div>
-  <div><h1>Шкільний автобус</h1><p>Кунівський ліцей · БАЗ А079</p></div>
-</div></header>
+<header class="hero-wrap">
+  <h1 class="sr-only">Шкільний автобус Кунівського ліцею</h1>
+  <img class="hero" src="bus-header.jpg" width="1200" height="253" alt="Кунівський ліцей. Шкільний автобус. Безпечно, надійно, з комфортом. Разом до знань!">
+</header>
 
 <main class="page">
   <div class="mapwrap">
