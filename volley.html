@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f2238">
+<title>Кунівські куниці: волейбол</title>
+<style>
+  :root { --gold:#E8B923; --navy:#0f2238; --ink:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; background:#08121f; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:none; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 12px; gap:8px; }
+  header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  header a { color:var(--gold); text-decoration:none; }
+  .wrap { position:relative; width:min(100%, 440px, calc((100vh - 170px) * 360 / 440)); aspect-ratio:360/440; min-width:260px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 170px) * 360 / 440)); } }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:10px; text-align:center; padding:18px; background:rgba(5,12,22,.82); border-radius:14px; }
+  .ov[hidden] { display:none; }
+  .ov img { width:130px; height:130px; border-radius:50%; object-fit:cover; }
+  .ov h1 { margin:0; font-size:22px; color:var(--gold); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:290px; }
+  .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--gold); font-weight:700; }
+  .go { font:inherit; font-size:18px; font-weight:700; padding:13px 28px; border:0; border-radius:12px; background:var(--gold); color:#241a00; cursor:pointer; }
+  .ctl { width:100%; max-width:440px; display:grid; grid-template-columns:1fr 1.3fr 1fr; gap:10px; }
+  .ctl button { font:inherit; font-size:24px; padding:16px 8px; border-radius:12px; border:1px solid #2c4a6b; background:#14304d; color:#fff; cursor:pointer; touch-action:none; }
+  .ctl button.on, .ctl button:active { background:#1f4a78; }
+  .ctl .jump { background:var(--gold); color:#241a00; border-color:var(--gold); font-weight:700; font-size:18px; }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span id="lvlname"></span></header>
+<div class="wrap">
+  <canvas id="c" width="360" height="440" aria-label="Гра у волейбол"></canvas>
+  <div class="ov" id="ov">
+    <img src="kunytsi-logo.jpg" alt="Кунівські куниці">
+    <div class="lvl" id="lvl"></div>
+    <h1 id="h">Кунівські куниці</h1>
+    <p id="txt"></p>
+    <button class="go" id="go" type="button">Грати</button>
+  </div>
+</div>
+<div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="bj" class="jump" type="button">Стрибок</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
+<script>
+(function () {
+  var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 440, FLOOR = 390, NETX = 180, NETTOP = 290, SR = 36, BR = 11;
+  var $ = function (i) { return document.getElementById(i); };
+  var OPP = [
+    { name: "Сусіди-новачки", speed: 2.3, err: 34, jump: 0.55, color: "#4a90d9", txt: "Розминка! Перші суперники ще вчаться грати. Забийте 5 очок." },
+    { name: "Збірна району", speed: 3.0, err: 20, jump: 0.8, color: "#d94a4a", txt: "Серйозніші суперники швидше біжать до м’яча. Забийте 5 очок." },
+    { name: "Чемпіони області", speed: 3.7, err: 9, jump: 1, color: "#8a4ad9", txt: "Фінал! Суперник майже не помиляється. Покажіть, на що здатні куниці." }
+  ];
+  var head = new Image(); head.src = "kunytsi-head.jpg";
+  var lvl = 0, saved = 0, you, opp, ball, sy, so, serve, wait, run, keys = { l: 0, r: 0 }, jumpReq = 0, aiTarget, aiErr, msg = "", msgT = 0, acc = 0, last = 0, rally = 0;
+  try { saved = +localStorage.getItem("bus.volley.level") || 0; } catch (e) {}
+  function mk(x, left) { return { x: x, y: FLOOR, vx: 0, vy: 0, left: left }; }
+  function reset(server) {
+    you = mk(90, true); opp = mk(270, false);
+    var sv = server === "you" ? 90 : 270;
+    ball = { x: sv, y: 150, vx: 0, vy: 0 }; wait = 70; rally = 0; aiErr = 0;
+  }
+  function hud() { $("lvlname").textContent = "Матч " + (lvl + 1) + " з " + OPP.length + ": " + OPP[lvl].name; }
+  function newMatch(l) { lvl = l; sy = 0; so = 0; reset("you"); hud(); draw(); }
+  function stepSlime(s, ctl, speed, left) {
+    var lo = left ? SR : NETX + 3 + SR, hi = left ? NETX - 3 - SR : W - SR;
+    s.vx = ctl * speed; s.x = Math.max(lo, Math.min(hi, s.x + s.vx));
+    if (s.y < FLOOR || s.vy < 0) { s.vy += 0.5; s.y += s.vy; if (s.y >= FLOOR) { s.y = FLOOR; s.vy = 0; } }
+  }
+  function hitSlime(s) {
+    var dx = ball.x - s.x, dy = ball.y - s.y, d = Math.hypot(dx, dy);
+    if (d < SR + BR && dy < 8) {
+      var nx = dx / (d || 1), ny = dy / (d || 1);
+      ball.x = s.x + nx * (SR + BR); ball.y = s.y + ny * (SR + BR);
+      var rvx = ball.vx - s.vx, rvy = ball.vy - s.vy, dot = rvx * nx + rvy * ny;
+      if (dot < 0) { ball.vx -= 1.9 * dot * nx; ball.vy -= 1.9 * dot * ny; }
+      var sp = Math.hypot(ball.vx, ball.vy); if (sp > 10.5) { ball.vx *= 10.5 / sp; ball.vy *= 10.5 / sp; }
+      if (ball.vy > -2.5 && ny < -0.2) ball.vy = -2.5 - Math.abs(ny) * 3;
+      rally++; if (s === opp) aiErr = (Math.random() * 2 - 1) * OPP[lvl].err;
+    }
+  }
+  function predict() {
+    var x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
+    for (var i = 0; i < 260; i++) { vy += 0.28; x += vx; y += vy; if (x < BR || x > W - BR) { vx = -vx; x = Math.max(BR, Math.min(W - BR, x)); } if (y >= FLOOR - SR * 0.6) return x; }
+    return x;
+  }
+  function ai() {
+    var O = OPP[lvl], ctl = 0, tgt;
+    if (ball.x > NETX - 10 || (ball.vx > 0 && ball.x > NETX - 60)) {
+      tgt = predict(); if (tgt < NETX) tgt = 270; tgt += 14 + aiErr;
+    } else tgt = 275;
+    if (Math.abs(tgt - opp.x) > 4) ctl = tgt > opp.x ? 1 : -1;
+    if (opp.y >= FLOOR && ball.x > NETX && Math.abs(ball.x - opp.x) < 70 && ball.y > FLOOR - 140 && ball.y < FLOOR - 40 && ball.vy > -1 && Math.random() < O.jump * 0.2) opp.vy = -9.5;
+    return ctl;
+  }
+  function point(winner) {
+    if (winner === "you") sy++; else so++;
+    $("lvlname").textContent = "Матч " + (lvl + 1) + ": " + OPP[lvl].name;
+    if (sy >= 5) { win(); return; }
+    if (so >= 5) { lose(); return; }
+    msg = winner === "you" ? "Очко куницям!" : "Очко суперникам"; msgT = 70; reset(winner);
+  }
+  function update() {
+    if (wait > 0) { wait--; stepSlime(you, keys.r - keys.l, 4.2, true); stepSlime(opp, 0, 3, false); return; }
+    if (jumpReq && you.y >= FLOOR) { you.vy = -9.5; } jumpReq = 0;
+    stepSlime(you, keys.r - keys.l, 4.2, true); stepSlime(opp, ai(), OPP[lvl].speed, false);
+    ball.vy += 0.28; ball.x += ball.vx; ball.y += ball.vy;
+    if (ball.x < BR) { ball.x = BR; ball.vx = Math.abs(ball.vx) * 0.9; }
+    if (ball.x > W - BR) { ball.x = W - BR; ball.vx = -Math.abs(ball.vx) * 0.9; }
+    // сітка
+    if (ball.y > NETTOP - BR && Math.abs(ball.x - NETX) < BR + 3) {
+      if (ball.y < NETTOP + 6) { ball.vy = -Math.abs(ball.vy) * 0.8; ball.y = NETTOP - BR; }
+      else { ball.vx = (ball.x < NETX ? -1 : 1) * Math.max(1.5, Math.abs(ball.vx) * 0.8); ball.x = NETX + (ball.x < NETX ? -1 : 1) * (BR + 3); }
+    }
+    hitSlime(you); hitSlime(opp);
+    if (ball.y >= FLOOR + 6) point(ball.x < NETX ? "opp" : "you");
+  }
+  function draw() {
+    // фон: зал
+    var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14304d"); gr.addColorStop(1, "#0b1a2c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = "rgba(232,185,35,.08)"; for (var i = 0; i < 6; i++) g.fillRect(i * 64 + 10, 0, 28, FLOOR);
+    g.fillStyle = "#b9722e"; g.fillRect(0, FLOOR + 4, W, H - FLOOR - 4);
+    g.fillStyle = "#e8e8e8"; g.fillRect(0, FLOOR + 4, W, 3);
+    g.fillStyle = "rgba(255,255,255,.35)"; g.fillRect(NETX - 1, FLOOR + 7, 2, 40);
+    // сітка
+    g.fillStyle = "#ddd"; g.fillRect(NETX - 3, NETTOP, 6, FLOOR - NETTOP + 4);
+    g.fillStyle = "rgba(255,255,255,.22)"; for (var y = NETTOP + 4; y < FLOOR; y += 10) g.fillRect(NETX - 3, y, 6, 1);
+    g.fillStyle = "#fff"; g.fillRect(NETX - 4, NETTOP - 2, 8, 6);
+    // рахунок
+    g.textAlign = "center"; g.font = "bold 30px system-ui,sans-serif";
+    g.fillStyle = "#E8B923"; g.fillText(sy, 140, 50); g.fillStyle = "#fff"; g.fillText(":", 180, 49); g.fillStyle = OPP[lvl].color; g.fillText(so, 220, 50);
+    g.font = "bold 11px system-ui,sans-serif"; g.fillStyle = "#E8B923"; g.fillText("КУНИЦІ", 90, 22); g.fillStyle = OPP[lvl].color; g.fillText("СУПЕРНИКИ", 270, 22);
+    slime(you, "#E8B923", true); slime(opp, OPP[lvl].color, false);
+    // тінь і м'яч
+    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(ball.x, FLOOR + 8, 9, 3, 0, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(ball.x, ball.y, BR, 0, 7); g.fill();
+    g.strokeStyle = "#E8B923"; g.lineWidth = 2; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 0.3, 2.4); g.stroke();
+    g.strokeStyle = "#2d7dd2"; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 3.4, 5.5); g.stroke();
+    if (msgT > 0) { msgT--; g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 150, W, 40); g.fillStyle = "#fff"; g.font = "bold 20px system-ui,sans-serif"; g.fillText(msg, W / 2, 177); }
+  }
+  function slime(s, col, isYou) {
+    g.save(); g.beginPath(); g.arc(s.x, s.y, SR, Math.PI, 0); g.closePath(); g.clip();
+    g.fillStyle = col; g.fillRect(s.x - SR, s.y - SR, SR * 2, SR);
+    if (isYou && head.complete && head.naturalWidth) g.drawImage(head, s.x - SR, s.y - SR, SR * 2, SR * 2);
+    g.restore();
+    g.strokeStyle = "rgba(0,0,0,.4)"; g.lineWidth = 2; g.beginPath(); g.arc(s.x, s.y, SR, Math.PI, 0); g.closePath(); g.stroke();
+    if (!isYou) { var ex = s.x - 10, ey = s.y - 20; g.fillStyle = "#fff"; g.beginPath(); g.arc(ex, ey, 7, 0, 7); g.fill(); g.fillStyle = "#111"; var dx = Math.max(-2, Math.min(2, (ball.x - ex) / 30)), dy = Math.max(-2, Math.min(2, (ball.y - ey) / 30)); g.beginPath(); g.arc(ex + dx * 2, ey + dy * 2, 3, 0, 7); g.fill(); }
+  }
+  function loop(now) {
+    if (!run) return;
+    acc += Math.min(50, now - last); last = now;
+    while (acc >= 1000 / 60) { acc -= 1000 / 60; update(); if (!run) return; }
+    draw(); requestAnimationFrame(loop);
+  }
+  function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; }
+  function win() {
+    run = false; draw();
+    if (lvl + 1 < OPP.length) { saved = Math.max(saved, lvl + 1); try { localStorage.setItem("bus.volley.level", String(saved)); } catch (e) {} show("Рахунок " + sy + ":" + so, "Перемога!", "Куниці виграли матч! Далі: " + OPP[lvl + 1].name + ".", "Наступний матч"); $("go").dataset.n = "next"; }
+    else { saved = 0; try { localStorage.setItem("bus.volley.level", "0"); } catch (e) {} show("Рахунок " + sy + ":" + so, "Чемпіони!", "Кунівські куниці виграли турнір! Вітаємо з перемогою!", "Грати ще раз"); $("go").dataset.n = "again"; }
+  }
+  function lose() { run = false; draw(); show("Рахунок " + sy + ":" + so, "Матч програно", "Нічого, куниці не здаються! Спробуйте ще раз.", "Реванш"); $("go").dataset.n = "retry"; }
+  function start() { $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
+  $("go").onclick = function () {
+    var n = $("go").dataset.n; $("go").dataset.n = "";
+    if (n === "next") newMatch(lvl + 1); else if (n === "again") newMatch(0); else newMatch(lvl);
+    start();
+  };
+  function hold(id, k) {
+    var b = $(id);
+    b.addEventListener("pointerdown", function (e) { keys[k] = 1; b.classList.add("on"); b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (ev) { b.addEventListener(ev, function () { keys[k] = 0; b.classList.remove("on"); }); });
+  }
+  hold("bl", "l"); hold("br", "r");
+  $("bj").addEventListener("pointerdown", function (e) { jumpReq = 1; e.preventDefault(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "a") keys.l = 1; else if (e.key === "ArrowRight" || e.key === "d") keys.r = 1;
+    else if (e.key === "ArrowUp" || e.key === " " || e.key === "w") { jumpReq = 1; e.preventDefault(); }
+  });
+  document.addEventListener("keyup", function (e) { if (e.key === "ArrowLeft" || e.key === "a") keys.l = 0; else if (e.key === "ArrowRight" || e.key === "d") keys.r = 0; });
+  var l0 = saved > 0 && saved < OPP.length ? saved : 0;
+  newMatch(l0);
+  show("Матч " + (l0 + 1) + " з " + OPP.length, "Кунівські куниці", OPP[l0].txt + " Рухайтесь кнопками ◀ ▶, стрибайте й відбивайте м’яч на бік суперника.", "Грати");
+  window.__v = { s: function () { return { sy: sy, so: so, run: run, ball: ball, you: you }; } };
+})();
+</script>
+</body>
+</html>
