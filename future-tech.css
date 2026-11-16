@@ -1,0 +1,108 @@
+/* FUTURE TECH 2.0 — Кунівський ліцей */
+:root {
+  color-scheme: dark;
+  --bg:#07111f; --card:#101e30; --ink:#edf7ff; --muted:#8ea5bb; --line:#203951;
+  --green:#35d8f2; --green-soft:#102e43; --bus:#ffc247; --bus-ink:#1d1607; --live:#45e6a5;
+  --casing:#07111f;
+}
+html { scroll-behavior:smooth; }
+body {
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(20,135,190,.20), transparent 38rem),
+    radial-gradient(ellipse at 95% 18%, rgba(40,80,180,.16), transparent 34rem),
+    var(--bg);
+  color:var(--ink);
+}
+.hero-wrap { max-width:1320px; padding-top:22px; }
+.hero {
+  border:1px solid rgba(69,196,235,.38);
+  border-radius:22px;
+  box-shadow:0 18px 55px rgba(0,0,0,.32), 0 0 30px rgba(35,190,235,.08);
+}
+.page { max-width:1320px; padding-top:22px; gap:20px; }
+@media (min-width:900px) {
+  .page { grid-template-columns:minmax(0,1.45fr) minmax(340px,.9fr); }
+}
+.mapwrap {
+  border:1px solid rgba(53,216,242,.38);
+  border-radius:20px;
+  background:#0c1a2b;
+  box-shadow:0 18px 55px rgba(0,0,0,.28), inset 0 0 30px rgba(53,216,242,.035);
+}
+#map { filter:saturate(.82) contrast(1.06); }
+.badge {
+  background:rgba(7,17,31,.92); color:#bcefff;
+  border:1px solid rgba(53,216,242,.42); backdrop-filter:blur(12px);
+}
+.badge.demo { background:var(--bus); color:var(--bus-ink); border-color:var(--bus); }
+.panel { gap:16px; }
+.card {
+  background:linear-gradient(145deg,rgba(19,37,57,.98),rgba(12,27,44,.98));
+  border:1px solid var(--line); border-radius:18px;
+  box-shadow:0 12px 30px rgba(0,0,0,.16);
+}
+.status,.mycard,.wxcard,.radiocard { padding:19px; }
+.big { font-size:clamp(22px,2.2vw,29px); letter-spacing:-.035em; }
+.pill { letter-spacing:.025em; }
+.pill.on i { box-shadow:0 0 13px rgba(69,230,165,.75); }
+.notice {
+  border:1px solid rgba(255,194,71,.55); border-radius:16px;
+  box-shadow:0 10px 28px rgba(255,194,71,.08);
+}
+.mine,.wxhint { border:1px solid rgba(53,216,242,.2); }
+.seg {
+  padding:5px; gap:6px; border-radius:14px;
+  background:#0b1929; border:1px solid var(--line);
+}
+.seg button { border-radius:10px; padding:11px 13px; }
+.seg button[aria-pressed="true"] {
+  color:#061521; background:linear-gradient(135deg,#54e6f5,#25a9d7);
+  box-shadow:0 4px 16px rgba(53,216,242,.2);
+}
+.row { padding-top:11px; padding-bottom:11px; }
+.row.next { background:rgba(53,216,242,.10); }
+.row.next .m b { box-shadow:0 0 14px rgba(255,194,71,.38); }
+.row:focus-visible,.seg button:focus-visible,.field:focus-visible,.btn:focus-visible {
+  outline:2px solid #54e6f5; outline-offset:3px;
+}
+.field {
+  background:#091727; border-color:#29465f; border-radius:12px;
+}
+.field:focus { border-color:var(--green); }
+.btn {
+  color:#061521; background:linear-gradient(135deg,#55e7f5,#22a9d8);
+  border-radius:12px; box-shadow:0 6px 18px rgba(53,216,242,.16);
+}
+.btn.ghost { color:var(--ink); background:transparent; border-color:#34516a; box-shadow:none; }
+.wxtrip { background:#0b1a2a; border-color:#203951; border-radius:12px; }
+.rcover { border:1px solid rgba(53,216,242,.35); box-shadow:0 0 22px rgba(53,216,242,.10); }
+.ibtn { background:#0a1929; border-color:#29445d; }
+.ibtn.main {
+  background:linear-gradient(135deg,#ffe08a,#ffb72e); border-color:#ffc247;
+  color:#1d1607; box-shadow:0 7px 22px rgba(255,194,71,.18);
+}
+.rlist button { border-color:#203951; }
+.rlist button[aria-current="true"] { color:#55e7f5; }
+.mini {
+  background:rgba(10,25,41,.96); border-top:1px solid rgba(53,216,242,.3);
+  box-shadow:0 -10px 34px rgba(0,0,0,.35); backdrop-filter:blur(18px);
+}
+.stop-tip { background:#0b1c2d; color:#eaf8ff; border-color:#35b8d6; }
+.leaflet-container { background:#0b1928; }
+.leaflet-control-zoom a {
+  background:#10243a !important; color:#dff7ff !important; border-color:#29465f !important;
+}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip { background:#10243a; color:#edf7ff; }
+.leaflet-popup-content { color:#edf7ff; }
+@media (max-width:899px) {
+  .hero-wrap { padding-top:12px; }
+  .hero { border-radius:16px; }
+  .page { padding-top:14px; gap:13px; }
+  main.page #map { height:min(52vh,460px); min-height:290px; }
+  .card,.mapwrap { border-radius:16px; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .card,.mapwrap { transition:border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+  .card:hover { border-color:rgba(53,216,242,.34); }
+}
