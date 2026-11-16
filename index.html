@@ -173,6 +173,12 @@ body.has-mini { padding-bottom:70px; }
 .rcover { border-radius:50%; }
 .mcover { width:40px; height:40px; border-radius:50%; object-fit:cover; flex:none; border:1px solid var(--line); }
 .mcover[hidden] { display:none; }
+
+@keyframes rspin { to { transform:rotate(360deg); } }
+@keyframes rpulse { 0%,100% { box-shadow:0 0 0 0 rgba(245,184,0,.55); } 50% { box-shadow:0 0 0 8px rgba(245,184,0,0); } }
+body.playing .rcover, body.playing .mcover { animation:rspin 8s linear infinite; }
+body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { body.playing .rcover, body.playing .mcover, body.playing .ibtn.main { animation:none; } }
 </style>
 </head>
 <body>
@@ -205,8 +211,8 @@ body.has-mini { padding-bottom:70px; }
       <p class="hint" id="notifyhint" hidden></p>
       <p class="hint" id="installhint" hidden></p>
     </section>
-    <section class="card wxcard" id="wx" hidden aria-label="Погода в Кунові">
-      <h2>Погода в Кунові <small id="wxupd"></small></h2>
+    <section class="card wxcard" id="wx" hidden aria-label="Погода в Куневі">
+      <h2>Погода в Куневі <small id="wxupd"></small></h2>
       <div class="wxplace">с. Кунів, Плужненська громада, Шепетівський район, Хмельницька область</div>
       <div class="wxnow"><span id="wxicon" aria-hidden="true"></span><div><div class="wxtemp" id="wxtemp"></div><div class="wxdesc" id="wxdesc"></div></div></div>
       <p class="wxhint" id="wxhint" hidden></p>
@@ -635,7 +641,7 @@ body.has-mini { padding-bottom:70px; }
 })();
 </script>
 <script>
-/* погода в Кунові (open-meteo.com, без ключа) */
+/* погода в Куневі (open-meteo.com, без ключа) */
 (function () {
   var LAT = 50.2445, LON = 26.3634;
   var $ = function (id) { return document.getElementById(id); };
@@ -764,8 +770,8 @@ body.has-mini { padding-bottom:70px; }
   $("rprev").onclick = function () { if (audio.currentTime > 4) audio.currentTime = 0; else next(-1); };
   $("rshuf").setAttribute("aria-pressed", shuffle);
   $("rshuf").onclick = function () { shuffle = !shuffle; $("rshuf").setAttribute("aria-pressed", shuffle); try { localStorage.setItem("bus.radio.shuffle", shuffle ? "1" : "0"); } catch (e) {} };
-  audio.addEventListener("play", function () { $("mini").hidden = false; document.body.classList.add("has-mini"); $("mplayicon").innerHTML = PAUSE; $("mplay").setAttribute("aria-label", "Пауза"); $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
-  audio.addEventListener("pause", function () { $("mplayicon").innerHTML = PLAY; $("mplay").setAttribute("aria-label", "Грати"); $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
+  audio.addEventListener("play", function () { document.body.classList.add("playing"); $("mini").hidden = false; document.body.classList.add("has-mini"); $("mplayicon").innerHTML = PAUSE; $("mplay").setAttribute("aria-label", "Пауза"); $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
+  audio.addEventListener("pause", function () { document.body.classList.remove("playing"); $("mplayicon").innerHTML = PLAY; $("mplay").setAttribute("aria-label", "Грати"); $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
   audio.addEventListener("ended", function () { next(1); });
   audio.addEventListener("loadedmetadata", function () { $("rdur").textContent = mmss(audio.duration); });
   audio.addEventListener("timeupdate", function () {
