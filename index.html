@@ -48,7 +48,7 @@ body { background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, 
 /* на телефоні: карта, моя зупинка, зупинки, погода, радіо */
 @media (max-width:899px) {
   main.page > .panel { display:contents; }
-  .notice { order:1; } .mapwrap { order:2; } .status { order:3; } .mycard { order:4; } .seg { order:5; } .listcard { order:6; } .wxcard { order:7; } .radiocard { order:8; } .note { order:9; }
+  .notice { order:1; } .mapwrap { order:2; } .status { order:3; } .mycard { order:4; } .seg { order:5; } .listcard { order:6; } .wxcard { order:7; } .funcard { order:8; } .lostcard { order:9; } .radiocard { order:10; } .note { order:11; }
   main.page #map { height:min(48vh, 420px); min-height:300px; }
 }
 .mapwrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
@@ -179,6 +179,38 @@ body.has-mini { padding-bottom:70px; }
 body.playing .rcover, body.playing .mcover { animation:rspin 8s linear infinite; }
 body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { body.playing .rcover, body.playing .mcover, body.playing .ibtn.main { animation:none; } }
+
+.lostcard { padding:16px; display:grid; gap:10px; }
+.lostcard h2 { margin:0; font-size:15px; font-weight:700; }
+.lostcard .lhint { margin:0; font-size:13px; color:var(--muted); }
+.lostlist { margin:0; padding:0; list-style:none; display:grid; gap:8px; }
+.lostlist li { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:grid; gap:2px; }
+.lostlist li { grid-template-columns:auto 1fr; align-items:center; gap:12px; }
+.lostlist li > div { display:grid; gap:2px; min-width:0; }
+.lphoto { width:72px; height:72px; object-fit:cover; border-radius:10px; cursor:zoom-in; background:var(--green-soft); }
+.lphoto[hidden] { display:none; }
+.lostlist li:not(:has(.lphoto:not([hidden]))) { grid-template-columns:1fr; }
+.lostlist li.big { grid-template-columns:1fr; }
+.lostlist li.big .lphoto { width:100%; height:auto; max-height:70vh; object-fit:contain; cursor:zoom-out; }
+.lostlist li b { font-size:14.5px; overflow-wrap:anywhere; }
+.lostlist li span { font-size:12px; color:var(--muted); }
+
+.funcard { padding:16px; display:grid; gap:12px; }
+.funcard h2 { margin:0; font-size:15px; font-weight:700; }
+.fchip { display:inline-block; font-size:12px; font-weight:700; color:var(--green); background:var(--green-soft); border-radius:999px; padding:3px 10px; }
+.ftext { margin:0; font-size:15.5px; line-height:1.45; }
+.qbox { border-top:1px solid var(--line); padding-top:12px; display:grid; gap:10px; }
+.qbox h3 { margin:0; font-size:14px; font-weight:700; }
+.qq { margin:0; font-size:15.5px; font-weight:600; }
+.qopts { display:grid; gap:8px; }
+.qopts button, .qbtn { font:inherit; font-size:15px; text-align:left; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer; }
+.qbtn { text-align:center; font-weight:700; background:var(--bus); border-color:var(--bus); color:var(--bus-ink); }
+.qopts button.ok { background:var(--green-soft); border-color:var(--green); color:var(--green); font-weight:700; }
+.qopts button.bad { background:#FBE9E7; border-color:#C0392B; color:#8E2A1F; }
+.qopts button:disabled { cursor:default; }
+.qexp { margin:0; font-size:13.5px; color:var(--muted); }
+.qprog { font-size:12px; color:var(--muted); }
+.gamelink { display:block; text-align:center; text-decoration:none; font-weight:700; font-size:15px; padding:12px 14px; border-radius:10px; background:var(--green-soft); color:var(--green); border:1px solid var(--green); }
 </style>
 </head>
 <body>
@@ -225,6 +257,18 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
       <button id="tab-pm" aria-pressed="false">Після уроків</button>
     </div>
     <section class="card listcard"><ul class="list" id="list"></ul></section>
+    <section class="card funcard" id="fun" hidden aria-label="Цікавинка дня">
+      <h2>Цікавинка дня</h2>
+      <div><span class="fchip" id="ftag"></span></div>
+      <p class="ftext" id="ftext"></p>
+      <div class="qbox" id="qbox"></div>
+      <a class="gamelink" href="game.html">🚌 Зіграти в «Автобус-перегони»</a>
+    </section>
+    <section class="card lostcard" id="lost" aria-label="Бюро знахідок">
+      <h2>Бюро знахідок</h2>
+      <p class="lhint" id="lostempty">Зараз знахідок немає. Загубили річ у автобусі — скажіть вихователю.</p>
+      <ul class="lostlist" id="lostlist"></ul>
+    </section>
     <section class="card radiocard" id="radio" hidden aria-label="Радіо">
       <h2><span id="rname">Радіо</span><small>слухайте в дорозі</small></h2>
       <div class="rhead"><img class="rcover" id="rcover" alt="" hidden><div class="rinfo"><div class="rtitle" id="rtitle"></div><div class="rartist" id="rartist"></div></div></div>
@@ -252,6 +296,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
 <script src="tracks.js"></script>
+<script src="facts.js"></script>
 <script>
 (function () {
   var STOPS = {
@@ -536,22 +581,43 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     if (d) moveBus(snap([d.lat, d.lng])); else removeBus();
     refresh();
   }
+  function renderLost(obj) {
+    var items = [], now = Date.now(), k;
+    if (obj) for (k in obj) { var it = obj[k]; if (it && it.text && now - (it.ts || 0) < 30 * 86400000) items.push(it); }
+    items.sort(function (a, b) { return b.ts - a.ts; });
+    var ul = $("lostlist"); ul.innerHTML = "";
+    items.forEach(function (it) {
+      var li = document.createElement("li"), d = new Date(it.ts);
+      li.innerHTML = "<img class=\"lphoto\" alt=\"\" hidden><div><b></b><span></span></div>";
+      if (it.photo && /^data:image\/jpeg;base64,/.test(it.photo)) {
+        var im = li.children[0]; im.src = it.photo; im.hidden = false; im.alt = "Фото: " + it.text;
+        im.onclick = function () { li.classList.toggle("big"); };
+      }
+      li.children[1].children[0].textContent = it.text;
+      li.children[1].children[1].textContent = "знайдено " + ("0" + d.getDate()).slice(-2) + "." + ("0" + (d.getMonth() + 1)).slice(-2);
+      ul.appendChild(li);
+    });
+    $("lostempty").hidden = items.length > 0;
+  }
   function poll() {
     var C = window.CONFIG;
     if (!C || String(C.dbUrl).indexOf("ВАШ") !== -1) return;
-    fetch(C.dbUrl + "/bus/" + C.key + ".json", { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var pos = null, notice = null;
-        if (d) {
-          var p = d.pos || (d.lat !== undefined ? d : null);
-          if (p && p.ts && Date.now() - p.ts < 90000) pos = p;
-          if (d.notice && d.notice.text) notice = d.notice;
-        }
+    var base = C.dbUrl + "/bus/" + C.key;
+    var get = function (n) { return fetch(base + "/" + n + ".json", { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.json(); }); };
+    Promise.all([get("pos"), get("notice").catch(function () { return null; })])
+      .then(function (a) {
+        var p = a[0], n = a[1], pos = null, notice = null;
+        if (p && p.ts && Date.now() - p.ts < 90000) pos = p;
+        if (n && n.text) notice = n;
         st.notice = notice;
         setLive(pos);
       })
       .catch(function () {});
+  }
+  function pollLost() {
+    var C = window.CONFIG;
+    if (!C || String(C.dbUrl).indexOf("ВАШ") !== -1) return;
+    fetch(C.dbUrl + "/bus/" + C.key + "/lost.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(renderLost).catch(function () {});
   }
 
   /* демонстрація: адреса сайту з #demo (або #demo-late), автобус їде по дорогах за розкладом */
@@ -636,7 +702,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     if (DEMO) startDemo();
     return loadKey(st.key === "am" ? "pm" : "am");
   }).then(function () { refresh(); });
-  if (!DEMO) { poll(); setInterval(poll, 4000); setInterval(refresh, 30000); }
+  if (!DEMO) { poll(); pollLost(); setInterval(poll, 4000); setInterval(refresh, 30000); setInterval(pollLost, 5 * 60 * 1000); document.addEventListener("visibilitychange", function () { if (!document.hidden) pollLost(); }); }
   window.__bus = { st: st, STOPS: STOPS, SCHED: SCHED, estimate: estimate, remainM: remainM, nextMine: nextMine, refresh: refresh, legsData: legsData, setLive: setLive, nowMin: nowMin };
 })();
 </script>
@@ -707,6 +773,13 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     if (maxP >= 40) tips.push("Можливі опади — візьміть парасольку");
     if (Math.min(minT, c.temperature_2m) <= 0) tips.push("Мороз — вдягніться тепліше");
     if (c.wind_speed_10m >= 10) tips.push("Сильний вітер");
+    var codes = [c.weather_code].concat(h.weather_code.slice(0, 12)).filter(function (x) { return x !== undefined; });
+    var has = function (f) { return codes.some(f); };
+    if (has(function (x) { return (x >= 71 && x <= 77) || x === 85 || x === 86; })) tips.push("Можливий сніг — вдягніть шапку й теплі рукавиці");
+    if (has(function (x) { return x >= 95; })) tips.push("Гроза — будьте обережні, не чекайте автобус під деревами");
+    if (has(function (x) { return x === 45 || x === 48; })) tips.push("Туман — будьте уважні біля дороги");
+    if (has(function (x) { return x === 56 || x === 57 || x === 66 || x === 67; }) || (maxP >= 40 && minT <= 1)) tips.push("Слизько — йдіть обережно");
+    if (maxT >= 28) tips.push("Спекотно — візьміть воду і головний убір");
     var hint = $("wxhint"); hint.hidden = !tips.length; hint.textContent = tips.join(". ");
     $("wxerr").hidden = true; $("wxtrips").hidden = false; $("wxhours").hidden = false;
     $("wx").hidden = false;
@@ -794,6 +867,65 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     } catch (e) {}
   }
   load(0, false);
+})();
+</script>
+<script>
+/* цікавинка дня і вікторина (дані з facts.js) */
+(function () {
+  var F = window.FACTS || [], Q = window.QUIZ || [];
+  var $ = function (id) { return document.getElementById(id); };
+  if (!F.length) return;
+  var d = new Date(), day = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000 + 0.5);
+  var f = F[day % F.length];
+  $("ftag").textContent = f.tag || "Цікаво"; $("ftext").textContent = f.t; $("fun").hidden = false;
+  if (Q.length < 8) return;
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  var picks = [day % 5];
+  for (var k = 0; k < 3; k++) picks.push(5 + ((day * 3 + k) % (Q.length - 5)));
+  var qs = picks.map(function (i, n) {
+    var q = Q[i], r = rng(day * 101 + n), opts = q.a.map(function (t, j) { return { t: t, ok: j === 0 }; });
+    for (var m = opts.length - 1; m > 0; m--) { var j = Math.floor(r() * (m + 1)), x = opts[m]; opts[m] = opts[j]; opts[j] = x; }
+    return { q: q.q, e: q.e, o: opts };
+  });
+  var KEY = "bus.quiz." + day, box = $("qbox"), cur = 0, score = 0;
+  function saved() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function save(v) { try { localStorage.setItem(KEY, String(v)); } catch (e) {} }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+  function msg(n) { return n === qs.length ? "Відмінно! Ви знаєте все!" : n >= 3 ? "Чудовий результат!" : n >= 2 ? "Непогано! Завтра буде нова вікторина." : "Не засмучуйтесь, завтра нові питання!"; }
+  function start() {
+    var s0 = saved();
+    box.innerHTML = "";
+    if (s0 !== null) {
+      box.appendChild(el("h3", "", "Вікторина дня пройдена"));
+      box.appendChild(el("p", "qq", "Ваш результат: " + s0 + " з " + qs.length + ". " + msg(+s0)));
+      box.appendChild(el("p", "qexp", "Нова вікторина зʼявиться завтра."));
+      var again = el("button", "qopt", "Пройти ще раз"); again.type = "button"; again.style.cssText = "font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer";
+      again.onclick = function () { cur = 0; score = 0; ask(); }; box.appendChild(again);
+      return;
+    }
+    box.appendChild(el("h3", "", "Вікторина дня"));
+    box.appendChild(el("p", "qexp", qs.length + " коротких питання про безпеку, Україну й світ."));
+    var b = el("button", "qbtn", "Почати вікторину"); b.type = "button"; b.onclick = function () { cur = 0; score = 0; ask(); }; box.appendChild(b);
+  }
+  function ask() {
+    var q = qs[cur]; box.innerHTML = "";
+    box.appendChild(el("div", "qprog", "Питання " + (cur + 1) + " з " + qs.length));
+    box.appendChild(el("p", "qq", q.q));
+    var wrap = el("div", "qopts"), exp = el("p", "qexp"), nxt = el("button", "qbtn", cur + 1 < qs.length ? "Далі" : "Результат"); nxt.type = "button"; nxt.hidden = true;
+    q.o.forEach(function (o) {
+      var b = el("button", "", o.t); b.type = "button";
+      b.onclick = function () {
+        var all = wrap.children, i;
+        for (i = 0; i < all.length; i++) { all[i].disabled = true; if (q.o[i].ok) all[i].className = "ok"; }
+        if (o.ok) score++; else b.className = "bad";
+        exp.textContent = (o.ok ? "Правильно! " : "Не зовсім. ") + q.e; nxt.hidden = false; nxt.focus();
+      };
+      wrap.appendChild(b);
+    });
+    nxt.onclick = function () { if (cur + 1 < qs.length) { cur++; ask(); } else { save(score); start(); } };
+    box.appendChild(wrap); box.appendChild(exp); box.appendChild(nxt);
+  }
+  start();
 })();
 </script>
 </body>

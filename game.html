@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1B7F5C">
+<title>Автобус-перегони</title>
+<style>
+  :root { --green:#1B7F5C; --bus:#F5B800; --ink:#17231F; --bg:#F3F5F4; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:manipulation; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 12px; gap:8px; }
+  header { width:100%; max-width:420px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  header a { color:var(--green); font-weight:700; text-decoration:none; font-size:15px; }
+  header .st { font-weight:700; font-variant-numeric:tabular-nums; font-size:15px; }
+  .wrap { position:relative; aspect-ratio:360/560; width:min(100%, 420px, calc((100vh - 150px) * 360 / 560)); min-width:240px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 420px, calc((100dvh - 150px) * 360 / 560)); } }
+  canvas { width:100%; height:100%; position:absolute; inset:0; border-radius:14px; background:#3b4541; display:block; touch-action:none; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:12px; text-align:center; padding:24px; background:rgba(15,25,22,.72); color:#fff; border-radius:14px; }
+  .ov[hidden] { display:none; }
+  .ov h1 { margin:0; font-size:26px; } .ov p { margin:0; font-size:15px; line-height:1.4; max-width:290px; }
+  .go { font:inherit; font-size:18px; font-weight:700; padding:14px 28px; border:0; border-radius:12px; background:var(--bus); color:#2b2100; cursor:pointer; }
+  .ctl { width:100%; max-width:420px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .ctl button { font:inherit; font-size:24px; padding:14px; border-radius:12px; border:1px solid #d5dbd8; background:#fff; color:var(--ink); cursor:pointer; }
+  .ctl button:active { background:#e6ece9; }
+  .av { width:72px; height:72px; flex:none; border-radius:50%; object-fit:cover; border:2px solid #F5B800; }
+  .say { display:flex; gap:12px; align-items:center; text-align:left; background:rgba(255,255,255,.12); border-radius:14px; padding:10px 12px; max-width:320px; }
+  .say b { display:block; font-size:13px; color:#F5B800; margin-bottom:2px; }
+  .say span { font-size:15px; line-height:1.35; }
+  .lvl { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:#F5B800; font-weight:700; }
+  .ghost { font:inherit; font-size:15px; font-weight:600; padding:10px 18px; border:1px solid rgba(255,255,255,.5); border-radius:10px; background:transparent; color:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span class="st" id="hud">Учнів: 0 · Життя: 3</span><span class="st" id="best"></span></header>
+<div class="wrap">
+  <canvas id="c" width="360" height="560" aria-label="Гра: автобус їде дорогою"></canvas>
+  <div class="ov" id="ov">
+    <div class="lvl" id="lvl"></div>
+    <h1 id="ovh">Автобус-перегони</h1>
+    <div class="say" id="say"><span id="avbox"></span><div><b id="who"></b><span id="ovtxt"></span></div></div>
+    <button class="go" id="go" type="button">Грати</button>
+    <button class="ghost" id="go2" type="button" hidden>Почати спочатку</button>
+  </div>
+</div>
+<div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
+<script>(function () {
+  var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 560, LANES = 3, LW = W / LANES;
+  var $ = function (i) { return document.getElementById(i); };
+  /* рівні: назва зупинки, скільки учнів зібрати, що з'являється на дорозі */
+  var LEVELS = [
+    { stop: "Долочче", goal: 8,  speed: 2.8, kinds: ["cone"], gap: 230,
+      who: "S", say: "Доброго ранку! Я Степанович, за кермом. Починаємо маршрут із Долочча. Збирайте учнів і об’їжджайте конуси." },
+    { stop: "Кунів", goal: 10, speed: 3.1, kinds: ["cone", "rock"], gap: 215, heart: true,
+      who: "A", say: "Я Артурович, вихователь. Рахую дітей! Якщо побачите серце — це моя допомога, додасть життя." },
+    { stop: "Болотківці", goal: 12, speed: 3.4, kinds: ["cone", "rock", "car"], gap: 200, heart: true,
+      who: "S", say: "На дорогу виїхали інші авто. Дивіться уважніше, дітей треба довезти безпечно." },
+    { stop: "Антонівка", goal: 14, speed: 3.7, kinds: ["cone", "rock", "car"], gap: 185, heart: true,
+      who: "A", say: "Усі пристебнулися? Стежу, щоб ніхто не бігав по салону. Їдемо далі!" },
+    { stop: "Кам’янка", goal: 16, speed: 4.0, kinds: ["cone", "rock", "car"], gap: 170, heart: true,
+      who: "S", say: "Кам’янка! Тут багато учнів. Тримаю кермо двома руками, а ви тримайте смугу." },
+    { stop: "Підсобне", goal: 18, speed: 4.3, kinds: ["cone", "rock", "car"], gap: 160, heart: true,
+      who: "A", say: "Майже приїхали. Не розслаблятися: попереду найшвидший відрізок." },
+    { stop: "Вілія", goal: 20, speed: 4.6, kinds: ["cone", "rock", "car"], gap: 150, heart: true,
+      who: "S", say: "Останній відрізок до Вілії, а далі їдемо до ліцею! Ви вже як справжній водій." }
+  ];
+  var TIPS_HIT = [["A", "Обережно! Стежте за дорогою."], ["S", "Спокійно, трасу тримаю разом із вами."], ["A", "Діти, тримайтесь за поручні!"], ["S", "Різко не гальмуємо, об’їжджаймо."]];
+  var TIPS_OK = [["A", "Ще один учень в автобусі!"], ["S", "Чудово, їдемо далі."], ["A", "Усіх бачу, всі на місцях."]];
+  var PIC = { S: "stepanovych.jpg", A: "arturovych.jpg" }, IMG = {}, AVC = {};
+  ["S", "A"].forEach(function (w) { IMG[w] = new Image(); IMG[w].src = PIC[w]; AVC[w] = '<img class="av" src="' + PIC[w] + '" alt="">'; });
+  NAME = { S: "Степанович, водій", A: "Артурович, вихователь" };
+  var lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
+  try { best = +localStorage.getItem("bus.game.best") || 0; saved = +localStorage.getItem("bus.game.level") || 0; } catch (e) {}
+  function hud() { $("hud").textContent = "Рівень " + (lvl + 1) + " · " + kids + "/" + LEVELS[lvl].goal + " · ♥ " + lives; $("best").textContent = "Усього: " + total; }
+  function save() { try { localStorage.setItem("bus.game.best", String(best)); localStorage.setItem("bus.game.level", String(saved)); } catch (e) {} }
+  function say(w, txt) { bubble = { w: w, t: txt }; bubT = 150; }
+  function say2(w, txt, head, btn) {
+    $("avbox").innerHTML = AVC[w]; $("who").textContent = NAME[w]; $("ovtxt").textContent = txt; $("ovh").textContent = head;
+    $("go").textContent = btn; $("ov").hidden = false;
+  }
+  function begin(l) { lvl = l; lane = 1; x = lane * LW + LW / 2; kids = 0; objs = []; spawn = 40; t = 0; off = 0; hit = 0; bubble = null; bubT = 0; speed = LEVELS[l].speed; hud(); draw(); }
+  function intro(l, keep) {
+    if (!keep) { lives = 3; if (l === 0) total = 0; }
+    begin(l); run = false;
+    $("lvl").textContent = "Рівень " + (l + 1) + " з " + LEVELS.length + " · зупинка " + LEVELS[l].stop;
+    say2(LEVELS[l].who, LEVELS[l].say + " Зберіть учнів: " + LEVELS[l].goal + ".", "Зупинка: " + LEVELS[l].stop, "Грати");
+    $("go2").hidden = !(l > 0);
+  }
+  function move(d) { if (!run) return; lane = Math.max(0, Math.min(LANES - 1, lane + d)); }
+  function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function drawBus(cx, cy, fl) {
+    g.save(); g.translate(cx, cy);
+    g.fillStyle = "rgba(0,0,0,.25)"; rr(-26, -42, 56, 92, 8); g.fill();
+    g.fillStyle = fl ? "#ff6b5e" : "#F5B800"; rr(-28, -48, 56, 92, 9); g.fill();
+    g.strokeStyle = "#8a6a00"; g.lineWidth = 2; g.stroke();
+    g.fillStyle = "#cfe8f7"; rr(-22, -38, 44, 14, 3); g.fill();
+    g.fillStyle = "#17231F"; for (var i = 0; i < 3; i++) { rr(-22, -14 + i * 18, 44, 10, 2); g.fill(); }
+    g.fillStyle = "#fff"; g.fillRect(-14, 34, 28, 6);
+    g.fillStyle = "#222"; g.fillRect(-32, -30, 6, 18); g.fillRect(26, -30, 6, 18); g.fillRect(-32, 14, 6, 18); g.fillRect(26, 14, 6, 18);
+    g.restore();
+  }
+  function drawObj(o) {
+    var cx = o.l * LW + LW / 2, y = o.y;
+    if (o.k === "kid") {
+      g.fillStyle = "#1B7F5C"; g.beginPath(); g.arc(cx, y, 16, 0, 7); g.fill();
+      g.fillStyle = "#ffd9b3"; g.beginPath(); g.arc(cx, y - 3, 8, 0, 7); g.fill();
+      g.fillStyle = "#222"; g.fillRect(cx - 4, y - 5, 2, 2); g.fillRect(cx + 2, y - 5, 2, 2);
+      g.fillStyle = "#F5B800"; g.fillRect(cx - 9, y + 5, 18, 8);
+    } else if (o.k === "heart") {
+      g.fillStyle = "#e23d5a"; g.beginPath(); g.moveTo(cx, y + 16); g.bezierCurveTo(cx - 28, y - 4, cx - 14, y - 22, cx, y - 8); g.bezierCurveTo(cx + 14, y - 22, cx + 28, y - 4, cx, y + 16); g.fill();
+      g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+    } else if (o.k === "cone") {
+      g.fillStyle = "#ff7a1a"; g.beginPath(); g.moveTo(cx, y - 20); g.lineTo(cx + 15, y + 16); g.lineTo(cx - 15, y + 16); g.closePath(); g.fill();
+      g.fillStyle = "#fff"; g.fillRect(cx - 9, y, 18, 6); g.fillStyle = "#222"; g.fillRect(cx - 18, y + 16, 36, 5);
+    } else if (o.k === "rock") {
+      g.fillStyle = "#8a8f8c"; g.beginPath(); g.ellipse(cx, y, 22, 17, 0, 0, 7); g.fill(); g.fillStyle = "#a9aeab"; g.beginPath(); g.ellipse(cx - 6, y - 5, 9, 6, 0, 0, 7); g.fill();
+    } else {
+      g.fillStyle = o.c; rr(cx - 22, y - 36, 44, 72, 8); g.fill();
+      g.fillStyle = "#dff1fb"; rr(cx - 16, y - 24, 32, 14, 3); g.fill(); g.fillRect(cx - 16, y + 12, 32, 8);
+      g.fillStyle = "#222"; g.fillRect(cx - 26, y - 24, 5, 14); g.fillRect(cx + 21, y - 24, 5, 14); g.fillRect(cx - 26, y + 12, 5, 14); g.fillRect(cx + 21, y + 12, 5, 14);
+    }
+  }
+  function frame() {
+    if (!run) return;
+    var L = LEVELS[lvl]; t++;
+    speed = L.speed + Math.min(1.2, t / 3000);
+    x += (lane * LW + LW / 2 - x) * 0.25;
+    off = (off + speed) % 56; spawn -= speed;
+    if (spawn <= 0) {
+      var r = Math.random(), k;
+      if (r < 0.42) k = "kid"; else if (L.heart && r < 0.46 && lives < 5) k = "heart"; else k = L.kinds[Math.floor(Math.random() * L.kinds.length)];
+      var l = Math.floor(Math.random() * LANES);
+      objs.push({ k: k, l: l, y: -50, c: ["#c0392b", "#2d7dd2", "#7b4fb0", "#e8e8e8"][Math.floor(Math.random() * 4)] });
+      if (Math.random() < 0.3) objs.push({ k: "kid", l: (l + 1 + Math.floor(Math.random() * 2)) % LANES, y: -50 });
+      spawn = L.gap + Math.random() * 90;
+    }
+    var by = H - 80;
+    for (var i = objs.length - 1; i >= 0; i--) {
+      var o = objs[i]; o.y += speed;
+      if (o.l === lane && Math.abs(o.y - by) < (o.k === "car" ? 58 : 40)) {
+        objs.splice(i, 1);
+        if (o.k === "kid") { kids++; total++; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
+        else if (o.k === "heart") { lives = Math.min(5, lives + 1); say("A", "Тримайте! Додаю життя."); hud(); }
+        else { lives--; hit = 20; var h = TIPS_HIT[Math.floor(Math.random() * TIPS_HIT.length)]; say(h[0], h[1]); hud(); if (lives <= 0) { over(); return; } }
+      } else if (o.y > H + 60) objs.splice(i, 1);
+    }
+    draw(); requestAnimationFrame(frame);
+  }
+  function draw() {
+    g.fillStyle = "#3b4541"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#5f9b4a"; g.fillRect(0, 0, 6, H); g.fillRect(W - 6, 0, 6, H);
+    g.fillStyle = "#e9e9e9"; for (var i = 1; i < LANES; i++) for (var y = -56 + off; y < H; y += 56) g.fillRect(i * LW - 2, y, 4, 30);
+    (objs || []).forEach(drawObj);
+    if (hit > 0) hit--;
+    drawBus(x, H - 80, hit > 0 && hit % 6 < 3);
+    if (bubT > 0 && bubble) {
+      bubT--; g.fillStyle = "rgba(255,255,255,.95)"; rr(10, 14, W - 20, 46, 10); g.fill();
+      g.save(); g.beginPath(); g.arc(36, 37, 17, 0, 7); g.clip();
+      if (IMG[bubble.w].complete && IMG[bubble.w].naturalWidth) g.drawImage(IMG[bubble.w], 19, 20, 34, 34); else { g.fillStyle = "#1B7F5C"; g.fillRect(19, 20, 34, 34); }
+      g.restore(); g.strokeStyle = "#F5B800"; g.lineWidth = 2; g.beginPath(); g.arc(36, 37, 17, 0, 7); g.stroke();
+      g.fillStyle = "#17231F"; g.textAlign = "left"; g.font = "14px system-ui,sans-serif";
+      var words = bubble.t, nm = bubble.w === "S" ? "Степанович" : "Артурович";
+      g.font = "bold 12px system-ui,sans-serif"; g.fillStyle = "#1B7F5C"; g.fillText(nm, 60, 31);
+      g.font = "14px system-ui,sans-serif"; g.fillStyle = "#17231F"; g.fillText(words, 60, 50);
+    }
+  }
+  function done() {
+    run = false; draw();
+    if (total > best) best = total;
+    if (lvl + 1 < LEVELS.length) {
+      saved = Math.max(saved, lvl + 1); save();
+      var w = LEVELS[lvl + 1].who === "S" ? "A" : "S";
+      $("lvl").textContent = "Рівень " + (lvl + 1) + " пройдено";
+      say2(w, "Зупинка " + LEVELS[lvl].stop + " позаду, усі в автобусі! Їдемо далі: " + LEVELS[lvl + 1].stop + ".", "Молодець!", "Наступний рівень");
+      $("go").dataset.next = "1"; $("go2").hidden = true;
+    } else {
+      saved = 0; save();
+      $("lvl").textContent = "Маршрут пройдено";
+      say2("S", "Приїхали до ліцею! Дякую за допомогу, ви справжній помічник водія. Усього учнів: " + total + ".", "Перемога!", "Грати ще раз");
+      $("go").dataset.next = "restart"; $("go2").hidden = true;
+    }
+  }
+  function over() {
+    run = false; draw(); if (total > best) best = total; save();
+    $("lvl").textContent = "Рівень " + (lvl + 1) + " · зупинка " + LEVELS[lvl].stop;
+    say2("A", "Цього разу не вийшло. Зібрано учнів: " + total + ", рекорд " + best + ". Спробуйте ще раз цей рівень!", "Кінець поїздки", "Ще раз");
+    $("go").dataset.next = "retry"; $("go2").hidden = !(lvl > 0);
+  }
+  function start() { $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
+  $("go").onclick = function () {
+    var n = $("go").dataset.next; $("go").dataset.next = "";
+    if (n === "1") { intro(lvl + 1, true); start(); }
+    else if (n === "restart") { intro(0); start(); }
+    else if (n === "retry") { var lost = kids; intro(lvl, false); total = Math.max(0, total - lost); start(); }
+    else start();
+  };
+  $("go2").onclick = function () { $("go").dataset.next = ""; intro(0); start(); };
+  $("bl").onclick = function () { move(-1); }; $("br").onclick = function () { move(1); };
+  document.addEventListener("keydown", function (e) { if (e.key === "ArrowLeft" || e.key === "a") move(-1); else if (e.key === "ArrowRight" || e.key === "d") move(1); });
+  var sx = null;
+  cv.addEventListener("touchstart", function (e) { sx = e.touches[0].clientX; }, { passive: true });
+  cv.addEventListener("touchend", function (e) { if (sx === null) return; var dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 25) move(dx > 0 ? 1 : -1); else { var r = cv.getBoundingClientRect(); move(e.changedTouches[0].clientX < r.left + r.width / 2 ? -1 : 1); } sx = null; });
+  cv.addEventListener("mousedown", function (e) { var r = cv.getBoundingClientRect(); move(e.clientX < r.left + r.width / 2 ? -1 : 1); });
+  total = 0; lives = 3;
+  var startLvl = saved > 0 && saved < LEVELS.length ? saved : 0;
+  intro(startLvl);
+  window.__g = { state: function () { return { lvl: lvl, lives: lives, kids: kids, total: total, run: run, n: objs.length }; }, cheat: function () { kids = LEVELS[lvl].goal - 1; }, lives: function (n) { lives = n; } };
+})();
+</script>
+</body>
+</html>

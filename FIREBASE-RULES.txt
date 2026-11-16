@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "bus": {
+      "$k": {
+        ".read": "$k === 'cetdRPZc8FZcZYedNL1Gfw3CMoc5'",
+        ".write": "$k === 'cetdRPZc8FZcZYedNL1Gfw3CMoc5'",
+        "pos": {
+          ".validate": "newData.hasChildren(['lat','lng','ts'])"
+        },
+        "notice": {
+          ".validate": "newData.hasChildren(['text','ts'])"
+        },
+        "lost": {
+          "$id": {
+            ".validate": "newData.hasChildren(['text','ts']) && newData.child('text').isString() && newData.child('text').val().length <= 120",
+            "photo": {
+              ".validate": "newData.isString() && newData.val().length < 150000"
+            }
+          }
+        }
+      }
+    }
+  }
+}
