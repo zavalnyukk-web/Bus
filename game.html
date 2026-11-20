@@ -44,6 +44,8 @@
   </div>
 </div>
 <div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
+<script src="config.js"></script>
+<script src="track.js"></script>
 <script>(function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 560, LANES = 3, LW = W / LANES;
   var $ = function (i) { return document.getElementById(i); };
@@ -186,7 +188,7 @@
     say2("A", "Цього разу не вийшло. Зібрано учнів: " + total + ", рекорд " + best + ". Спробуйте ще раз цей рівень!", "Кінець поїздки", "Ще раз");
     $("go").dataset.next = "retry"; $("go2").hidden = !(lvl > 0);
   }
-  function start() { $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
+  function start() { if (window.trackPlay) trackPlay("bus"); $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
   $("go").onclick = function () {
     var n = $("go").dataset.next; $("go").dataset.next = "";
     if (n === "1") { intro(lvl + 1, true); start(); }

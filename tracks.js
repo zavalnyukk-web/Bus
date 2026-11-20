@@ -13,4 +13,8 @@ window.TRACKS = [
   { title: "Рок-н-рол на весь район", artist: "zavalnyuk", src: "music/Rock and roll for the whole district.mp3" },
   { title: "Степанович за кермом Камеді", artist: "zavalnyuk", src: "music/Stepanovych behind the wheel of a Kamedi.mp3" },
   { title: "Гори кличуть", artist: "zavalnyuk", src: "music/The mountains are calling.mp3" },
+  { title: "Дзинь-дзилинь", artist: "zavalnyuk", src: "music/Дзинь-дзилинь.mp3" },
+  { title: "Ровер, ровер", artist: "zavalnyuk", src: "music/Ровер, ровер.mp3" },
+  { title: "Рок-н-рольний автобус", artist: "zavalnyuk", src: "music/Рок-н-рольний автобус.mp3" },
+  { title: "Усі різні!", artist: "zavalnyuk", src: "music/Усі різні!.mp3" },
 ];

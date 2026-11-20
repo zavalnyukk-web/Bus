@@ -211,6 +211,14 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 .qexp { margin:0; font-size:13.5px; color:var(--muted); }
 .qprog { font-size:12px; color:var(--muted); }
 .gamelink { display:block; text-align:center; text-decoration:none; font-weight:700; font-size:15px; padding:12px 14px; border-radius:10px; background:var(--green-soft); color:var(--green); border:1px solid var(--green); }
+
+.ticker { margin-top:12px; background:var(--green); color:#fff; overflow:hidden; white-space:nowrap; font-weight:600; font-size:15px; padding:9px 0; }
+.ticker[hidden] { display:none; }
+.tk-run { display:inline-block; padding-left:100%; animation:tkrun var(--tk-dur, 120s) linear infinite; }
+.ticker:hover .tk-run, .ticker.paused .tk-run { animation-play-state:paused; }
+.tk-run span::after { content:"  ★  "; color:var(--bus); }
+@keyframes tkrun { to { transform:translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .tk-run { animation:none; padding-left:0; display:block; white-space:normal; text-align:center; padding:0 16px; } }
 </style>
 </head>
 <body>
@@ -219,6 +227,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
   <img class="hero" src="bus-header.jpg" width="1200" height="253" alt="Кунівський ліцей. Шкільний автобус. Безпечно, надійно, з комфортом. Разом до знань!">
 </header>
 
+<div class="ticker" id="ticker" hidden role="marquee" aria-label="Побажання дня"><div class="tk-run" id="tkrun"></div></div>
 <main class="page">
   <div class="mapwrap">
     <div id="map" role="region" aria-label="Карта маршруту"></div>
@@ -299,6 +308,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 <script src="config.js"></script>
 <script src="tracks.js"></script>
 <script src="facts.js"></script>
+<script src="track.js"></script>
 <script>
 (function () {
   var STOPS = {
@@ -845,7 +855,8 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
   $("rprev").onclick = function () { if (audio.currentTime > 4) audio.currentTime = 0; else next(-1); };
   $("rshuf").setAttribute("aria-pressed", shuffle);
   $("rshuf").onclick = function () { shuffle = !shuffle; $("rshuf").setAttribute("aria-pressed", shuffle); try { localStorage.setItem("bus.radio.shuffle", shuffle ? "1" : "0"); } catch (e) {} };
-  audio.addEventListener("play", function () { document.body.classList.add("playing"); $("mini").hidden = false; document.body.classList.add("has-mini"); $("mplayicon").innerHTML = PAUSE; $("mplay").setAttribute("aria-label", "Пауза"); $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
+  var played = false;
+  audio.addEventListener("play", function () { if (!played) { played = true; if (window.trackPlay) trackPlay("radio"); } document.body.classList.add("playing"); $("mini").hidden = false; document.body.classList.add("has-mini"); $("mplayicon").innerHTML = PAUSE; $("mplay").setAttribute("aria-label", "Пауза"); $("rplayicon").innerHTML = PAUSE; $("rplay").setAttribute("aria-label", "Пауза"); fails = 0; });
   audio.addEventListener("pause", function () { document.body.classList.remove("playing"); $("mplayicon").innerHTML = PLAY; $("mplay").setAttribute("aria-label", "Грати"); $("rplayicon").innerHTML = PLAY; $("rplay").setAttribute("aria-label", "Грати"); });
   audio.addEventListener("ended", function () { next(1); });
   audio.addEventListener("loadedmetadata", function () { $("rdur").textContent = mmss(audio.duration); });
@@ -928,6 +939,25 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     box.appendChild(wrap); box.appendChild(exp); box.appendChild(nxt);
   }
   start();
+})();
+</script>
+<script>
+/* бігова доріжка з мотивацією (фрази з facts.js) */
+(function () {
+  var M = window.MOTTO || [], box = document.getElementById("ticker"), run = document.getElementById("tkrun");
+  if (!M.length || !box) return;
+  var d = new Date(), day = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000 + 0.5), n = M.length;
+  var list = M.map(function (t, i) { return M[(i + day) % n]; });
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) {
+    var k = 0; run.textContent = list[0];
+    setInterval(function () { k = (k + 1) % n; run.textContent = list[k]; }, 8000);
+  } else {
+    list.forEach(function (t) { var s = document.createElement("span"); s.textContent = t; run.appendChild(s); });
+    var len = list.join("").length; run.style.setProperty("--tk-dur", Math.max(40, Math.round(len / 7)) + "s");
+    box.addEventListener("click", function () { box.classList.toggle("paused"); });
+  }
+  box.hidden = false;
 })();
 </script>
 </body>

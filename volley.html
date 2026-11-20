@@ -40,6 +40,8 @@
   </div>
 </div>
 <div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="bj" class="jump" type="button">Стрибок</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
+<script src="config.js"></script>
+<script src="track.js"></script>
 <script>
 (function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 440, FLOOR = 390, NETX = 180, NETTOP = 290, SR = 36, BR = 11;
@@ -157,7 +159,7 @@
     else { saved = 0; try { localStorage.setItem("bus.volley.level", "0"); } catch (e) {} show("Рахунок " + sy + ":" + so, "Чемпіони!", "Кунівські куниці виграли турнір! Вітаємо з перемогою!", "Грати ще раз"); $("go").dataset.n = "again"; }
   }
   function lose() { run = false; draw(); show("Рахунок " + sy + ":" + so, "Матч програно", "Нічого, куниці не здаються! Спробуйте ще раз.", "Реванш"); $("go").dataset.n = "retry"; }
-  function start() { $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
+  function start() { if (window.trackPlay) trackPlay("volley"); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
   $("go").onclick = function () {
     var n = $("go").dataset.n; $("go").dataset.n = "";
     if (n === "next") newMatch(lvl + 1); else if (n === "again") newMatch(0); else newMatch(lvl);
