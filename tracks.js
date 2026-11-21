@@ -14,6 +14,8 @@ window.TRACKS = [
   { title: "Степанович за кермом Камеді", artist: "zavalnyuk", src: "music/Stepanovych behind the wheel of a Kamedi.mp3" },
   { title: "Гори кличуть", artist: "zavalnyuk", src: "music/The mountains are calling.mp3" },
   { title: "Дзинь-дзилинь", artist: "zavalnyuk", src: "music/Дзинь-дзилинь.mp3" },
+  { title: "Дистанційка", artist: "zavalnyuk", src: "music/Дистанційка.mp3" },
+  { title: "Жовтий автобус", artist: "zavalnyuk", src: "music/Жовтий автобус.mp3" },
   { title: "Ровер, ровер", artist: "zavalnyuk", src: "music/Ровер, ровер.mp3" },
   { title: "Рок-н-рольний автобус", artist: "zavalnyuk", src: "music/Рок-н-рольний автобус.mp3" },
   { title: "Усі різні!", artist: "zavalnyuk", src: "music/Усі різні!.mp3" },
