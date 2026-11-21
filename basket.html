@@ -22,10 +22,11 @@
   .ov h1 { margin:0; font-size:22px; color:var(--amber); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:290px; }
   .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--amber); font-weight:700; }
   .go { font:inherit; font-size:18px; font-weight:700; padding:13px 28px; border:0; border-radius:12px; background:var(--amber); color:#2a1700; cursor:pointer; }
+.snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; white-space:nowrap; }
 </style>
 </head>
 <body>
-<header><a href="./">← На сайт</a><span id="lvlname"></span></header>
+<header><a href="./">← На сайт</a><span id="lvlname"></span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
 <div class="wrap">
   <canvas id="c" width="360" height="560" aria-label="Гра у баскетбол: потягніть м’яч назад і відпустіть"></canvas>
   <div class="ov" id="ov">
@@ -36,6 +37,7 @@
     <button class="go" id="go" type="button">Грати</button>
   </div>
 </div>
+<script src="sfx.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
@@ -63,7 +65,7 @@
     var dx = ball.x - px, dy = ball.y - py, d = Math.hypot(dx, dy);
     if (d < R + r && d > 0) {
       var nx = dx / d, ny = dy / d; ball.x = px + nx * (R + r); ball.y = py + ny * (R + r);
-      var dot = ball.vx * nx + ball.vy * ny; if (dot < 0) { ball.vx -= 1.6 * dot * nx; ball.vy -= 1.6 * dot * ny; ball.vx *= 0.9; ball.vy *= 0.9; rimTouched = true; }
+      var dot = ball.vx * nx + ball.vy * ny; if (dot < 0) { SFXLIB.tone(900, 0.1, "square", 0.07, 0, 500); SFXLIB.noise(0.06, 0.15, 3000, "highpass"); ball.vx -= 1.6 * dot * nx; ball.vy -= 1.6 * dot * ny; ball.vx *= 0.9; ball.vy *= 0.9; rimTouched = true; }
     }
   }
   function physics(b, hx, hy) {
@@ -71,28 +73,28 @@
     var xB = hx + RW, bbx = xB + 6;
     // щит
     if (b.x + R > bbx && b.x - R < bbx + 8 && b.y > hy - 78 && b.y < hy + 12) {
-      if (b.vx > 0) { b.x = bbx - R; b.vx = -b.vx * 0.6; rimTouched = true; }
+      if (b.vx > 0) { SFXLIB.tone(160, 0.12, "triangle", 0.25, 0, 90); b.x = bbx - R; b.vx = -b.vx * 0.6; rimTouched = true; }
     }
     circ(hx, hy, 4); circ(xB, hy, 4);
     var sc = false;
     if (prevY < hy && b.y >= hy && b.vy > 0 && b.x > hx + 6 && b.x < xB - 2) sc = true;
     return sc;
   }
-  function shoot(vx, vy) { if (state !== "aim") return; ball.vx = vx; ball.vy = vy; state = "fly"; used++; hud(); }
+  function shoot(vx, vy) { if (state !== "aim") return; SFXLIB.noise(0.14, 0.18, 2200, "bandpass"); ball.vx = vx; ball.vy = vy; state = "fly"; used++; hud(); }
   function update() {
     tm++;
     var L = LV[lvl];
     if (state === "aim") { hoopX = curHX(); return; }
     if (state === "fly") {
       hoopX = curHX(); age++;
-      if (physics(ball, hoopX, hoopY) && !scored) { scored = true; makes++; var p = rimTouched ? 2 : 3; pts += p; msg = rimTouched ? "Є! +2" : "Чисто! +3"; msgT = 60; hud(); }
-      if (ball.y > FLOOR - R && ball.vy > 0) { ball.y = FLOOR - R; ball.vy *= -0.55; ball.vx *= 0.8; bounces++; }
+      if (physics(ball, hoopX, hoopY) && !scored) { scored = true; SFXLIB.noise(0.28, 0.3, 4000, "highpass"); SFXLIB.seq([784, 988, 1175], 0.07, "sine", 0.16); makes++; var p = rimTouched ? 2 : 3; pts += p; msg = rimTouched ? "Є! +2" : "Чисто! +3"; msgT = 60; hud(); }
+      if (ball.y > FLOOR - R && ball.vy > 0) { ball.y = FLOOR - R; ball.vy *= -0.55; ball.vx *= 0.8; bounces++; SFXLIB.tone(130 / bounces, 0.12, "triangle", 0.28, 0, 60); }
       if (ball.x < -30 || ball.x > W + 30 || bounces >= 2 || age > 420) endShot();
     } else if (state === "pause") { if (--wait <= 0) afterShot(); }
   }
   var wait = 0;
   function endShot() {
-    if (!scored) { msg = "Мимо"; msgT = 40; }
+    if (!scored) { msg = "Мимо"; msgT = 40; SFXLIB.tone(240, 0.22, "triangle", 0.14, 0, 120); }
     state = "pause"; wait = 36;
   }
   function afterShot() {
@@ -130,7 +132,7 @@
     }
     // тінь, м'яч
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(ball.x, FLOOR + 8, 12, 4, 0, 0, 7); g.fill();
-    g.fillStyle = "#ff8a1f"; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
+    var bgr = g.createRadialGradient(ball.x - 5, ball.y - 5, 2, ball.x, ball.y, R); bgr.addColorStop(0, "#ffc27a"); bgr.addColorStop(0.5, "#ff8a1f"); bgr.addColorStop(1, "#b84e00"); g.fillStyle = bgr; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
     g.strokeStyle = "#3a1c05"; g.lineWidth = 1.5; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.moveTo(ball.x - R, ball.y); g.lineTo(ball.x + R, ball.y); g.moveTo(ball.x, ball.y - R); g.lineTo(ball.x, ball.y + R); g.stroke();
     if (msgT > 0) { msgT--; g.textAlign = "center"; g.font = "bold 28px system-ui,sans-serif"; g.fillStyle = "#FF9F1C"; g.fillText(msg, W / 2, 120); }
   }
@@ -153,13 +155,14 @@
   cv.addEventListener("pointerup", release); cv.addEventListener("pointercancel", function () { drag = null; });
   function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; }
   function win() {
-    run = false; draw();
+    run = false; draw(); SFXLIB.seq(lvl + 1 < LV.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
     if (lvl + 1 < LV.length) { saved = Math.max(saved, lvl + 1); try { localStorage.setItem("bus.basket.level", String(saved)); } catch (e) {} show("Очок: " + pts, "Рівень пройдено!", "Далі: " + LV[lvl + 1].name + ". " + LV[lvl + 1].txt, "Наступний рівень"); $("go").dataset.n = "next"; }
     else { saved = 0; try { localStorage.setItem("bus.basket.level", "0"); } catch (e) {} show("Усього очок: " + pts, "Бульдозер переміг!", "Ви пройшли всі рівні. Кунівський ліцей пишається вами!", "Грати ще раз"); $("go").dataset.n = "again"; }
   }
-  function lose() { run = false; draw(); show("Закинуто " + makes + " з " + LV[lvl].goal, "Кидки закінчилися", "Трохи не вистачило. Спробуйте ще раз цей рівень.", "Ще раз"); $("go").dataset.n = "retry"; }
-  function start() { if (window.trackPlay) trackPlay("basket"); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
+  function lose() { run = false; draw(); SFXLIB.seq([392, 330, 262, 196], 0.2); show("Закинуто " + makes + " з " + LV[lvl].goal, "Кидки закінчилися", "Трохи не вистачило. Спробуйте ще раз цей рівень.", "Ще раз"); $("go").dataset.n = "retry"; }
+  function start() { if (window.trackPlay) trackPlay("basket"); SFXLIB.tone(1400, 0.25, "sine", 0.1); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
   $("go").onclick = function () { var n = $("go").dataset.n; $("go").dataset.n = ""; if (n === "next") newLevel(lvl + 1); else if (n === "again") { pts = 0; newLevel(0); } else newLevel(lvl); start(); };
+  SFXLIB.bind($("snd"));
   var l0 = saved > 0 && saved < LV.length ? saved : 0;
   pts = 0; newLevel(l0); draw();
   show("Рівень " + (l0 + 1) + " з " + LV.length + ": " + LV[l0].name, "Бульдозер: баскетбол", LV[l0].txt, "Грати");

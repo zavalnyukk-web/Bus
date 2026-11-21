@@ -29,6 +29,8 @@
   .say span { font-size:15px; line-height:1.35; }
   .lvl { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:#F5B800; font-weight:700; }
   .ghost { font:inherit; font-size:15px; font-weight:600; padding:10px 18px; border:1px solid rgba(255,255,255,.5); border-radius:10px; background:transparent; color:#fff; cursor:pointer; }
+  .opts { width:100%; max-width:420px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .opts button { font:inherit; font-size:15px; font-weight:700; padding:10px; border-radius:10px; border:1px solid #d5dbd8; background:#fff; color:var(--ink); cursor:pointer; }
 </style>
 </head>
 <body>
@@ -43,6 +45,7 @@
     <button class="ghost" id="go2" type="button" hidden>Почати спочатку</button>
   </div>
 </div>
+<div class="opts"><button id="vw" type="button" aria-label="Перемкнути вигляд 2D або 3D">Вигляд: 3D</button><button id="snd" type="button" aria-label="Звук">🔊 Звук увімк.</button></div>
 <div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
 <script src="config.js"></script>
 <script src="track.js"></script>
@@ -71,6 +74,43 @@
   var PIC = { S: "stepanovych.jpg", A: "arturovych.jpg" }, IMG = {}, AVC = {};
   ["S", "A"].forEach(function (w) { IMG[w] = new Image(); IMG[w].src = PIC[w]; AVC[w] = '<img class="av" src="' + PIC[w] + '" alt="">'; });
   NAME = { S: "Степанович, водій", A: "Артурович, вихователь" };
+
+  /* ===== звуки (створюються кодом, окремі файли не потрібні) ===== */
+  var AC = null, muted = false, eng = null, view3d = true, treeOff = 0;
+  try { muted = localStorage.getItem("bus.game.mute") === "1"; var vv = localStorage.getItem("bus.game.view"); if (vv) view3d = vv === "3d"; } catch (e) {}
+  function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === "suspended") AC.resume(); return AC; }
+  function tone(f, d, type, vol, when, slide) {
+    if (muted) return; var a = ac(); if (!a) return;
+    var t0 = a.currentTime + (when || 0), o = a.createOscillator(), gn = a.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d);
+    gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(vol || 0.15, t0 + 0.015); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(gn); gn.connect(a.destination); o.start(t0); o.stop(t0 + d + 0.03);
+  }
+  function noise(d, vol) {
+    if (muted) return; var a = ac(); if (!a) return;
+    var n = Math.floor(a.sampleRate * d), buf = a.createBuffer(1, n, a.sampleRate), ch = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var src = a.createBufferSource(), fl = a.createBiquadFilter(), gn = a.createGain();
+    fl.type = "lowpass"; fl.frequency.value = 900; gn.gain.value = vol; src.buffer = buf; src.connect(fl); fl.connect(gn); gn.connect(a.destination); src.start();
+  }
+  var SFX = {
+    kid: function () { tone(660, 0.09, "sine", 0.18); tone(990, 0.12, "sine", 0.18, 0.08); },
+    heart: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.14, "triangle", 0.2, i * 0.07); }); },
+    hit: function () { noise(0.35, 0.4); tone(180, 0.3, "sawtooth", 0.22, 0, 50); },
+    horn: function () { tone(420, 0.14, "square", 0.08); tone(420, 0.14, "square", 0.08, 0.2); },
+    level: function () { [523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(f, 0.16, "triangle", 0.2, i * 0.09); }); },
+    over: function () { [392, 330, 262, 196].forEach(function (f, i) { tone(f, 0.26, "triangle", 0.22, i * 0.2); }); },
+    win: function () { [523, 523, 523, 659, 784, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.2, "triangle", 0.22, i * 0.13); }); }
+  };
+  function engineOn() {
+    if (muted || eng) return; var a = ac(); if (!a) return;
+    var o = a.createOscillator(), fl = a.createBiquadFilter(), gn = a.createGain();
+    o.type = "sawtooth"; o.frequency.value = 60; fl.type = "lowpass"; fl.frequency.value = 380; gn.gain.value = 0.03;
+    o.connect(fl); fl.connect(gn); gn.connect(a.destination); o.start(); eng = { o: o, g: gn };
+  }
+  function engineOff() { if (!eng) return; try { eng.o.stop(); } catch (e) {} eng = null; }
+  function engineSpeed(sp) { if (eng && AC) eng.o.frequency.setTargetAtTime(48 + sp * 13, AC.currentTime, 0.1); }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) engineOff(); else if (run) engineOn(); });
   var lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
   try { best = +localStorage.getItem("bus.game.best") || 0; saved = +localStorage.getItem("bus.game.level") || 0; } catch (e) {}
   function hud() { $("hud").textContent = "Рівень " + (lvl + 1) + " · " + kids + "/" + LEVELS[lvl].goal + " · ♥ " + lives; $("best").textContent = "Усього: " + total; }
@@ -127,7 +167,7 @@
     var L = LEVELS[lvl]; t++;
     speed = L.speed + Math.min(1.2, t / 3000);
     x += (lane * LW + LW / 2 - x) * 0.25;
-    off = (off + speed) % 56; spawn -= speed;
+    off = (off + speed) % 56; treeOff = (treeOff + speed) % 140; spawn -= speed; engineSpeed(speed);
     if (spawn <= 0) {
       var r = Math.random(), k;
       if (r < 0.42) k = "kid"; else if (L.heart && r < 0.46 && lives < 5) k = "heart"; else k = L.kinds[Math.floor(Math.random() * L.kinds.length)];
@@ -141,20 +181,22 @@
       var o = objs[i]; o.y += speed;
       if (o.l === lane && Math.abs(o.y - by) < (o.k === "car" ? 58 : 40)) {
         objs.splice(i, 1);
-        if (o.k === "kid") { kids++; total++; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
-        else if (o.k === "heart") { lives = Math.min(5, lives + 1); say("A", "Тримайте! Додаю життя."); hud(); }
-        else { lives--; hit = 20; var h = TIPS_HIT[Math.floor(Math.random() * TIPS_HIT.length)]; say(h[0], h[1]); hud(); if (lives <= 0) { over(); return; } }
+        if (o.k === "kid") { SFX.kid(); kids++; total++; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
+        else if (o.k === "heart") { SFX.heart(); lives = Math.min(5, lives + 1); say("A", "Тримайте! Додаю життя."); hud(); }
+        else { SFX.hit(); lives--; hit = 20; var h = TIPS_HIT[Math.floor(Math.random() * TIPS_HIT.length)]; say(h[0], h[1]); hud(); if (lives <= 0) { over(); return; } }
       } else if (o.y > H + 60) objs.splice(i, 1);
     }
     draw(); requestAnimationFrame(frame);
   }
-  function draw() {
+  function draw2d() {
     g.fillStyle = "#3b4541"; g.fillRect(0, 0, W, H);
     g.fillStyle = "#5f9b4a"; g.fillRect(0, 0, 6, H); g.fillRect(W - 6, 0, 6, H);
     g.fillStyle = "#e9e9e9"; for (var i = 1; i < LANES; i++) for (var y = -56 + off; y < H; y += 56) g.fillRect(i * LW - 2, y, 4, 30);
     (objs || []).forEach(drawObj);
     if (hit > 0) hit--;
     drawBus(x, H - 80, hit > 0 && hit % 6 < 3);
+  }
+  function drawBubble() {
     if (bubT > 0 && bubble) {
       bubT--; g.fillStyle = "rgba(255,255,255,.95)"; rr(10, 14, W - 20, 46, 10); g.fill();
       g.save(); g.beginPath(); g.arc(36, 37, 17, 0, 7); g.clip();
@@ -166,8 +208,87 @@
       g.font = "14px system-ui,sans-serif"; g.fillStyle = "#17231F"; g.fillText(words, 60, 50);
     }
   }
+
+  var HZ = 140;
+  function pr(y) { var p = Math.max(0, Math.min(1.2, (y + 50) / (H + 50))), f = Math.pow(p, 1.6); return { sy: HZ + (H - HZ) * f, s: 0.1 + 0.9 * f }; }
+  function shadow(w) { g.fillStyle = "rgba(0,0,0,.28)"; g.beginPath(); g.ellipse(0, 0, w, w * 0.28, 0, 0, 7); g.fill(); }
+  function sprite(k, c, fl) {
+    if (k === "bus") {
+      shadow(40); g.fillStyle = "#222"; g.fillRect(-34, -14, 10, 14); g.fillRect(24, -14, 10, 14);
+      g.fillStyle = fl ? "#ff6b5e" : "#F5B800"; rr(-32, -66, 64, 56, 7); g.fill(); g.strokeStyle = "#8a6a00"; g.lineWidth = 2; g.stroke();
+      g.fillStyle = "#17231F"; rr(-25, -58, 50, 22, 3); g.fill(); g.fillStyle = "#3b5870"; rr(-22, -55, 44, 16, 2); g.fill();
+      g.fillStyle = "#fff"; g.fillRect(-14, -30, 28, 9); g.fillStyle = "#17231F"; g.font = "bold 7px system-ui,sans-serif"; g.textAlign = "center"; g.fillText("ШКІЛЬНИЙ", 0, -23);
+      g.fillStyle = "#e23d3d"; g.fillRect(-29, -20, 8, 7); g.fillRect(21, -20, 8, 7);
+    } else if (k === "kid") {
+      shadow(14); var bob = Math.sin(t / 5) * 2;
+      g.fillStyle = "#2d4a6a"; g.fillRect(-7, -12, 5, 12); g.fillRect(2, -12, 5, 12);
+      g.fillStyle = "#1B7F5C"; rr(-10, -32 + bob, 20, 22, 4); g.fill();
+      g.fillStyle = "#F5B800"; rr(-12, -30 + bob, 6, 14, 2); g.fill();
+      g.fillStyle = "#ffd9b3"; g.beginPath(); g.arc(0, -38 + bob, 8, 0, 7); g.fill();
+      g.fillStyle = "#4a2d12"; g.beginPath(); g.arc(0, -41 + bob, 8, Math.PI, 0); g.fill();
+    } else if (k === "heart") {
+      var fy = -26 + Math.sin(t / 8) * 4; g.fillStyle = "rgba(255,255,255,.25)"; g.beginPath(); g.arc(0, fy, 22, 0, 7); g.fill(); shadow(12);
+      g.fillStyle = "#e23d5a"; g.beginPath(); g.moveTo(0, fy + 14); g.bezierCurveTo(-26, fy - 4, -12, fy - 22, 0, fy - 8); g.bezierCurveTo(12, fy - 22, 26, fy - 4, 0, fy + 14); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+    } else if (k === "cone") {
+      shadow(18); g.fillStyle = "#222"; g.fillRect(-16, -5, 32, 5);
+      g.fillStyle = "#ff7a1a"; g.beginPath(); g.moveTo(0, -42); g.lineTo(13, -5); g.lineTo(-13, -5); g.closePath(); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.moveTo(-5, -26); g.lineTo(5, -26); g.lineTo(8, -17); g.lineTo(-8, -17); g.closePath(); g.fill();
+    } else if (k === "rock") {
+      shadow(24); g.fillStyle = "#7d8380"; g.beginPath(); g.moveTo(-24, 0); g.lineTo(-18, -22); g.lineTo(-4, -30); g.lineTo(14, -24); g.lineTo(24, 0); g.closePath(); g.fill();
+      g.fillStyle = "#a3a9a5"; g.beginPath(); g.moveTo(-18, -22); g.lineTo(-4, -30); g.lineTo(2, -14); g.lineTo(-12, -8); g.closePath(); g.fill();
+    } else {
+      shadow(28); g.fillStyle = "#222"; g.fillRect(-26, -12, 9, 12); g.fillRect(17, -12, 9, 12);
+      g.fillStyle = c; rr(-26, -36, 52, 28, 6); g.fill(); rr(-19, -52, 38, 22, 6); g.fill();
+      g.fillStyle = "#3b5870"; rr(-15, -48, 30, 14, 3); g.fill();
+      g.fillStyle = "#ff3b3b"; g.fillRect(-23, -30, 9, 6); g.fillRect(14, -30, 9, 6);
+      g.fillStyle = "#fff"; g.fillRect(-8, -18, 16, 7);
+    }
+  }
+  function draw3d() {
+    var sh = hit > 0 ? (Math.random() * 6 - 3) : 0;
+    g.save(); g.translate(sh, 0);
+    // небо і пагорби
+    var sk = g.createLinearGradient(0, 0, 0, HZ); sk.addColorStop(0, "#6fb7ea"); sk.addColorStop(1, "#d9f0fb"); g.fillStyle = sk; g.fillRect(-10, 0, W + 20, HZ + 1);
+    g.fillStyle = "#8fbf84"; g.beginPath(); g.moveTo(-10, HZ); g.lineTo(60, HZ - 26); g.lineTo(140, HZ - 8); g.lineTo(220, HZ - 34); g.lineTo(300, HZ - 12); g.lineTo(W + 10, HZ - 24); g.lineTo(W + 10, HZ); g.closePath(); g.fill();
+    g.fillStyle = "#58a04a"; g.fillRect(-10, HZ, W + 20, H - HZ + 10);
+    // дорога
+    var half = 1.5 * LW, s0 = 0.1;
+    g.fillStyle = "#3b4541"; g.beginPath(); g.moveTo(W / 2 - half * s0, HZ); g.lineTo(W / 2 + half * s0, HZ); g.lineTo(W / 2 + half, H); g.lineTo(W / 2 - half, H); g.closePath(); g.fill();
+    g.strokeStyle = "#e9e9e9"; g.lineWidth = 3; g.beginPath(); g.moveTo(W / 2 - half * s0, HZ); g.lineTo(W / 2 - half, H); g.moveTo(W / 2 + half * s0, HZ); g.lineTo(W / 2 + half, H); g.stroke();
+    // розмітка
+    g.fillStyle = "#e9e9e9";
+    for (var b = 1; b < LANES; b++) for (var yy = -56 + off; yy < H + 60; yy += 56) {
+      var a = pr(yy), c = pr(yy + 30), xa = W / 2 + (b * LW - W / 2) * a.s, xc = W / 2 + (b * LW - W / 2) * c.s, wa = 2.5 * a.s, wc = 2.5 * c.s;
+      g.beginPath(); g.moveTo(xa - wa, a.sy); g.lineTo(xa + wa, a.sy); g.lineTo(xc + wc, c.sy); g.lineTo(xc - wc, c.sy); g.closePath(); g.fill();
+    }
+    // дерева та предмети, від далеких до близьких
+    var items = [];
+    for (var ty = -50 + treeOff; ty < H + 80; ty += 140) { items.push({ y: ty, tree: -1 }); items.push({ y: ty + 70, tree: 1 }); }
+    (objs || []).forEach(function (o) { items.push({ y: o.y, o: o }); });
+    items.sort(function (p1, p2) { return p1.y - p2.y; });
+    items.forEach(function (it) {
+      var q = pr(it.y); if (it.y < -60) return;
+      g.save();
+      if (it.tree) {
+        g.translate(W / 2 + it.tree * 235 * q.s, q.sy); g.scale(q.s * 1.4, q.s * 1.4);
+        g.fillStyle = "rgba(0,0,0,.2)"; g.beginPath(); g.ellipse(0, 0, 26, 7, 0, 0, 7); g.fill();
+        g.fillStyle = "#6b4423"; g.fillRect(-5, -34, 10, 34);
+        g.fillStyle = "#2f7a3a"; g.beginPath(); g.moveTo(0, -110); g.lineTo(28, -36); g.lineTo(-28, -36); g.closePath(); g.fill();
+        g.fillStyle = "#3a9246"; g.beginPath(); g.moveTo(0, -84); g.lineTo(32, -20); g.lineTo(-32, -20); g.closePath(); g.fill();
+      } else {
+        var o = it.o; g.translate(W / 2 + (o.l * LW + LW / 2 - W / 2) * q.s, q.sy); g.scale(q.s * 1.15, q.s * 1.15); sprite(o.k, o.c, false);
+      }
+      g.restore();
+    });
+    // автобус (вигляд ззаду)
+    if (hit > 0) hit--;
+    var bq = pr(H - 80); g.save(); g.translate(W / 2 + (x - W / 2) * bq.s, bq.sy + 10); g.scale(bq.s * 1.35, bq.s * 1.35); sprite("bus", null, hit > 0 && hit % 6 < 3); g.restore();
+    g.restore();
+    if (hit > 0) { g.fillStyle = "rgba(220,40,30," + (hit / 60) + ")"; g.fillRect(0, 0, W, H); }
+  }
+  function draw() { if (view3d) { if (hit > 0 && run === false) hit = 0; draw3d(); } else draw2d(); drawBubble(); }
   function done() {
-    run = false; draw();
+    run = false; engineOff(); if (lvl + 1 < LEVELS.length) SFX.level(); else SFX.win(); draw();
     if (total > best) best = total;
     if (lvl + 1 < LEVELS.length) {
       saved = Math.max(saved, lvl + 1); save();
@@ -183,12 +304,12 @@
     }
   }
   function over() {
-    run = false; draw(); if (total > best) best = total; save();
+    run = false; engineOff(); SFX.over(); draw(); if (total > best) best = total; save();
     $("lvl").textContent = "Рівень " + (lvl + 1) + " · зупинка " + LEVELS[lvl].stop;
     say2("A", "Цього разу не вийшло. Зібрано учнів: " + total + ", рекорд " + best + ". Спробуйте ще раз цей рівень!", "Кінець поїздки", "Ще раз");
     $("go").dataset.next = "retry"; $("go2").hidden = !(lvl > 0);
   }
-  function start() { if (window.trackPlay) trackPlay("bus"); $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
+  function start() { if (window.trackPlay) trackPlay("bus"); engineOn(); SFX.horn(); $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
   $("go").onclick = function () {
     var n = $("go").dataset.next; $("go").dataset.next = "";
     if (n === "1") { intro(lvl + 1, true); start(); }
@@ -197,6 +318,11 @@
     else start();
   };
   $("go2").onclick = function () { $("go").dataset.next = ""; intro(0); start(); };
+
+  function btns() { $("vw").textContent = "Вигляд: " + (view3d ? "3D" : "2D"); $("snd").textContent = muted ? "🔇 Звук вимк." : "🔊 Звук увімк."; }
+  $("vw").onclick = function () { view3d = !view3d; try { localStorage.setItem("bus.game.view", view3d ? "3d" : "2d"); } catch (e) {} btns(); draw(); };
+  $("snd").onclick = function () { muted = !muted; try { localStorage.setItem("bus.game.mute", muted ? "1" : "0"); } catch (e) {} btns(); if (muted) engineOff(); else { ac(); if (run) engineOn(); SFX.kid(); } };
+  btns();
   $("bl").onclick = function () { move(-1); }; $("br").onclick = function () { move(1); };
   document.addEventListener("keydown", function (e) { if (e.key === "ArrowLeft" || e.key === "a") move(-1); else if (e.key === "ArrowRight" || e.key === "d") move(1); });
   var sx = null;
