@@ -17,7 +17,7 @@
     var src = a.createBufferSource(), fl = a.createBiquadFilter(), gn = a.createGain();
     fl.type = type || "lowpass"; fl.frequency.value = freq || 900; gn.gain.value = vol; src.buffer = buf; src.connect(fl); fl.connect(gn); gn.connect(a.destination); src.start();
   }
-  function label(b) { if (b) b.textContent = muted ? "🔇 Звук вимк." : "🔊 Звук увімк."; }
+  function label(b) { if (b) b.textContent = muted ? "🔇" : "🔊"; }
   window.SFXLIB = {
     tone: tone, noise: noise, ac: ac,
     bind: function (btn) {

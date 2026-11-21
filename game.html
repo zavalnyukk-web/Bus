@@ -54,21 +54,41 @@
   var $ = function (i) { return document.getElementById(i); };
   /* рівні: назва зупинки, скільки учнів зібрати, що з'являється на дорозі */
   var LEVELS = [
-    { stop: "Долочче", goal: 8,  speed: 2.8, kinds: ["cone"], gap: 230,
-      who: "S", say: "Доброго ранку! Я Степанович, за кермом. Починаємо маршрут із Долочча. Збирайте учнів і об’їжджайте конуси." },
-    { stop: "Кунів", goal: 10, speed: 3.1, kinds: ["cone", "rock"], gap: 215, heart: true,
-      who: "A", say: "Я Артурович, вихователь. Рахую дітей! Якщо побачите серце — це моя допомога, додасть життя." },
-    { stop: "Болотківці", goal: 12, speed: 3.4, kinds: ["cone", "rock", "car"], gap: 200, heart: true,
-      who: "S", say: "На дорогу виїхали інші авто. Дивіться уважніше, дітей треба довезти безпечно." },
-    { stop: "Антонівка", goal: 14, speed: 3.7, kinds: ["cone", "rock", "car"], gap: 185, heart: true,
-      who: "A", say: "Усі пристебнулися? Стежу, щоб ніхто не бігав по салону. Їдемо далі!" },
-    { stop: "Кам’янка", goal: 16, speed: 4.0, kinds: ["cone", "rock", "car"], gap: 170, heart: true,
-      who: "S", say: "Кам’янка! Тут багато учнів. Тримаю кермо двома руками, а ви тримайте смугу." },
-    { stop: "Підсобне", goal: 18, speed: 4.3, kinds: ["cone", "rock", "car"], gap: 160, heart: true,
-      who: "A", say: "Майже приїхали. Не розслаблятися: попереду найшвидший відрізок." },
-    { stop: "Вілія", goal: 20, speed: 4.6, kinds: ["cone", "rock", "car"], gap: 150, heart: true,
-      who: "S", say: "Останній відрізок до Вілії, а далі їдемо до ліцею! Ви вже як справжній водій." }
+    { stop: "Долочче", goal: 8, speed: 2.8, kinds: ["cone"], gap: 240, th: "day", who: "S",
+      say: "Доброго ранку! Я Степанович, за кермом. Починаємо маршрут із Долочча. Збирайте учнів і об’їжджайте конуси." },
+    { stop: "Кунів", goal: 10, speed: 3.1, kinds: ["cone", "rock"], gap: 220, heart: true, th: "cloudy", who: "A",
+      say: "Я Артурович, вихователь. Рахую дітей! Якщо побачите серце — це моя допомога, додасть життя." },
+    { stop: "Болотківці", goal: 12, speed: 3.3, kinds: ["cone", "rock", "puddle", "puddle"], gap: 205, heart: true, th: "rain", who: "S",
+      say: "Дощ! Калюжі не страшні, але вони пригальмують автобус. А ось камені й конуси об’їжджайте." },
+    { stop: "Антонівка", goal: 14, speed: 3.6, kinds: ["cone", "rock", "car", "cow"], gap: 190, heart: true, th: "autumn", who: "A",
+      say: "Осінь. Дивіться: на дорогу може вийти корова! Не будемо її лякати, об’їдьте." },
+    { stop: "Кам’янка", goal: 16, speed: 3.9, kinds: ["cone", "rock", "car", "cow"], gap: 175, heart: true, th: "sunset", who: "S",
+      say: "Кам’янка! Тут багато учнів. Сонце низько, дивіться уважно, я тримаю кермо двома руками." },
+    { stop: "Підсобне", goal: 18, speed: 4.1, kinds: ["cone", "rock", "car"], gap: 165, heart: true, th: "fog", who: "A",
+      say: "Туман. Видимість погана, тож предмети з’являтимуться пізно. Не розслаблятися!" },
+    { stop: "Вілія", goal: 20, speed: 4.4, kinds: ["cone", "rock", "car", "cow"], gap: 155, heart: true, th: "night", who: "S",
+      say: "Вечоріє, вмикаю фари. Остання зупинка перед ліцеєм зовсім близько, але ще є нічна траса." },
+    { stop: "Сніжний перевал", goal: 22, speed: 4.6, kinds: ["cone", "snow", "car", "puddle"], gap: 150, heart: true, th: "snow", who: "A",
+      say: "Зима! Дорога слизька, зашпори снігу на узбіччі. Діти, сидимо спокійно й тримаємось за поручні." },
+    { stop: "Нічна заметіль", goal: 24, speed: 4.9, kinds: ["cone", "snow", "car", "cow"], gap: 145, heart: true, th: "blizzard", who: "S",
+      say: "Заметіль і темрява. Тут потрібна найбільша уважність. Ви вже майже професійний водій!" },
+    { stop: "Ліцей", goal: 26, speed: 5.1, kinds: ["cone", "rock", "car", "cow", "puddle"], gap: 140, heart: true, th: "feast", who: "A",
+      say: "Фінальний відрізок до ліцею! Нас там чекають. Збирайте останніх учнів і їдемо на свято!" }
   ];
+  var M3 = [0.6, 0.68, 0.76, 0.84, 0.9, 0.95, 1, 1, 1, 1];
+  var THEMES = {
+    day:      { sky: ["#6fb7ea", "#d9f0fb"], hill: "#8fbf84", ground: "#58a04a", ta: "#2f7a3a", tb: "#3a9246" },
+    cloudy:   { sky: ["#8fa7b8", "#d5dde3"], hill: "#7fa077", ground: "#5c8f4f", ta: "#2f6a3a", tb: "#3a8246", cloud: 1 },
+    rain:     { sky: ["#5d6f7c", "#a2b0ba"], hill: "#6f8a6c", ground: "#4a7a45", ta: "#27623a", tb: "#32783f", rain: 1, road: "#323b3b" },
+    autumn:   { sky: ["#8cc3e8", "#fbe9c6"], hill: "#c49a4a", ground: "#a8802f", ta: "#c0541c", tb: "#e08a1e", leaves: 1 },
+    sunset:   { sky: ["#e8734f", "#ffd9a0"], hill: "#6a5a7a", ground: "#4d7a3e", ta: "#2a5f33", tb: "#357a3f", warm: 1 },
+    fog:      { sky: ["#b9c3c8", "#e3e8ea"], hill: "#aab8b0", ground: "#7fa07a", ta: "#4f7d5d", tb: "#648f6f", fog: 0.75 },
+    night:    { sky: ["#0a1230", "#1e2a52"], hill: "#16223a", ground: "#173a24", ta: "#0f3a1c", tb: "#14502a", night: 0.55, stars: 1, road: "#2b3333" },
+    snow:     { sky: ["#aac4de", "#eef4fa"], hill: "#dfe9f2", ground: "#f1f5f8", ta: "#2b6a52", tb: "#3f8a6e", snow: 1, cap: 1, road: "#4a5456" },
+    blizzard: { sky: ["#1b2640", "#47557a"], hill: "#6f7d98", ground: "#cfd9e6", ta: "#1f5646", tb: "#2c6e5a", snow: 1, cap: 1, night: 0.4, road: "#3a4244", fog: 0.35 },
+    feast:    { sky: ["#6fb7ea", "#fff2c9"], hill: "#8fbf84", ground: "#58a04a", ta: "#2f7a3a", tb: "#3a9246", confetti: 1 }
+  };
+
   var TIPS_HIT = [["A", "Обережно! Стежте за дорогою."], ["S", "Спокійно, трасу тримаю разом із вами."], ["A", "Діти, тримайтесь за поручні!"], ["S", "Різко не гальмуємо, об’їжджаймо."]];
   var TIPS_OK = [["A", "Ще один учень в автобусі!"], ["S", "Чудово, їдемо далі."], ["A", "Усіх бачу, всі на місцях."]];
   var PIC = { S: "stepanovych.jpg", A: "arturovych.jpg" }, IMG = {}, AVC = {};
@@ -102,6 +122,7 @@
     over: function () { [392, 330, 262, 196].forEach(function (f, i) { tone(f, 0.26, "triangle", 0.22, i * 0.2); }); },
     win: function () { [523, 523, 523, 659, 784, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.2, "triangle", 0.22, i * 0.13); }); }
   };
+  function SFXnoiseSplash() { noise(0.22, 0.25); tone(500, 0.12, "sine", 0.08, 0, 250); }
   function engineOn() {
     if (muted || eng) return; var a = ac(); if (!a) return;
     var o = a.createOscillator(), fl = a.createBiquadFilter(), gn = a.createGain();
@@ -111,7 +132,7 @@
   function engineOff() { if (!eng) return; try { eng.o.stop(); } catch (e) {} eng = null; }
   function engineSpeed(sp) { if (eng && AC) eng.o.frequency.setTargetAtTime(48 + sp * 13, AC.currentTime, 0.1); }
   document.addEventListener("visibilitychange", function () { if (document.hidden) engineOff(); else if (run) engineOn(); });
-  var lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
+  var slow = 0, lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
   try { best = +localStorage.getItem("bus.game.best") || 0; saved = +localStorage.getItem("bus.game.level") || 0; } catch (e) {}
   function hud() { $("hud").textContent = "Рівень " + (lvl + 1) + " · " + kids + "/" + LEVELS[lvl].goal + " · ♥ " + lives; $("best").textContent = "Усього: " + total; }
   function save() { try { localStorage.setItem("bus.game.best", String(best)); localStorage.setItem("bus.game.level", String(saved)); } catch (e) {} }
@@ -120,7 +141,7 @@
     $("avbox").innerHTML = AVC[w]; $("who").textContent = NAME[w]; $("ovtxt").textContent = txt; $("ovh").textContent = head;
     $("go").textContent = btn; $("ov").hidden = false;
   }
-  function begin(l) { lvl = l; lane = 1; x = lane * LW + LW / 2; kids = 0; objs = []; spawn = 40; t = 0; off = 0; hit = 0; bubble = null; bubT = 0; speed = LEVELS[l].speed; hud(); draw(); }
+  function begin(l) { slow = 0; lvl = l; lane = 1; x = lane * LW + LW / 2; kids = 0; objs = []; spawn = 40; t = 0; off = 0; hit = 0; bubble = null; bubT = 0; speed = LEVELS[l].speed; hud(); draw(); }
   function intro(l, keep) {
     if (!keep) { lives = 3; if (l === 0) total = 0; }
     begin(l); run = false;
@@ -151,6 +172,13 @@
     } else if (o.k === "heart") {
       g.fillStyle = "#e23d5a"; g.beginPath(); g.moveTo(cx, y + 16); g.bezierCurveTo(cx - 28, y - 4, cx - 14, y - 22, cx, y - 8); g.bezierCurveTo(cx + 14, y - 22, cx + 28, y - 4, cx, y + 16); g.fill();
       g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+    } else if (o.k === "puddle") {
+      g.fillStyle = "#2d6fa8"; g.beginPath(); g.ellipse(cx, y, 32, 14, 0, 0, 7); g.fill(); g.fillStyle = "#7fb6e6"; g.beginPath(); g.ellipse(cx - 6, y - 3, 14, 4, 0, 0, 7); g.fill();
+    } else if (o.k === "cow") {
+      g.fillStyle = "#fff"; g.beginPath(); g.ellipse(cx, y, 18, 28, 0, 0, 7); g.fill(); g.fillStyle = "#222"; g.beginPath(); g.ellipse(cx - 6, y - 4, 6, 8, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(cx + 7, y + 8, 5, 6, 0, 0, 7); g.fill();
+      g.fillStyle = "#e8c39e"; g.beginPath(); g.ellipse(cx, y - 28, 9, 8, 0, 0, 7); g.fill();
+    } else if (o.k === "snow") {
+      g.fillStyle = "#eef3f7"; g.beginPath(); g.ellipse(cx, y, 26, 17, 0, 0, 7); g.fill(); g.fillStyle = "#c8d6e2"; g.beginPath(); g.ellipse(cx + 6, y + 4, 14, 8, 0, 0, 7); g.fill();
     } else if (o.k === "cone") {
       g.fillStyle = "#ff7a1a"; g.beginPath(); g.moveTo(cx, y - 20); g.lineTo(cx + 15, y + 16); g.lineTo(cx - 15, y + 16); g.closePath(); g.fill();
       g.fillStyle = "#fff"; g.fillRect(cx - 9, y, 18, 6); g.fillStyle = "#222"; g.fillRect(cx - 18, y + 16, 36, 5);
@@ -165,7 +193,7 @@
   function frame() {
     if (!run) return;
     var L = LEVELS[lvl]; t++;
-    speed = L.speed + Math.min(1.2, t / 3000);
+    speed = (L.speed + Math.min(1.2, t / 3000)) * (view3d ? M3[lvl] : 1) * (slow > 0 ? 0.55 : 1); if (slow > 0) slow--;
     x += (lane * LW + LW / 2 - x) * 0.25;
     off = (off + speed) % 56; treeOff = (treeOff + speed) % 140; spawn -= speed; engineSpeed(speed);
     if (spawn <= 0) {
@@ -183,6 +211,7 @@
         objs.splice(i, 1);
         if (o.k === "kid") { SFX.kid(); kids++; total++; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
         else if (o.k === "heart") { SFX.heart(); lives = Math.min(5, lives + 1); say("A", "Тримайте! Додаю життя."); hud(); }
+        else if (o.k === "puddle") { slow = 55; SFXnoiseSplash(); say("S", "Калюжа! Трохи пригальмуємо."); }
         else { SFX.hit(); lives--; hit = 20; var h = TIPS_HIT[Math.floor(Math.random() * TIPS_HIT.length)]; say(h[0], h[1]); hud(); if (lives <= 0) { over(); return; } }
       } else if (o.y > H + 60) objs.splice(i, 1);
     }
@@ -190,11 +219,15 @@
   }
   function draw2d() {
     g.fillStyle = "#3b4541"; g.fillRect(0, 0, W, H);
-    g.fillStyle = "#5f9b4a"; g.fillRect(0, 0, 6, H); g.fillRect(W - 6, 0, 6, H);
+    var th2 = THEMES[LEVELS[lvl].th] || THEMES.day; g.fillStyle = th2.ground; g.fillRect(0, 0, 6, H); g.fillRect(W - 6, 0, 6, H);
     g.fillStyle = "#e9e9e9"; for (var i = 1; i < LANES; i++) for (var y = -56 + off; y < H; y += 56) g.fillRect(i * LW - 2, y, 4, 30);
     (objs || []).forEach(drawObj);
     if (hit > 0) hit--;
     drawBus(x, H - 80, hit > 0 && hit % 6 < 3);
+    if (th2.night) { g.fillStyle = "rgba(4,8,28," + th2.night * 0.8 + ")"; g.fillRect(0, 0, W, H); }
+    if (th2.fog) { g.fillStyle = "rgba(225,232,236," + th2.fog * 0.35 + ")"; g.fillRect(0, 0, W, H); }
+    var kk; if (th2.rain) { g.strokeStyle = "rgba(220,235,250,.5)"; g.beginPath(); for (kk = 0; kk < 50; kk++) { var rx = (kk * 53) % W, ry = (kk * 37 + t * 12) % H; g.moveTo(rx, ry); g.lineTo(rx - 3, ry + 12); } g.stroke(); }
+    if (th2.snow) { g.fillStyle = "rgba(255,255,255,.9)"; for (kk = 0; kk < 45; kk++) { g.beginPath(); g.arc(((kk * 61) + Math.sin(t / 30 + kk) * 12 + W) % W, (kk * 41 + t * 2) % H, 1.6, 0, 7); g.fill(); } }
   }
   function drawBubble() {
     if (bubT > 0 && bubble) {
@@ -229,6 +262,16 @@
     } else if (k === "heart") {
       var fy = -26 + Math.sin(t / 8) * 4; g.fillStyle = "rgba(255,255,255,.25)"; g.beginPath(); g.arc(0, fy, 22, 0, 7); g.fill(); shadow(12);
       g.fillStyle = "#e23d5a"; g.beginPath(); g.moveTo(0, fy + 14); g.bezierCurveTo(-26, fy - 4, -12, fy - 22, 0, fy - 8); g.bezierCurveTo(12, fy - 22, 26, fy - 4, 0, fy + 14); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+    } else if (k === "puddle") {
+      g.fillStyle = "#2d6fa8"; g.beginPath(); g.ellipse(0, -2, 40, 11, 0, 0, 7); g.fill(); g.fillStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.ellipse(-8, -4, 16, 3.5, 0, 0, 7); g.fill();
+    } else if (k === "snow") {
+      shadow(30); g.fillStyle = "#e8eff5"; g.beginPath(); g.moveTo(-30, 0); g.quadraticCurveTo(-24, -30, 0, -34); g.quadraticCurveTo(26, -30, 32, 0); g.closePath(); g.fill();
+      g.fillStyle = "#b9c9d8"; g.beginPath(); g.moveTo(8, 0); g.quadraticCurveTo(14, -18, 28, -6); g.lineTo(32, 0); g.closePath(); g.fill();
+    } else if (k === "cow") {
+      shadow(30); g.fillStyle = "#222"; g.fillRect(-18, -14, 6, 14); g.fillRect(12, -14, 6, 14);
+      g.fillStyle = "#fff"; rr(-24, -46, 48, 36, 12); g.fill(); g.fillStyle = "#222"; g.beginPath(); g.ellipse(-8, -34, 9, 8, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(10, -26, 8, 7, 0, 0, 7); g.fill();
+      g.fillStyle = "#fff"; rr(-12, -62, 24, 22, 8); g.fill(); g.fillStyle = "#e9b8a0"; rr(-8, -50, 16, 9, 4); g.fill(); g.fillStyle = "#222"; g.fillRect(-7, -57, 3, 3); g.fillRect(4, -57, 3, 3);
+      g.strokeStyle = "#8a6a2a"; g.lineWidth = 3; g.beginPath(); g.moveTo(-12, -60); g.lineTo(-17, -68); g.moveTo(12, -60); g.lineTo(17, -68); g.stroke();
     } else if (k === "cone") {
       shadow(18); g.fillStyle = "#222"; g.fillRect(-16, -5, 32, 5);
       g.fillStyle = "#ff7a1a"; g.beginPath(); g.moveTo(0, -42); g.lineTo(13, -5); g.lineTo(-13, -5); g.closePath(); g.fill();
@@ -245,15 +288,18 @@
     }
   }
   function draw3d() {
-    var sh = hit > 0 ? (Math.random() * 6 - 3) : 0;
+    var th = THEMES[LEVELS[lvl].th] || THEMES.day, sh = hit > 0 ? (Math.random() * 6 - 3) : 0;
     g.save(); g.translate(sh, 0);
     // небо і пагорби
-    var sk = g.createLinearGradient(0, 0, 0, HZ); sk.addColorStop(0, "#6fb7ea"); sk.addColorStop(1, "#d9f0fb"); g.fillStyle = sk; g.fillRect(-10, 0, W + 20, HZ + 1);
-    g.fillStyle = "#8fbf84"; g.beginPath(); g.moveTo(-10, HZ); g.lineTo(60, HZ - 26); g.lineTo(140, HZ - 8); g.lineTo(220, HZ - 34); g.lineTo(300, HZ - 12); g.lineTo(W + 10, HZ - 24); g.lineTo(W + 10, HZ); g.closePath(); g.fill();
-    g.fillStyle = "#58a04a"; g.fillRect(-10, HZ, W + 20, H - HZ + 10);
+    var sk = g.createLinearGradient(0, 0, 0, HZ); sk.addColorStop(0, th.sky[0]); sk.addColorStop(1, th.sky[1]); g.fillStyle = sk; g.fillRect(-10, 0, W + 20, HZ + 1);
+    if (th.stars) { g.fillStyle = "#fff"; for (var si = 0; si < 40; si++) g.fillRect((si * 97) % W, (si * 53) % (HZ - 30), si % 3 ? 1 : 2, si % 3 ? 1 : 2); }
+    if (th.cloud || th.rain) { g.fillStyle = "rgba(255,255,255,.55)"; for (var ci = 0; ci < 4; ci++) { var cx0 = ((ci * 120 + t * 0.15) % (W + 120)) - 60, cy0 = 30 + ci * 17; g.beginPath(); g.ellipse(cx0, cy0, 46, 12, 0, 0, 7); g.ellipse(cx0 + 22, cy0 - 7, 30, 11, 0, 0, 7); g.fill(); } }
+    if (th.warm) { g.fillStyle = "#ffe08a"; g.beginPath(); g.arc(250, HZ - 6, 28, 0, 7); g.fill(); }
+    g.fillStyle = th.hill; g.beginPath(); g.moveTo(-10, HZ); g.lineTo(60, HZ - 26); g.lineTo(140, HZ - 8); g.lineTo(220, HZ - 34); g.lineTo(300, HZ - 12); g.lineTo(W + 10, HZ - 24); g.lineTo(W + 10, HZ); g.closePath(); g.fill();
+    g.fillStyle = th.ground; g.fillRect(-10, HZ, W + 20, H - HZ + 10);
     // дорога
     var half = 1.5 * LW, s0 = 0.1;
-    g.fillStyle = "#3b4541"; g.beginPath(); g.moveTo(W / 2 - half * s0, HZ); g.lineTo(W / 2 + half * s0, HZ); g.lineTo(W / 2 + half, H); g.lineTo(W / 2 - half, H); g.closePath(); g.fill();
+    g.fillStyle = th.road || "#3b4541"; g.beginPath(); g.moveTo(W / 2 - half * s0, HZ); g.lineTo(W / 2 + half * s0, HZ); g.lineTo(W / 2 + half, H); g.lineTo(W / 2 - half, H); g.closePath(); g.fill();
     g.strokeStyle = "#e9e9e9"; g.lineWidth = 3; g.beginPath(); g.moveTo(W / 2 - half * s0, HZ); g.lineTo(W / 2 - half, H); g.moveTo(W / 2 + half * s0, HZ); g.lineTo(W / 2 + half, H); g.stroke();
     // розмітка
     g.fillStyle = "#e9e9e9";
@@ -273,17 +319,31 @@
         g.translate(W / 2 + it.tree * 235 * q.s, q.sy); g.scale(q.s * 1.4, q.s * 1.4);
         g.fillStyle = "rgba(0,0,0,.2)"; g.beginPath(); g.ellipse(0, 0, 26, 7, 0, 0, 7); g.fill();
         g.fillStyle = "#6b4423"; g.fillRect(-5, -34, 10, 34);
-        g.fillStyle = "#2f7a3a"; g.beginPath(); g.moveTo(0, -110); g.lineTo(28, -36); g.lineTo(-28, -36); g.closePath(); g.fill();
-        g.fillStyle = "#3a9246"; g.beginPath(); g.moveTo(0, -84); g.lineTo(32, -20); g.lineTo(-32, -20); g.closePath(); g.fill();
+        g.fillStyle = th.ta; g.beginPath(); g.moveTo(0, -110); g.lineTo(28, -36); g.lineTo(-28, -36); g.closePath(); g.fill();
+        g.fillStyle = th.tb; g.beginPath(); g.moveTo(0, -84); g.lineTo(32, -20); g.lineTo(-32, -20); g.closePath(); g.fill();
+        if (th.cap) { g.fillStyle = "#fff"; g.beginPath(); g.moveTo(0, -110); g.lineTo(14, -80); g.lineTo(-14, -80); g.closePath(); g.fill(); g.beginPath(); g.moveTo(0, -84); g.lineTo(18, -52); g.lineTo(-18, -52); g.closePath(); g.fill(); }
       } else {
         var o = it.o; g.translate(W / 2 + (o.l * LW + LW / 2 - W / 2) * q.s, q.sy); g.scale(q.s * 1.15, q.s * 1.15); sprite(o.k, o.c, false);
       }
       g.restore();
     });
+    // ефекти: туман, ніч, фари
+    if (th.fog) { var fg = g.createLinearGradient(0, HZ - 10, 0, HZ + 260); fg.addColorStop(0, "rgba(225,232,236," + th.fog + ")"); fg.addColorStop(1, "rgba(225,232,236,0)"); g.fillStyle = fg; g.fillRect(-10, HZ - 10, W + 20, 270); }
+    if (th.warm) { g.fillStyle = "rgba(255,140,60,.14)"; g.fillRect(-10, 0, W + 20, H); }
+    if (th.night) {
+      g.fillStyle = "rgba(4,8,28," + th.night + ")"; g.fillRect(-10, 0, W + 20, H);
+      var bq0 = pr(H - 80), bx0 = W / 2 + (x - W / 2) * bq0.s; g.fillStyle = "rgba(255,240,180,.22)";
+      g.beginPath(); g.moveTo(bx0 - 22, bq0.sy - 36); g.lineTo(bx0 + 22, bq0.sy - 36); g.lineTo(bx0 + 120, HZ + 20); g.lineTo(bx0 - 120, HZ + 20); g.closePath(); g.fill();
+    }
     // автобус (вигляд ззаду)
     if (hit > 0) hit--;
     var bq = pr(H - 80); g.save(); g.translate(W / 2 + (x - W / 2) * bq.s, bq.sy + 10); g.scale(bq.s * 1.35, bq.s * 1.35); sprite("bus", null, hit > 0 && hit % 6 < 3); g.restore();
     g.restore();
+    var k2;
+    if (th.rain) { g.strokeStyle = "rgba(220,235,250,.55)"; g.lineWidth = 1.2; g.beginPath(); for (k2 = 0; k2 < 70; k2++) { var rx = (k2 * 53) % W, ry = (k2 * 37 + t * 14) % H; g.moveTo(rx, ry); g.lineTo(rx - 4, ry + 14); } g.stroke(); }
+    if (th.snow) { g.fillStyle = "rgba(255,255,255,.9)"; for (k2 = 0; k2 < 60; k2++) { var sx = ((k2 * 61) + Math.sin(t / 30 + k2) * 14 + W) % W, sy = (k2 * 41 + t * 2.2) % H; g.beginPath(); g.arc(sx, sy, 1.4 + (k2 % 3) * 0.6, 0, 7); g.fill(); } }
+    if (th.leaves) { for (k2 = 0; k2 < 18; k2++) { g.fillStyle = k2 % 2 ? "#d9741c" : "#c0392b"; var lx2 = ((k2 * 83) + Math.sin(t / 25 + k2) * 22 + W) % W, ly2 = (k2 * 59 + t * 1.6) % H; g.fillRect(lx2, ly2, 5, 3); } }
+    if (th.confetti) { var cols = ["#F5B800", "#e23d5a", "#2d7dd2", "#1B7F5C"]; for (k2 = 0; k2 < 40; k2++) { g.fillStyle = cols[k2 % 4]; g.fillRect(((k2 * 71) + Math.sin(t / 20 + k2) * 16 + W) % W, (k2 * 47 + t * 1.8) % H, 4, 6); } }
     if (hit > 0) { g.fillStyle = "rgba(220,40,30," + (hit / 60) + ")"; g.fillRect(0, 0, W, H); }
   }
   function draw() { if (view3d) { if (hit > 0 && run === false) hit = 0; draw3d(); } else draw2d(); drawBubble(); }
@@ -332,7 +392,7 @@
   total = 0; lives = 3;
   var startLvl = saved > 0 && saved < LEVELS.length ? saved : 0;
   intro(startLvl);
-  window.__g = { state: function () { return { lvl: lvl, lives: lives, kids: kids, total: total, run: run, n: objs.length }; }, cheat: function () { kids = LEVELS[lvl].goal - 1; }, lives: function (n) { lives = n; } };
+  window.__g = { go: function (n) { intro(n); }, state: function () { return { lvl: lvl, lives: lives, kids: kids, total: total, run: run, n: objs.length }; }, cheat: function () { kids = LEVELS[lvl].goal - 1; }, lives: function (n) { lives = n; } };
 })();
 </script>
 </body>

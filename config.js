@@ -1,4 +1,5 @@
+// Заповніть ці два значення після налаштування Firebase (див. README.md)
 window.CONFIG = {
-  dbUrl: "https://bus-kuniv-default-rtdb.europe-west1.firebasedatabase.app",
-  key: "cetdRPZc8FZcZYedNL1Gfw3CMoc5"
+  dbUrl: "https://ВАШ-ПРОЄКТ-default-rtdb.europe-west1.firebasedatabase.app",
+  key: "ЗАМІНІТЬ-НА-ДОВГИЙ-ВИПАДКОВИЙ-РЯДОК-ЛАТИНИЦЕЮ"
 };

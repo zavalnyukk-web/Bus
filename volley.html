@@ -26,10 +26,11 @@
   .ctl button.on, .ctl button:active { background:#1f4a78; }
   .ctl .jump { background:var(--gold); color:#241a00; border-color:var(--gold); font-weight:700; font-size:18px; }
 .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; white-space:nowrap; }
+.hb { display:flex; gap:6px; }
 </style>
 </head>
 <body>
-<header><a href="./">← На сайт</a><span id="lvlname"></span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
+<header><a href="./">← На сайт</a><span id="lvlname"></span><span class="hb"><button class="snd" id="vw" type="button" aria-label="Вигляд 2D або 3D">3D</button><button class="snd" id="snd" type="button" aria-label="Звук"></button></span></header>
 <div class="wrap">
   <canvas id="c" width="360" height="440" aria-label="Гра у волейбол"></canvas>
   <div class="ov" id="ov">
@@ -120,7 +121,7 @@
     hitSlime(you); hitSlime(opp);
     if (ball.y >= FLOOR + 6) point(ball.x < NETX ? "opp" : "you");
   }
-  function draw() {
+  function draw2d() {
     // фон: зал
     var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14304d"); gr.addColorStop(1, "#0b1a2c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     g.fillStyle = "rgba(232,185,35,.08)"; for (var i = 0; i < 6; i++) g.fillRect(i * 64 + 10, 0, 28, FLOOR);
@@ -142,6 +143,69 @@
     g.strokeStyle = "#E8B923"; g.lineWidth = 2; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 0.3, 2.4); g.stroke();
     g.strokeStyle = "#2d7dd2"; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 3.4, 5.5); g.stroke();
     if (msgT > 0) { msgT--; g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 150, W, 40); g.fillStyle = "#fff"; g.font = "bold 20px system-ui,sans-serif"; g.fillText(msg, W / 2, 177); }
+  }
+
+  function draw() { if (view3d) draw3d(); else draw2d(); }
+  function hudText() {
+    g.textAlign = "center"; g.font = "bold 30px system-ui,sans-serif";
+    g.fillStyle = "#E8B923"; g.fillText(sy, 140, 50); g.fillStyle = "#fff"; g.fillText(":", 180, 49); g.fillStyle = OPP[lvl].color; g.fillText(so, 220, 50);
+    g.font = "bold 11px system-ui,sans-serif"; g.fillStyle = "#E8B923"; g.fillText("КУНИЦІ", 90, 22); g.fillStyle = OPP[lvl].color; g.fillText("СУПЕРНИКИ", 270, 22);
+    if (msgT > 0) { msgT--; g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 150, W, 40); g.fillStyle = "#fff"; g.font = "bold 20px system-ui,sans-serif"; g.fillText(msg, W / 2, 177); }
+  }
+  function draw3d() {
+    var FY = 250, i, k;
+    // стіна й трибуни
+    var wg = g.createLinearGradient(0, 0, 0, FY); wg.addColorStop(0, "#0a1b30"); wg.addColorStop(1, "#1f4470"); g.fillStyle = wg; g.fillRect(0, 0, W, FY);
+    for (var r = 0; r < 4; r++) {
+      var yy = 120 + r * 30; g.fillStyle = "rgba(10,20,40," + (0.25 + r * 0.08) + ")"; g.fillRect(0, yy, W, 30);
+      for (i = 0; i < 25; i++) {
+        var hx = i * 15 + (r % 2) * 7 + 4, hue = (i * 47 + r * 83) % 360;
+        g.fillStyle = "hsl(" + hue + ",35%," + (40 + r * 4) + "%)"; g.fillRect(hx - 5, yy + 15, 10, 14);
+        g.fillStyle = "#e6c7a6"; g.beginPath(); g.arc(hx, yy + 11 + ((i + Math.floor(performance.now() / 500) * (i % 5 === 0 ? 1 : 0)) % 2 < 1 ? 0 : -1), 4.5, 0, 7); g.fill();
+      }
+    }
+    g.fillStyle = "#E8B923"; g.fillRect(0, 118, W, 3);
+    var lg = g.createRadialGradient(90, -10, 5, 90, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
+    lg = g.createRadialGradient(270, -10, 5, 270, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
+    // підлога в перспективі
+    var fg = g.createLinearGradient(0, FY, 0, H); fg.addColorStop(0, "#8a5424"); fg.addColorStop(1, "#c98340"); g.fillStyle = fg;
+    g.beginPath(); g.moveTo(0, FY); g.lineTo(W, FY); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(60,30,10,.35)"; g.lineWidth = 1; g.beginPath();
+    for (k = -9; k <= 9; k++) { g.moveTo(180 + k * 18, FY); g.lineTo(180 + k * 52, H); }
+    for (k = 1; k < 9; k++) { var py = FY + (H - FY) * Math.pow(k / 9, 1.7); g.moveTo(0, py); g.lineTo(W, py); }
+    g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 3; g.beginPath(); g.moveTo(70, FY + 14); g.lineTo(290, FY + 14); g.lineTo(400, H - 4); g.lineTo(-40, H - 4); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(180, FY + 14); g.lineTo(180, H - 4); g.stroke();
+    // далека стійка сітки
+    g.fillStyle = "#9aa7b4"; g.fillRect(NETX + 7, NETTOP + 8, 3, FLOOR - 26 - NETTOP - 8);
+    // сітка
+    g.fillStyle = "rgba(255,255,255,.14)"; g.beginPath(); g.moveTo(NETX - 8, NETTOP - 4); g.lineTo(NETX + 8, NETTOP + 8); g.lineTo(NETX + 8, NETTOP + 70); g.lineTo(NETX - 8, NETTOP + 58); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 1; g.beginPath();
+    for (k = 0; k <= 4; k++) { var nx = NETX - 8 + k * 4; g.moveTo(nx, NETTOP - 4 + k * 3); g.lineTo(nx, NETTOP + 58 + k * 3); }
+    for (k = 1; k < 6; k++) { g.moveTo(NETX - 8, NETTOP - 4 + k * 10); g.lineTo(NETX + 8, NETTOP + 8 + k * 10); }
+    g.stroke();
+    g.fillStyle = "#fff"; g.beginPath(); g.moveTo(NETX - 8, NETTOP - 7); g.lineTo(NETX + 8, NETTOP + 5); g.lineTo(NETX + 8, NETTOP + 9); g.lineTo(NETX - 8, NETTOP - 3); g.closePath(); g.fill();
+    // тіні
+    function sh(x, y, rx, a) { g.fillStyle = "rgba(0,0,0," + a + ")"; g.beginPath(); g.ellipse(x, FLOOR + 6, rx, rx * 0.28, 0, 0, 7); g.fill(); }
+    var hgt = Math.max(0, Math.min(1, (FLOOR - ball.y) / 300));
+    sh(you.x, 0, SR * (1.05 - (FLOOR - you.y) / 400), 0.35); sh(opp.x, 0, SR * (1.05 - (FLOOR - opp.y) / 400), 0.35);
+    sh(ball.x, 0, 9 + hgt * 6, 0.32 - hgt * 0.17);
+    // сліми з об'ємом
+    [[you, "#E8B923", true], [opp, OPP[lvl].color, false]].forEach(function (e) {
+      var s = e[0]; g.fillStyle = "rgba(0,0,0,.28)"; g.beginPath(); g.ellipse(s.x, s.y, SR, 8, 0, 0, Math.PI); g.fill();
+      slime(s, e[1], e[2]);
+      g.fillStyle = "rgba(255,255,255,.35)"; g.beginPath(); g.ellipse(s.x - 14, s.y - 26, 8, 4, -0.6, 0, 7); g.fill();
+    });
+    // м'яч
+    var bg = g.createRadialGradient(ball.x - 4, ball.y - 5, 1, ball.x, ball.y, BR + 1); bg.addColorStop(0, "#ffffff"); bg.addColorStop(0.6, "#e3e9ef"); bg.addColorStop(1, "#98a6b5"); g.fillStyle = bg; g.beginPath(); g.arc(ball.x, ball.y, BR, 0, 7); g.fill();
+    g.strokeStyle = "#E8B923"; g.lineWidth = 2; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 0.3 + ball.x / 40, 2.3 + ball.x / 40); g.stroke();
+    g.strokeStyle = "#2d7dd2"; g.beginPath(); g.arc(ball.x, ball.y, BR - 1, 3.4 + ball.x / 40, 5.3 + ball.x / 40); g.stroke();
+    // ближня стійка
+    var pg = g.createLinearGradient(NETX - 12, 0, NETX - 5, 0); pg.addColorStop(0, "#c9d3dc"); pg.addColorStop(1, "#7d8996"); g.fillStyle = pg; g.fillRect(NETX - 12, NETTOP - 6, 6, FLOOR + 30 - NETTOP + 6);
+    g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(NETX - 9, FLOOR + 30, 12, 4, 0, 0, 7); g.fill();
+    // віньєтка
+    var vg = g.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 290); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.45)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    hudText();
   }
   function slime(s, col, isYou) {
     g.save(); g.beginPath(); g.arc(s.x, s.y, SR, Math.PI, 0); g.closePath(); g.clip();
@@ -175,6 +239,12 @@
     b.addEventListener("pointerdown", function (e) { keys[k] = 1; b.classList.add("on"); b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); });
     ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (ev) { b.addEventListener(ev, function () { keys[k] = 0; b.classList.remove("on"); }); });
   }
+
+  var view3d = true;
+  try { var vv = localStorage.getItem("bus.game.view"); if (vv) view3d = vv === "3d"; } catch (e) {}
+  function vwLabel() { $("vw").textContent = view3d ? "3D" : "2D"; }
+  $("vw").onclick = function () { view3d = !view3d; try { localStorage.setItem("bus.game.view", view3d ? "3d" : "2d"); } catch (e) {} vwLabel(); draw(); };
+  vwLabel();
   SFXLIB.bind($("snd"));
   hold("bl", "l"); hold("br", "r");
   $("bj").addEventListener("pointerdown", function (e) { jumpReq = 1; e.preventDefault(); });
