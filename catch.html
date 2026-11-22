@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1b2a22">
+<title>Фізрук ловить м’ячі</title>
+<style>
+  :root { --y:#ffd23f; --g:#5fb08f; --ink:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; background:#0b130f; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:none; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 10px; gap:8px; }
+  header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  header a { color:var(--y); text-decoration:none; white-space:nowrap; }
+  header span { font-size:13px; text-align:center; }
+  .wrap { position:relative; width:min(100%, 440px, calc((100vh - 170px) * 360 / 480)); aspect-ratio:360/480; min-width:240px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 170px) * 360 / 480)); } }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:14px; border-radius:14px; background:linear-gradient(rgba(8,14,10,.8),rgba(8,14,10,.9)), url(gym.jpg) center/cover; }
+  .ov[hidden] { display:none; }
+  .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
+  .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:300px; }
+  .lv { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:300px; }
+  .lv button, .go { font:inherit; font-weight:700; border:0; border-radius:12px; cursor:pointer; }
+  .lv button { padding:10px 6px; font-size:14px; background:var(--y); color:#2a2200; line-height:1.25; }
+  .lv button small { display:block; font-weight:600; font-size:11px; opacity:.75; }
+  .go { font-size:18px; padding:12px 28px; background:var(--y); color:#2a2200; }
+  .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; }
+  .pad { width:100%; max-width:440px; display:flex; justify-content:space-between; gap:10px; }
+  .pad div { display:flex; gap:10px; }
+  .pad button { width:76px; height:68px; font-size:28px; border:0; border-radius:14px; background:rgba(255,255,255,.14); color:#fff; touch-action:none; }
+  .pad button.on { background:var(--y); color:#222; }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span id="lvlname">Фізрук ловить м’ячі</span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
+<div class="wrap">
+  <canvas id="c" width="360" height="480" aria-label="Фізрук ловить м’ячі, що скочуються з чотирьох жолобів. Кнопки внизу або дотик до кутів екрана."></canvas>
+  <div class="ov" id="ov">
+    <img src="fizruk-full.jpg" alt="Фізрук Артурович">
+    <h1 id="h">Фізрук ловить м’ячі</h1>
+    <p id="txt">М’ячі скочуються з чотирьох жолобів. Переставляй Артуровича (кнопки або дотик до кутів екрана) і ловіть кошиком. Три пропущені м’ячі, і урок закінчено. Обери швидкість:</p>
+    <div class="lv" id="lv"></div>
+  </div>
+</div>
+<div class="pad" aria-label="Керування">
+  <div><button data-p="0" type="button" aria-label="Вгору ліворуч">↖</button><button data-p="1" type="button" aria-label="Вниз ліворуч">↙</button></div>
+  <div><button data-p="2" type="button" aria-label="Вгору праворуч">↗</button><button data-p="3" type="button" aria-label="Вниз праворуч">↘</button></div>
+</div>
+<script src="sfx.js"></script>
+<script src="config.js"></script>
+<script src="track.js"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 480, FL = 440;
+  var LEVELS = [
+    { n: "Розминка", d: "повільно", tr: 3.4, iv: 1.6 },
+    { n: "Урок", d: "середньо", tr: 2.7, iv: 1.25 },
+    { n: "Змагання", d: "швидко", tr: 2.1, iv: 0.98 },
+    { n: "Олімпіада", d: "дуже швидко", tr: 1.6, iv: 0.78 }
+  ];
+  var BALLS = ["⚽", "🏀", "🏐", "🎾", "🏈", "🥎"];
+  // жолоби: початок -> кінець; потім падіння до кошика
+  var CH = [
+    { x0: -14, y0: 112, x1: 112, y1: 190, bx: 112, by: 292 },
+    { x0: -14, y0: 232, x1: 112, y1: 300, bx: 112, by: 378 },
+    { x0: 374, y0: 112, x1: 248, y1: 190, bx: 248, by: 292 },
+    { x0: 374, y0: 232, x1: 248, y1: 300, bx: 248, by: 378 }
+  ];
+  var DROP = 0.5;
+  var bg = new Image(), head = new Image(); bg.src = "gym.jpg"; head.src = "fizruk-head.jpg";
+  var lvl = 0, st = "menu", pos = 0, balls = [], score = 0, miss = 0, tm = 0, spawn = 0, fx = [], flash = 0, speedK = 1, best = [0, 0, 0, 0], shock = 0, joy = 0;
+  try { best = JSON.parse(localStorage.getItem("bus.egg.best") || "[0,0,0,0]"); } catch (e) {}
+  var started = false;
+
+  function menu() {
+    st = "menu"; var lv = $("lv"); lv.innerHTML = "";
+    LEVELS.forEach(function (L, i) {
+      var b = document.createElement("button"); b.type = "button"; b.innerHTML = (i + 1) + ". " + L.n + "<small>" + L.d + " · рекорд " + (best[i] || 0) + "</small>";
+      b.onclick = function () { SFXLIB.ac(); start(i); }; lv.appendChild(b);
+    });
+    $("ov").hidden = false;
+  }
+  function start(i) {
+    lvl = i; score = 0; miss = 0; balls = []; fx = []; spawn = 1; tm = 0; speedK = 1; pos = 0; flash = 0; shock = 0; joy = 0; st = "play"; $("ov").hidden = true;
+    $("lvlname").textContent = LEVELS[i].n;
+    if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("egg"); } catch (e) {} }
+  }
+  function landings(ch) { return balls.filter(function (b) { return !b.done; }).map(function (b) { return { t: b.t0 + b.tr + DROP, c: b.c }; }); }
+  function trySpawn() {
+    var L = LEVELS[lvl], tr = L.tr / speedK, c = Math.floor(Math.random() * 4), land = tm + tr + DROP, ok = true, gap = Math.max(0.45, 0.8 / speedK);
+    landings().forEach(function (l) { if (Math.abs(l.t - land) < (l.c === c ? 0.35 : gap)) ok = false; });
+    if (!ok) return false;
+    balls.push({ c: c, k: Math.floor(Math.random() * 5), t0: tm, tr: tr, rot: 0, done: false, ph: "roll", fy: 0, vx: 0, vy: 0, x: 0, y: 0 });
+    return true;
+  }
+  function update(dt) {
+    if (st !== "play") return;
+    tm += dt; var L = LEVELS[lvl]; if (flash > 0) flash -= dt; if (shock > 0) shock -= dt; if (joy > 0) joy -= dt;
+    spawn -= dt;
+    if (spawn <= 0) { if (trySpawn()) spawn = L.iv / speedK * (0.75 + Math.random() * 0.5); else spawn = 0.12; }
+    balls.forEach(function (b) {
+      var C = CH[b.c], el = tm - b.t0;
+      if (b.ph === "roll") {
+        var k = Math.min(1, el / b.tr); b.x = C.x0 + (C.x1 - C.x0) * k; b.y = C.y0 + (C.y1 - C.y0) * k - 10; b.rot += dt * (C.x1 > C.x0 ? 1 : -1) * (6 + 3 * speedK);
+        if (k >= 1) { b.ph = "drop"; b.dt = 0; }
+      } else if (b.ph === "drop") {
+        b.dt += dt; var q = Math.min(1, b.dt / DROP); b.x = C.x1; b.y = C.y1 - 10 + (C.by - 16 - (C.y1 - 10)) * q * q; b.rot += dt * 4;
+        if (b.dt >= DROP) {
+          if (pos === b.c) { b.ph = "done"; b.done = true; score++; joy = 0.35; SFXLIB.seq([740, 988], 0.05, "triangle", 0.2); fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "+1", c: "#ffd23f" });
+            if (score % 10 === 0) { speedK = Math.min(2.2, speedK + 0.08); SFXLIB.seq([523, 659, 784], 0.07, "square", 0.12); fx.push({ x: 180, y: 120, t: 0, s: "Швидше!", c: "#5fb08f" }); } }
+          else { b.ph = "fall"; b.vx = (C.x1 < 180 ? -1 : 1) * 60; b.vy = -140; }
+        }
+      } else if (b.ph === "fall") {
+        b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 8;
+        if (b.y >= FL - 10) { b.y = FL - 10; b.vy = -b.vy * 0.45; b.vx *= 0.8; if (!b.hit) { b.hit = 1; miss++; flash = 0.4; shock = 0.6; SFXLIB.tone(200, 0.35, "sawtooth", 0.18, 0, 70); fx.push({ x: b.x, y: FL - 30, t: 0, s: "ОЙ!", c: "#ff5060" }); if (miss >= 3) over(); } }
+        if (b.x < -30 || b.x > W + 30) { b.ph = "done"; b.done = true; }
+      }
+    });
+    balls = balls.filter(function (b) { return b.ph !== "done" || false; }).concat([]);
+    fx.forEach(function (f) { f.t += dt; }); fx = fx.filter(function (f) { return f.t < 0.9; });
+  }
+  function over() {
+    st = "over"; SFXLIB.seq([400, 330, 260, 200], 0.14, "sawtooth", 0.15);
+    var nb = score > (best[lvl] || 0); if (nb) { best[lvl] = score; try { localStorage.setItem("bus.egg.best", JSON.stringify(best)); } catch (e) {} }
+    setTimeout(function () {
+      $("h").textContent = "Урок закінчено!";
+      $("txt").textContent = "Піймано м’ячів: " + score + (nb ? ". Новий рекорд! 🎉" : ". Рекорд рівня: " + best[lvl] + ".") + " Обери швидкість для нової гри:";
+      menu();
+    }, 900);
+  }
+
+  /* ---------- малювання (8-біт) ---------- */
+  var S = 3, BM = {
+    b0: ["..kkkk..", ".kwwwwk.", "kwwbbwwk", "kwbbbbwk", "kwbbbbwk", "kwwbbwwk", ".kwwwwk.", "..kkkk.."],
+    b1: ["..kkkk..", ".kaabak.", "kaaabaak", "bbbbbbbb", "kaaabaak", "kaaabaak", ".kaabak.", "..kkkk.."],
+    b2: ["..kkkk..", ".kwwcck.", "kwwwcyyk", "kwwcyyyk", "kwcyyywk", "kccyywwk", ".kcywwk.", "..kkkk.."],
+    b3: ["..kkkk..", ".kllwlk.", "kllwlllk", "klwlllwk", "klwlllwk", "kllwlllk", ".kllwlk.", "..kkkk.."],
+    b4: ["........", ".kkkkkk.", "knnnnnnk", "knwnnwnk", "knnnnnnk", ".kkkkkk.", "........", "........"]
+  };
+  var PAL = { k: "#15171c", w: "#f4f4f0", b: "#15171c", a: "#f08a24", c: "#2f6fd1", y: "#ffd23f", l: "#c6e03a", n: "#9a5a2a" };
+  var BNAME = ["b0", "b1", "b2", "b3", "b4"], bcache = {};
+  function ballImg(n) {
+    if (bcache[n]) return bcache[n];
+    var c = document.createElement("canvas"); c.width = 8; c.height = 8; var x = c.getContext("2d");
+    BM[n].forEach(function (row, j) { for (var i = 0; i < 8; i++) { var ch = row[i]; if (ch && ch !== ".") { x.fillStyle = (n === "b0" && ch === "b") ? "#15171c" : (PAL[ch] || "#f0f"); x.fillRect(i, j, 1, 1); } } });
+    return (bcache[n] = c);
+  }
+  var bgLow = null;
+  function makeBg() { bgLow = document.createElement("canvas"); bgLow.width = 90; bgLow.height = 120; var x = bgLow.getContext("2d"); var r = Math.max(90 / bg.naturalWidth, 120 / bg.naturalHeight); x.drawImage(bg, (90 - bg.naturalWidth * r) / 2, 0, bg.naturalWidth * r, bg.naturalHeight * r); var d = x.getImageData(0, 0, 90, 120), p = d.data; for (var i = 0; i < p.length; i += 4) { p[i] = Math.round(p[i] / 48) * 48; p[i + 1] = Math.round(p[i + 1] / 48) * 48; p[i + 2] = Math.round(p[i + 2] / 48) * 48; } x.putImageData(d, 0, 0); }
+  bg.onload = makeBg;
+  function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); }
+  function line(x0, y0, x1, y1, sz, col, col2) {
+    var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / S));
+    for (var i = 0; i <= n; i++) { var k = i / n; R(Math.round((x0 + (x1 - x0) * k) / S) * S - sz / 2, Math.round((y0 + (y1 - y0) * k) / S) * S - sz / 2, sz, sz, col2 && k > 0.5 ? col2 : col); }
+  }
+  function ramp(C) {
+    line(C.x0, C.y0 + 3, C.x1, C.y1 + 3, 12, "#5a3410"); line(C.x0, C.y0, C.x1, C.y1, 9, "#b87a3c"); line(C.x0, C.y0 - 3, C.x1, C.y1 - 3, 3, "#e0a866");
+    R(C.x1 - 3, C.y1 + 8, 6, 12, "#3a2208");
+  }
+  function basket(x, y) {
+    R(x - 24, y - 15, 48, 6, "#e0561c"); R(x - 24, y - 15, 48, 2, "#ff8a4c");
+    for (var i = 0; i < 5; i++) { var w = 15 - i * 2; for (var j = 0; j < w; j++) R(x - w * 1.5 + j * 3, y - 9 + i * 6, 3, 6, (i + j) % 2 ? "#e9dca7" : "#cfbf80"); }
+  }
+  function fizruk() {
+    var C = CH[pos], side = pos < 2 ? -1 : 1, x = 180, y = FL, bob = Math.floor(Math.sin(tm * 6) + 1) * -S;
+    function U(ux, uy, w, h, c) { R(x + ux * S, y + uy * S + (uy < -26 ? bob : 0), w * S, h * S, c); }
+    R(x - 36, y, 72, 6, "rgba(0,0,0,.3)");
+    // ноги й кросівки
+    U(-7, -16, 4, 14, "#f0b48c"); U(3, -16, 4, 14, "#f0b48c"); U(-7, -16, 1, 14, "#d08c66"); U(3, -16, 1, 14, "#d08c66");
+    U(-9, -3, 7, 3, "#f4f4f0"); U(2, -3, 7, 3, "#f4f4f0"); U(-9, -1, 7, 1, "#15171c"); U(2, -1, 7, 1, "#15171c");
+    // шорти
+    U(-8, -27, 16, 12, "#15171c"); U(-1, -19, 2, 4, "#2a2e38"); U(-8, -16, 16, 1, "#454b59"); U(5, -27, 3, 11, "#0c0e12");
+    // футболка
+    U(-9, -44, 18, 17, "#8f949c"); U(6, -44, 3, 17, "#6c7078"); U(-9, -44, 18, 1, "#a9aeb6");
+    U(-3, -44, 6, 2, "#d8dbe0"); U(-2, -42, 4, 1, "#d8dbe0");
+    U(-1, -41, 1, 7, "#15171c"); U(-2, -34, 3, 2, "#cfd4da"); U(-1, -34, 1, 1, "#5a5f68");
+    [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]].forEach(function (rw, j) { rw.forEach(function (v, i) { if (v) U(3 + i, -40 + j, 1, 1, "#f4f4f0"); }); });
+    // вільна рука
+    var fx0 = -side * 9; U(fx0 + (side > 0 ? -3 : 0), -44, 3, 7, "#8f949c"); U(fx0 + (side > 0 ? -3 : 0), -37, 3, 10, "#f0b48c"); U(fx0 + (side > 0 ? -3 : 0), -28, 3, 2, "#d08c66");
+    // рука з кошиком
+    var sx = x + side * 10 * S, sy = y - 42 * S + bob, ex = C.bx - side * 18, ey = C.by + 4;
+    line(sx, sy, (sx + ex) / 2, (sy + ey) / 2, 9, "#8f949c"); line((sx + ex) / 2, (sy + ey) / 2, ex, ey, 9, "#f0b48c");
+    // голова
+    var hy = -64;
+    U(-7, hy, 14, 1, "#15171c"); U(-8, hy + 1, 16, 19, "#15171c"); U(-7, hy + 20, 14, 1, "#15171c");
+    U(-7, hy + 1, 14, 19, "#f0b48c"); U(-4, hy + 1, 4, 1, "#ffd9bd"); U(-6, hy + 2, 2, 1, "#ffd9bd");
+    U(8, hy + 8, 1, 5, "#f0b48c"); U(-9, hy + 8, 1, 5, "#f0b48c");
+    // брови, очі
+    var big = shock > 0;
+    U(-5, hy + 5, 2, 1, "#15171c"); U(-3, hy + 6, 2, 1, "#15171c"); U(1, hy + 6, 2, 1, "#15171c"); U(3, hy + 5, 2, 1, "#15171c");
+    U(-5, hy + 7, big ? 3 : 2, big ? 3 : 2, "#fff"); U(2, hy + 7, big ? 3 : 2, big ? 3 : 2, "#fff"); U(-4, hy + 8, 1, 1, "#15171c"); U(3, hy + 8, 1, 1, "#15171c");
+    U(-1, hy + 9, 2, 3, "#d08c66");
+    // борода й посмішка
+    U(-7, hy + 11, 3, 9, "#c8561e"); U(4, hy + 11, 3, 9, "#c8561e"); U(-6, hy + 16, 12, 4, "#c8561e"); U(-5, hy + 12, 10, 2, "#c8561e"); U(-6, hy + 18, 12, 2, "#8f3a12");
+    if (big) { U(-2, hy + 14, 4, 4, "#15171c"); U(-1, hy + 15, 2, 2, "#7a1f1f"); }
+    else { U(-3, hy + 14, 6, 2, "#f4f4f0"); U(-2, hy + 16, 4, 1, "#7a1f1f"); if (joy > 0) U(-4, hy + 14, 8, 1, "#f4f4f0"); }
+    basket(C.bx, C.by);
+  }
+  function render() {
+    g.imageSmoothingEnabled = false;
+    if (bgLow) g.drawImage(bgLow, 0, 0, W, H); else { g.fillStyle = "#3a2a18"; g.fillRect(0, 0, W, H); }
+    g.fillStyle = "rgba(8,12,10,.5)"; g.fillRect(0, 0, W, H);
+    for (var fx2 = 0; fx2 < W; fx2 += 24) for (var fy2 = FL; fy2 < H; fy2 += 12) R(fx2, fy2, 24, 12, ((fx2 / 24 + (fy2 - FL) / 12) % 2) ? "#b97b3c" : "#a86d32");
+    R(0, FL, W, 3, "#ffd9a0");
+    CH.forEach(ramp);
+    fizruk();
+    balls.forEach(function (b) { var q = Math.round(b.rot / (Math.PI / 2)) * (Math.PI / 2); g.save(); g.translate(Math.round(b.x), Math.round(b.y)); g.rotate(q); g.drawImage(ballImg(BNAME[b.k]), -12, -12, 24, 24); g.restore(); });
+    g.textAlign = "center"; g.font = "bold 20px monospace";
+    fx.forEach(function (f) { g.globalAlpha = 1 - f.t / 0.9; g.fillStyle = "#000"; g.fillText(f.s, f.x + 2, f.y - Math.round(f.t * 10) * 4 + 2); g.fillStyle = f.c; g.fillText(f.s, f.x, f.y - Math.round(f.t * 10) * 4); g.globalAlpha = 1; });
+    g.textAlign = "left";
+    R(6, 6, 132, 34, "#000"); R(8, 8, 128, 30, "#1c2a20"); g.drawImage(ballImg("b0"), 14, 13, 20, 20); g.fillStyle = "#ffd23f"; g.font = "bold 22px monospace"; g.fillText(("000" + score).slice(-3), 44, 31);
+    R(W - 104, 6, 98, 34, "#000"); R(W - 102, 8, 94, 30, "#1c2a20");
+    for (var i = 0; i < 3; i++) { if (i < miss) { R(W - 94 + i * 30, 14, 6, 6, "#ff3040"); R(W - 82 + i * 30 - 6, 14, 6, 6, "#ff3040"); R(W - 88 + i * 30, 20, 6, 6, "#ff3040"); R(W - 94 + i * 30, 26, 6, 6, "#ff3040"); R(W - 82 + i * 30 - 6, 26, 6, 6, "#ff3040"); } else R(W - 92 + i * 30, 14, 18, 18, "#3fd07a"); }
+    g.fillStyle = "rgba(255,255,255,.8)"; g.font = "bold 11px monospace"; g.textAlign = "center"; g.fillText("SPEED x" + speedK.toFixed(2), W / 2, 56); g.textAlign = "left";
+    if (flash > 0) { g.fillStyle = "rgba(220,30,40," + (flash * 0.5).toFixed(2) + ")"; g.fillRect(0, 0, W, H); }
+  }
+
+  /* ---------- керування ---------- */
+  function setPos(p) { if (st === "play" && p !== pos) { pos = p; SFXLIB.noise(0.04, 0.05, 700); } SFXLIB.ac(); }
+  Array.prototype.forEach.call(document.querySelectorAll(".pad button"), function (b) {
+    var p = +b.getAttribute("data-p");
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); setPos(p); Array.prototype.forEach.call(document.querySelectorAll(".pad button"), function (x) { x.classList.remove("on"); }); b.classList.add("on"); });
+  });
+  cv.addEventListener("pointerdown", function (e) { var r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; setPos((x < 0.5 ? 0 : 2) + (y < 0.62 ? 0 : 1)); });
+  addEventListener("keydown", function (e) {
+    var k = e.key.toLowerCase(), cur = pos;
+    if (k === "q") setPos(0); else if (k === "a") setPos(1); else if (k === "e") setPos(2); else if (k === "d") setPos(3);
+    else if (k === "arrowleft") setPos(cur % 2 + 0); else if (k === "arrowright") setPos(cur % 2 + 2); else if (k === "arrowup") setPos(Math.floor(cur / 2) * 2); else if (k === "arrowdown") setPos(Math.floor(cur / 2) * 2 + 1); else return;
+    e.preventDefault();
+  });
+  SFXLIB.bind($("snd"));
+  var last = 0; function frame(t) { var dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t; update(dt); render(); requestAnimationFrame(frame); }
+  menu(); requestAnimationFrame(frame);
+  window.__e = { tick: function (dt) { update(dt); render(); }, start: start, set: setPos, get s() { return { st: st, pos: pos, score: score, miss: miss, balls: balls.map(function (b) { return { c: b.c, ph: b.ph }; }), speedK: speedK }; }, auto: function (dt, n) { for (var i = 0; i < n; i++) { var b = balls.filter(function (x) { return x.ph === "roll" || x.ph === "drop"; }).sort(function (a, b) { return (a.t0 + a.tr) - (b.t0 + b.tr); })[0]; if (b) pos = b.c; update(dt); } render(); } };
+})();
+</script>
+</body>
+</html>
