@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1a1f2b">
+<title>Боб-Куниця: операція «Конфіскат»</title>
+<style>
+  :root { --y:#ffd23f; --g:#5fb08f; --ink:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; background:#10131b; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:none; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 10px; gap:8px; }
+  header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  header a { color:var(--y); text-decoration:none; white-space:nowrap; }
+  header span { font-size:13px; text-align:center; }
+  .wrap { position:relative; width:min(100%, 440px, calc((100vh - 150px) * 360 / 520)); aspect-ratio:360/520; min-width:240px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 150px) * 360 / 520)); } }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:16px; border-radius:14px; background:rgba(12,15,24,.93); }
+  .ov[hidden] { display:none; }
+  .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
+  .ov img.circ { border-radius:50%; }
+  .big { font-size:72px; line-height:1; }
+  .ov h1 { margin:0; font-size:21px; color:var(--y); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:300px; }
+  .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--g); font-weight:700; }
+  .go { font:inherit; font-size:18px; font-weight:700; padding:12px 28px; border:0; border-radius:12px; background:var(--y); color:#2a2200; cursor:pointer; }
+  .go2 { font:inherit; font-size:13px; font-weight:600; padding:7px 14px; border:1px solid rgba(255,255,255,.35); border-radius:10px; background:transparent; color:#fff; cursor:pointer; }
+  .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; }
+  .bar { width:100%; max-width:440px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:#b9c0cf; }
+  .sneak { font:inherit; font-size:16px; font-weight:700; padding:12px 18px; border:2px solid rgba(255,255,255,.35); border-radius:14px; background:rgba(255,255,255,.1); color:#fff; touch-action:none; }
+  .sneak.on { background:var(--g); color:#06241a; border-color:var(--g); }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span id="lvlname"></span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
+<div class="wrap">
+  <canvas id="c" width="360" height="520" aria-label="Гра-стелс: прокрадайся ліцеєм повз учителів. Тягни пальцем, щоб рухатись."></canvas>
+  <div class="ov" id="ov">
+    <img id="oimg" src="stepanovych.jpg" alt="">
+    <div class="big" id="oemo" hidden></div>
+    <div class="lvl" id="lvl"></div>
+    <h1 id="h">Боб-Куниця</h1>
+    <p id="txt"></p>
+    <button class="go" id="go" type="button">Грати</button>
+    <button class="go2" id="again" type="button" hidden>Почати спочатку</button>
+  </div>
+</div>
+<div class="bar"><span>Тягни пальцем по екрану. На комп’ютері: стрілки або WASD, Shift тихо.</span><button class="sneak" id="sneak" type="button">🤫 Тихо</button></div>
+<script src="sfx.js"></script>
+<script src="config.js"></script>
+<script src="track.js"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 520, T = 28;
+  var MAP = ["################################################E#####", "############################################fffffffff#", "############################################fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#########oo############oo#############oo####fffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhofffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhho#####oo###", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#######hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhh############", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhholllllll#GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#######hhhhholllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#######hhhhh#lll#lll#GGGGGGGGGGGGGGGG#oo##########oo##", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh##o###o##GGGGGGGGGGGGgggggggggggggggggggg#", "#ccccc#hhhhhohhhhhhhhhhGGGGGGGGGGgggggggggggggggggggg#", "#######hhhhhohhhhhhhhhhEGGGGGGGGGgggggggggggggggggggg#", "########oo##G###oo#####GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#ddddddddddEG#kkkkkkkk#GGGGGGGGGEgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "######################################################"];
+  var MW = MAP[0].length, MH = MAP.length;
+  var LABELS = [[5.5, 4.5, "4"], [19, 4.5, "3"], [35, 4.5, "2"], [48.5, 4.5, "Фойє"], [3.5, 9.5, "5"], [3.5, 15, "6"], [3.5, 20, "7"], [3.5, 25, "8"], [5.5, 34, "Їдальня"], [16, 17, "13"], [14.5, 22.5, "12"], [18.5, 22.5, "11"], [17.5, 34, "Кухня"], [48.5, 11, "14"], [45.5, 15, "15"], [45.5, 18, "16"], [45.5, 21, "17"], [51, 18, "18"], [43, 31, "Спортзал"]];
+  var FLOOR = { c: "#e4d2ac", h: "#cdd2d6", f: "#e9e3d2", d: "#efe3c2", k: "#f0f0f0", l: "#d6e2e6", g: "#e2a04f", s: "#b9bcc2", o: "#a9743d", E: "#2fb36b" };
+  var KINDS = {
+    teacher: { n: "Вчителька початкових класів", e: "👩‍🏫", c: "#c44f9a" },
+    cook: { n: "Кухарка", e: "👩‍🍳", c: "#e8e8e8" },
+    geo: { n: "Вчитель географії", e: "🧑‍🏫", c: "#4f7bc4" },
+    zav: { n: "Завгосп", e: "🧰", c: "#8a6a3a" },
+    dir: { n: "Директорка", e: "👩‍💼", c: "#7a3f9a" },
+    vice: { n: "Завуч", e: "🧐", c: "#3f8a7a" },
+    pe: { n: "Фізрук Артурович", e: "🏀", c: "#d62839", head: 1 }
+  };
+  var LV = [
+    { name: "Перший конфіскат", s: [9, 9], ex: [11, 37], loot: [[3, 15, "📱"], [3, 24, "🎮"], [5, 33, "🍫"]], range: 5, fov: 0.6,
+      intro: "Степанович: Боб-Куниця, вчителі позабирали наші телефони й смаколики! Пробігся по класах, забери три речі й вийди через їдальню. Кнопка «Тихо» робить тебе непомітнішим, але повільнішим.",
+      g: [{ k: "geo", w: [[9, 18], [9, 26]] }, { k: "cook", w: [[3, 31], [8, 36], [3, 36]] }] },
+    { name: "Кухня й підсобки", s: [5, 30], ex: [23, 27], loot: [[18, 33, "🍪"], [16, 16, "🔬"], [14, 22, "🏐"]], range: 5.5, fov: 0.62,
+      intro: "Степанович: Тепер складніше: печиво в кухні, мікроскоп у препараторській і м’яч у збройній кімнаті. Завгосп стоїть у коридорі, кухарка в кухні. Вихід за східним коридором.",
+      g: [{ k: "zav", w: [[13, 26], [21, 26]] }, { k: "cook", w: [[15, 31], [20, 31], [20, 36], [15, 36]] }, { k: "geo", w: [[9, 10], [9, 24]] }] },
+    { name: "Директорський коридор", s: [8, 8], ex: [48, 0], loot: [[5, 4, "🎒"], [18, 4, "📔"], [35, 4, "📱"]], range: 6, fov: 0.62,
+      intro: "Степанович: У верхніх класах лежать рюкзаки, журнал і телефон. Директорка обходить коридор, завуч стоїть у фойє. Вихід угорі у фойє, лише тихо!",
+      g: [{ k: "dir", w: [[16, 8], [40, 8]] }, { k: "vice", w: [[46, 3], [50, 5], [47, 6]] }, { k: "teacher", w: [[30, 4], [40, 4]] }] },
+    { name: "Спортзал", s: [39, 10], ex: [32, 37], loot: [[45, 30, "⚽"], [36, 36, "🏐"], [50, 17, "📱"]], range: 6, fov: 0.65,
+      intro: "Степанович: Тут господар Артурович, і він швидкий. Забери м’ячі зі спортзалу й телефон у кімнаті 18, а тоді виходь з лівого кутка спортзалу.",
+      g: [{ k: "pe", w: [[35, 25], [50, 25], [50, 36], [35, 36]], sp: 1.8 }, { k: "geo", w: [[39, 17], [39, 21]] }, { k: "teacher", w: [[45, 17], [50, 17]] }] },
+    { name: "Велика втеча", s: [3, 37], ex: [48, 0], loot: [[20, 31, "🍫"], [16, 16, "🔬"], [45, 15, "📱"], [45, 30, "⚽"], [48, 11, "📔"]], range: 6, fov: 0.65,
+      intro: "Степанович: Фінал! П’ять речей по всьому ліцею, а вчителі на кожному кроці. Бери все й тікай через головний вхід у фойє. Я чекаю біля автобуса!",
+      g: [{ k: "geo", w: [[9, 10], [9, 26]] }, { k: "zav", w: [[13, 26], [21, 26]] }, { k: "dir", w: [[40, 8], [8, 8]] }, { k: "pe", w: [[35, 25], [50, 36]], sp: 1.7 }, { k: "vice", w: [[46, 3], [50, 5]] }] }
+  ];
+  var head = new Image(); head.src = "fizruk-head.jpg";
+  var lvl = 0, saved = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null;
+  try { saved = +localStorage.getItem("bus.bob.level") || 0; } catch (e) {}
+  if (saved >= LV.length) saved = 0;
+  function say(t, s) { msg = t; msgT = s || 2.6; }
+  function ch(x, y) { if (x < 0 || y < 0 || x >= MW || y >= MH) return "#"; return MAP[y][x]; }
+  function solid(x, y) { var c = ch(x, y); return c === "#" || c === "G" || (c === "E" && !exitOpen); }
+  function opaque(x, y) { var c = ch(x, y); return c === "#" || c === "G" || c === "E"; }
+  function blocked(x, y, r) { return solid(Math.floor(x - r), Math.floor(y - r)) || solid(Math.floor(x + r), Math.floor(y - r)) || solid(Math.floor(x - r), Math.floor(y + r)) || solid(Math.floor(x + r), Math.floor(y + r)); }
+  function move(e, dx, dy, r) { if (!blocked(e.x + dx, e.y, r)) e.x += dx; if (!blocked(e.x, e.y + dy, r)) e.y += dy; }
+  function los(x0, y0, x1, y1) { var d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 0.2); for (var i = 1; i < n; i++) { var k = i / n; if (opaque(Math.floor(x0 + (x1 - x0) * k), Math.floor(y0 + (y1 - y0) * k))) return false; } return true; }
+  function bfsNext(sx, sy, tx, ty) {
+    if (sx === tx && sy === ty) return null;
+    var prev = {}, q = [[sx, sy]]; prev[sx + "," + sy] = null; var D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (q.length) {
+      var c = q.shift();
+      if (c[0] === tx && c[1] === ty) { var cur = c, p = null; while (cur) { var pk = prev[cur[0] + "," + cur[1]]; if (!pk) break; p = cur; cur = pk; } return p; }
+      for (var i = 0; i < 4; i++) { var nx = c[0] + D[i][0], ny = c[1] + D[i][1], k = nx + "," + ny; if (k in prev || solid(nx, ny)) continue; prev[k] = c; q.push([nx, ny]); }
+    }
+    return null;
+  }
+  function load(l) {
+    lvl = l; var L = LV[l];
+    P = { x: L.s[0] + 0.5, y: L.s[1] + 0.5, a: 0 }; got = 0; exitOpen = false; grace = 2.5; msg = ""; msgT = 0; caughtBy = null; hbT = 0;
+    loot = L.loot.map(function (i) { return { x: i[0] + 0.5, y: i[1] + 0.5, e: i[2], got: false }; });
+    gs = L.g.map(function (o) { var k = KINDS[o.k], w = o.w; return { k: k, w: w, wi: 1 % w.length, x: w[0][0] + 0.5, y: w[0][1] + 0.5, a: 0, mode: "patrol", meter: 0, lost: 0, lx: 0, ly: 0, sp: o.sp || 1.5, range: L.range, fov: L.fov, pause: 0 }; });
+    hud(); say("Старт! Збери всі речі: " + L.loot.length + " шт.", 2.8);
+  }
+  function hud() { $("lvlname").textContent = "Рівень " + (lvl + 1) + ": " + LV[lvl].name + " · " + got + "/" + loot.length; }
+  function sneaking() { return sneakBtn || keys.Shift || keys[" "]; }
+  function update(dt) {
+    if (st !== "play") return;
+    tm += dt; if (grace > 0) grace -= dt;
+    var dx = (keys.R ? 1 : 0) - (keys.L ? 1 : 0), dy = (keys.D ? 1 : 0) - (keys.U ? 1 : 0);
+    if (joy && joy.m > 0.15) { dx = joy.x; dy = joy.y; }
+    var m = Math.hypot(dx, dy), sn = sneaking();
+    if (m > 0.05) {
+      if (m > 1) { dx /= m; dy /= m; m = 1; }
+      var sp = (sn ? 1.6 : 3.1) * Math.min(1, m * (joy ? 1.1 : 1)); P.a = Math.atan2(dy, dx);
+      move(P, dx / (m || 1) * sp * dt, dy / (m || 1) * sp * dt, 0.28);
+      lastStep -= dt; if (lastStep <= 0) { lastStep = sn ? 0.5 : 0.28; if (!sn) SFXLIB.noise(0.04, 0.05, 500); }
+    }
+    loot.forEach(function (it) {
+      if (it.got || Math.hypot(it.x - P.x, it.y - P.y) > 0.6) return; it.got = true; got++; hud();
+      SFXLIB.seq([660, 880, 1320], 0.07, "triangle", 0.2);
+      if (got === loot.length) { exitOpen = true; say("Все зібрано! Біжи до зеленого виходу!", 3.5); SFXLIB.seq([784, 988, 1175, 1568], 0.08, "triangle", 0.2); } else say(it.e + " Є! Залишилось " + (loot.length - got), 2.2);
+    });
+    if (alertCd > 0) alertCd -= dt;
+    var chasing = false;
+    gs.forEach(function (e) { guard(e, dt, sn); if (e.mode === "chase") chasing = true; if (grace <= 0 && Math.hypot(e.x - P.x, e.y - P.y) < 0.65) caughtBy = caughtBy || e; });
+    if (chasing) { hbT -= dt; if (hbT <= 0) { hbT = 0.5; SFXLIB.tone(65, 0.13, "sine", 0.3); } }
+    if (msgT > 0) msgT -= dt;
+    if (caughtBy) return lose();
+    if (exitOpen && ch(Math.floor(P.x), Math.floor(P.y)) === "E") win();
+  }
+  function guard(e, dt, sn) {
+    if (grace > 0) return;
+    var dx = P.x - e.x, dy = P.y - e.y, d = Math.hypot(dx, dy), rng = e.range * (sn ? 0.55 : 1);
+    var ang = Math.atan2(dy, dx), da = Math.abs(((ang - e.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    var see = d < rng && (da < e.fov || d < 1.3) && los(e.x, e.y, P.x, P.y);
+    if (e.mode === "patrol") {
+      if (see) { e.meter += dt / (d < 2.5 ? 0.3 : 0.75); } else e.meter = Math.max(0, e.meter - dt * 0.8);
+      if (e.meter >= 1) { e.mode = "chase"; e.lost = 0; if (alertCd <= 0) { alertCd = 2.5; SFXLIB.tone(900, 0.18, "square", 0.12, 0, 600); SFXLIB.tone(1200, 0.2, "square", 0.1, 0.18, 800); } say(e.k.n + " тебе помітив(ла)! Тікай!", 2.2); }
+    } else {
+      if (see) { e.lost = 0; e.lx = P.x; e.ly = P.y; } else { e.lost += dt; if (e.lost > 4) { e.mode = "patrol"; e.meter = 0; } }
+    }
+    var tx, ty, sp;
+    if (e.mode === "chase") { sp = e.sp * 1.8; tx = see ? P.x : e.lx; ty = see ? P.y : e.ly; if (!tx) { tx = P.x; ty = P.y; } }
+    else {
+      if (e.pause > 0) { e.pause -= dt; return; }
+      var w = e.w[e.wi]; tx = w[0] + 0.5; ty = w[1] + 0.5; sp = e.sp;
+      if (Math.hypot(tx - e.x, ty - e.y) < 0.35) { e.wi = (e.wi + 1) % e.w.length; e.pause = 0.5; return; }
+    }
+    var gx = tx, gy = ty;
+    if (!(e.mode === "chase" && see)) { var n = bfsNext(Math.floor(e.x), Math.floor(e.y), Math.floor(tx), Math.floor(ty)); if (n) { gx = n[0] + 0.5; gy = n[1] + 0.5; } }
+    var dd = Math.hypot(gx - e.x, gy - e.y);
+    if (dd > 0.02) { var vx = (gx - e.x) / dd, vy = (gy - e.y) / dd, ta = Math.atan2(vy, vx), df = ((ta - e.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; e.a += df * Math.min(1, dt * 8); move(e, vx * sp * dt, vy * sp * dt, 0.3); }
+  }
+  function lose() {
+    st = "over"; SFXLIB.tone(240, 0.7, "sawtooth", 0.2, 0, 60);
+    var e = caughtBy, im = $("oimg"), em = $("oemo");
+    if (e.k.head) { im.src = "fizruk-full.jpg"; im.className = ""; im.hidden = false; em.hidden = true; } else { im.hidden = true; em.hidden = false; em.textContent = e.k.e; }
+    $("h").textContent = "Спіймали!"; $("lvl").textContent = "Рівень " + (lvl + 1);
+    $("txt").textContent = e.k.n + " забрав(ла) тебе до кабінету. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("again").hidden = true; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; };
+  }
+  function win() {
+    st = "win"; SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22);
+    try { localStorage.setItem("bus.bob.level", String(lvl + 1 < LV.length ? lvl + 1 : 0)); } catch (e) {}
+    var last = lvl === LV.length - 1, im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
+    $("h").textContent = last ? "Усі речі повернуто!" : "Рівень пройдено!"; $("lvl").textContent = last ? "Фінал" : "Рівень " + (lvl + 1);
+    $("txt").textContent = last ? "Степанович: Ти справжня легенда ліцею! Усі телефони, м’ячі й смаколики вдома. Автобус уже чекає біля виходу!" : "Степанович: Чудово, Боб! Але далі буде складніше.";
+    $("go").textContent = last ? "Зіграти ще" : "Далі"; $("again").hidden = true; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(last ? 0 : lvl + 1); intro(); };
+  }
+  function intro() {
+    st = "intro"; var L = LV[lvl], im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
+    $("h").textContent = L.name; $("lvl").textContent = "Рівень " + (lvl + 1) + " з " + LV.length; $("txt").textContent = L.intro; $("go").textContent = "Почати місію";
+    $("again").hidden = !(lvl > 0 && !started); $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("bob"); } catch (e) {} } };
+  }
+
+  /* ---------- малювання ---------- */
+  function render() {
+    var cx = Math.max(0, Math.min(MW * T - W, P.x * T - W / 2)), cy = Math.max(0, Math.min(MH * T - H, P.y * T - H / 2 - 30));
+    g.fillStyle = "#1a1f2b"; g.fillRect(0, 0, W, H);
+    var c0 = Math.floor(cx / T), r0 = Math.floor(cy / T), c1 = Math.min(MW - 1, c0 + Math.ceil(W / T) + 1), r1 = Math.min(MH - 1, r0 + Math.ceil(H / T) + 1);
+    for (var r = r0; r <= r1; r++) for (var c = c0; c <= c1; c++) {
+      var t = MAP[r][c], x = c * T - cx, y = r * T - cy;
+      if (t === "#") { g.fillStyle = "#3a4150"; g.fillRect(x, y, T, T); g.fillStyle = "#4a5266"; g.fillRect(x, y, T, 3); }
+      else if (t === "G") { g.fillStyle = "#3f7d3f"; g.fillRect(x, y, T, T); g.fillStyle = "#4f8f4a"; g.fillRect(x + 4, y + 6, 6, 3); g.fillRect(x + 16, y + 17, 6, 3); }
+      else { g.fillStyle = FLOOR[t] || "#ccc"; g.fillRect(x, y, T, T); if (t === "c" || t === "d") { g.fillStyle = "rgba(120,80,30,.12)"; g.fillRect(x, y + T - 1, T, 1); } else if (t !== "E" && t !== "o") { g.fillStyle = "rgba(0,0,0,.06)"; g.fillRect(x, y, T, 1); g.fillRect(x, y, 1, T); }
+        if (t === "s") { g.fillStyle = "rgba(0,0,0,.18)"; for (var i = 1; i < 5; i++) g.fillRect(x, y + i * 6, T, 2); }
+        if (t === "E") { g.fillStyle = exitOpen ? "#fff" : "rgba(0,0,0,.35)"; g.font = "18px sans-serif"; g.textAlign = "center"; g.fillText("🚪", x + T / 2, y + 20); g.textAlign = "left"; if (!exitOpen) { g.fillStyle = "#d62839"; g.fillRect(x, y, T, 4); } } }
+    }
+    g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 2; g.strokeRect(34 * T - cx, 24 * T - cy, 18 * T, 14 * T); g.beginPath(); g.arc(43 * T - cx, 31 * T - cy, 2.2 * T, 0, 7); g.stroke();
+    g.font = "bold 11px system-ui,sans-serif"; g.textAlign = "center"; g.fillStyle = "rgba(60,40,10,.55)";
+    LABELS.forEach(function (l) { g.fillText(l[2], l[0] * T - cx, l[1] * T - cy + 4); }); g.textAlign = "left";
+    loot.forEach(function (it) { if (it.got) return; var x = it.x * T - cx, y = it.y * T - cy + Math.sin(tm * 4 + it.x) * 2; g.fillStyle = "rgba(255,230,120,.5)"; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.font = "18px sans-serif"; g.textAlign = "center"; g.fillText(it.e, x, y + 6); g.textAlign = "left"; });
+    gs.forEach(function (e) {
+      var col = e.mode === "chase" ? "255,40,50" : (e.meter > 0.05 ? "255,160,40" : "255,235,90");
+      var n = 22, pts = [[e.x * T - cx, e.y * T - cy]], rng = e.range;
+      for (var k = 0; k <= n; k++) { var a = e.a - e.fov + (2 * e.fov) * k / n, d = 0; while (d < rng && !opaque(Math.floor(e.x + Math.cos(a) * d), Math.floor(e.y + Math.sin(a) * d))) d += 0.2; pts.push([(e.x + Math.cos(a) * d) * T - cx, (e.y + Math.sin(a) * d) * T - cy]); }
+      g.fillStyle = "rgba(" + col + ",.26)"; g.beginPath(); pts.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.fill();
+    });
+    gs.forEach(function (e) {
+      var x = e.x * T - cx, y = e.y * T - cy;
+      g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(x, y + 10, 11, 5, 0, 0, 7); g.fill();
+      g.fillStyle = e.k.c; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.strokeStyle = "#222"; g.lineWidth = 2; g.stroke();
+      if (e.k.head && head.complete && head.naturalWidth) { g.save(); g.beginPath(); g.arc(x, y, 11, 0, 7); g.clip(); g.drawImage(head, x - 12, y - 14, 24, 30); g.restore(); }
+      else { g.font = "15px sans-serif"; g.textAlign = "center"; g.fillText(e.k.e, x, y + 5); g.textAlign = "left"; }
+      g.fillStyle = "#222"; g.beginPath(); g.arc(x + Math.cos(e.a) * 9, y + Math.sin(e.a) * 9, 2.5, 0, 7); g.fill();
+      if (e.mode === "chase") { g.fillStyle = "#ff2a38"; g.font = "bold 22px sans-serif"; g.textAlign = "center"; g.fillText("!", x, y - 18); g.textAlign = "left"; }
+      else if (e.meter > 0.05) { g.fillStyle = "#ffb02e"; g.fillRect(x - 12, y - 20, 24 * Math.min(1, e.meter), 4); g.strokeStyle = "#222"; g.lineWidth = 1; g.strokeRect(x - 12, y - 20, 24, 4); }
+    });
+    var px = P.x * T - cx, py = P.y * T - cy, sn = sneaking();
+    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(px, py + 9, 9, 4, 0, 0, 7); g.fill();
+    g.globalAlpha = sn ? 0.72 : 1; g.fillStyle = "#e08a2c"; g.beginPath(); g.arc(px, py, sn ? 9 : 11, 0, 7); g.fill(); g.strokeStyle = "#5a3210"; g.lineWidth = 2; g.stroke();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(px + Math.cos(P.a) * 5 - 3, py + Math.sin(P.a) * 5 - 2, 2.2, 0, 7); g.arc(px + Math.cos(P.a) * 5 + 3, py + Math.sin(P.a) * 5 - 2, 2.2, 0, 7); g.fill();
+    g.fillStyle = "#222"; g.fillRect(px - 8, py - 12, 16, 4); g.globalAlpha = 1;
+    // HUD
+    var ms = 2, mx = W - MW * ms - 6, my = 6; g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(mx - 2, my - 2, MW * ms + 4, MH * ms + 4);
+    for (var rr = 0; rr < MH; rr++) for (var cc = 0; cc < MW; cc++) { var tt = MAP[rr][cc]; if (tt === "#") continue; g.fillStyle = tt === "G" ? "#2f5f2f" : (tt === "E" ? (exitOpen ? "#2fb36b" : "#d62839") : "#c9ccd2"); g.fillRect(mx + cc * ms, my + rr * ms, ms, ms); }
+    loot.forEach(function (it) { if (!it.got) { g.fillStyle = "#ffd23f"; g.fillRect(mx + it.x * ms - 1, my + it.y * ms - 1, 3, 3); } });
+    gs.forEach(function (e) { if (Math.hypot(e.x - P.x, e.y - P.y) < 12 || e.mode === "chase") { g.fillStyle = "#ff3040"; g.fillRect(mx + e.x * ms - 1, my + e.y * ms - 1, 3, 3); } });
+    g.fillStyle = "#4fc3ff"; g.fillRect(mx + P.x * ms - 1.5, my + P.y * ms - 1.5, 4, 4);
+    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(6, 6, 26 * loot.length + 6, 28);
+    loot.forEach(function (it, i) { g.globalAlpha = it.got ? 1 : 0.3; g.font = "18px sans-serif"; g.fillText(it.e, 9 + i * 26, 27); }); g.globalAlpha = 1;
+    if (sn) { g.fillStyle = "rgba(95,176,143,.9)"; g.font = "bold 11px system-ui"; g.fillText("🤫 тихо", 8, 50); }
+    if (msgT > 0 && msg) {
+      g.font = "bold 14px system-ui,sans-serif"; var words = msg.split(" "), lines = [], cur = "";
+      words.forEach(function (w) { var t2 = cur ? cur + " " + w : w; if (g.measureText(t2).width > W - 50 && cur) { lines.push(cur); cur = w; } else cur = t2; }); lines.push(cur);
+      var bh = lines.length * 18 + 14; g.globalAlpha = Math.min(1, msgT * 2); g.fillStyle = "rgba(0,0,0,.75)"; g.fillRect(16, H - bh - 12, W - 32, bh); g.fillStyle = "#fff"; g.textAlign = "center";
+      lines.forEach(function (l, i) { g.fillText(l, W / 2, H - bh - 12 + 21 + i * 18); }); g.textAlign = "left"; g.globalAlpha = 1;
+    }
+    if (grace > 0 && st === "play") { g.fillStyle = "#ffd23f"; g.font = "bold 36px system-ui"; g.textAlign = "center"; g.fillText(Math.ceil(grace), W / 2, 96); g.textAlign = "left"; }
+    if (joy) { g.strokeStyle = "rgba(255,255,255,.4)"; g.lineWidth = 3; g.beginPath(); g.arc(joy.ox, joy.oy, 42, 0, 7); g.stroke(); g.fillStyle = "rgba(255,255,255,.35)"; g.beginPath(); g.arc(joy.ox + joy.x * 40, joy.oy + joy.y * 40, 18, 0, 7); g.fill(); }
+  }
+
+  /* ---------- керування ---------- */
+  var KM = { ArrowLeft: "L", ArrowRight: "R", ArrowUp: "U", ArrowDown: "D", a: "L", d: "R", w: "U", s: "D", A: "L", D: "R", W: "U", S: "D" };
+  addEventListener("keydown", function (e) { if (KM[e.key]) { keys[KM[e.key]] = true; e.preventDefault(); } else if (e.key === "Shift" || e.key === " ") { keys[e.key] = true; e.preventDefault(); } });
+  addEventListener("keyup", function (e) { if (KM[e.key]) keys[KM[e.key]] = false; else if (e.key === "Shift" || e.key === " ") keys[e.key] = false; });
+  function pt(e) { var r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
+  cv.addEventListener("pointerdown", function (e) { var p = pt(e); joy = { id: e.pointerId, ox: p[0], oy: p[1], x: 0, y: 0, m: 0 }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} SFXLIB.ac(); });
+  cv.addEventListener("pointermove", function (e) { if (!joy || joy.id !== e.pointerId) return; var p = pt(e), dx = p[0] - joy.ox, dy = p[1] - joy.oy, d = Math.hypot(dx, dy), m = Math.min(1, d / 40); joy.m = m; joy.x = d ? dx / d * m : 0; joy.y = d ? dy / d * m : 0; });
+  function jend(e) { if (joy && joy.id === e.pointerId) joy = null; }
+  cv.addEventListener("pointerup", jend); cv.addEventListener("pointercancel", jend);
+  $("sneak").addEventListener("click", function () { sneakBtn = !sneakBtn; this.classList.toggle("on", sneakBtn); });
+  SFXLIB.bind($("snd"));
+  $("again").onclick = function () { load(0); intro(); };
+  var last = 0;
+  function frame(t) { var dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t; update(dt); render(); requestAnimationFrame(frame); }
+  load(Math.min(saved, LV.length - 1)); intro(); requestAnimationFrame(frame);
+  window.__b = {
+    tick: function (dt) { update(dt); render(); },
+    get s() { return { st: st, lvl: lvl, P: P, got: got, total: loot.length, exitOpen: exitOpen, gs: gs.map(function (e) { return { x: e.x, y: e.y, mode: e.mode, meter: e.meter }; }), loot: loot }; },
+    go: function (l) { load(l); st = "play"; $("ov").hidden = true; }, put: function (x, y, a) { P.x = x; P.y = y; if (a !== undefined) P.a = a; }, grace: function (v) { grace = v; }, keys: keys, LV: LV
+  };
+})();
+</script>
+</body>
+</html>
