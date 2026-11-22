@@ -68,7 +68,7 @@
       r.children[0].textContent = short(k); r.children[1].firstChild.style.width = (v / max * 100) + "%"; r.children[2].textContent = v; bars.appendChild(r);
     });
     $("chart").hidden = false;
-    var names = { radio: "Радіо", bus: "Гра «Автобус-перегони»", volley: "Волейбол «Куниці»", basket: "Баскетбол «Бульдозер»", fizruk: "Квест «Злий фізрук»", bob: "Боб-Куниця (стелс)" }, pb = $("pb"); pb.innerHTML = "";
+    var names = { radio: "Радіо", bus: "Гра «Автобус-перегони»", volley: "Волейбол «Куниці»", basket: "Баскетбол «Бульдозер»", fizruk: "Квест «Злий фізрук»", bob: "Боб-Куниця (стелс)", egg: "Фізрук ловить м’ячі" }, pb = $("pb"); pb.innerHTML = "";
     Object.keys(names).forEach(function (n) {
       var o = (st.plays || {})[n] || {}, all = 0, k; for (k in o) all += o[k] || 0;
       var tr = document.createElement("tr"); tr.innerHTML = "<td></td><td></td><td></td><td></td>";
