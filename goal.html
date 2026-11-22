@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f2a1a">
+<title>Забий гол Артуровичу</title>
+<style>
+  :root { --y:#ffd23f; --g:#5fb08f; --ink:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; background:#08140d; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:none; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 10px; gap:8px; }
+  header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  header a { color:var(--y); text-decoration:none; white-space:nowrap; }
+  header span { font-size:13px; text-align:center; }
+  .wrap { position:relative; width:min(100%, 440px, calc((100vh - 110px) * 360 / 480)); aspect-ratio:360/480; min-width:240px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 110px) * 360 / 480)); } }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:14px; border-radius:14px; background:linear-gradient(rgba(8,20,12,.82),rgba(8,20,12,.92)), url(gym.jpg) center/cover; }
+  .ov[hidden] { display:none; }
+  .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
+  .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:300px; }
+  .lv { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:300px; }
+  .lv button, .go { font:inherit; font-weight:700; border:0; border-radius:12px; cursor:pointer; }
+  .lv button { padding:10px 6px; font-size:14px; background:var(--y); color:#2a2200; line-height:1.25; }
+  .lv button small { display:block; font-weight:600; font-size:11px; opacity:.75; }
+  .go { font-size:18px; padding:12px 28px; background:var(--y); color:#2a2200; }
+  .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span id="lvlname">Забий гол Артуровичу</span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
+<div class="wrap">
+  <canvas id="c" width="720" height="960" aria-label="Пенальті: веди пальцем, щоб прицілитись у ворота, і відпусти, щоб вдарити. У воротах Артурович."></canvas>
+  <div class="ov" id="ov">
+    <img id="oimg" src="fizruk-full.jpg" alt="Артурович">
+    <h1 id="h">Забий гол Артуровичу</h1>
+    <p id="txt">Артурович став у ворота! Веди пальцем по воротах, щоб прицілитись, і відпусти, щоб вдарити. Біла смужка збоку це сила: сильний удар швидший, але менш точний. 5 ударів на рівень. Обери рівень:</p>
+    <div class="lv" id="lv"></div>
+  </div>
+</div>
+<script src="sfx.js"></script>
+<script src="config.js"></script>
+<script src="track.js"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 480;
+  var GL = 85, GR = 275, GT = 160, GB = 235, BX = 180, BY = 392;
+  var LV = [
+    { n: "Розминка", d: "Артурович зі сну", skill: 0.1, dive: 0.85, reach: 30, need: 2 },
+    { n: "Тренування", d: "уже прокинувся", skill: 0.3, dive: 0.68, reach: 34, need: 3 },
+    { n: "Матч", d: "читає твої удари", skill: 0.5, dive: 0.55, reach: 37, need: 3 },
+    { n: "Фінал", d: "залізний воротар", skill: 0.65, dive: 0.45, reach: 40, need: 4 }
+  ];
+  var lvl = 0, st = "menu", shot = 0, goals = 0, score = 0, res = [], aim = { x: 180, y: 200 }, aiming = false, tm = 0, pm = 0, ball = null, kp = { x: 180, y: 198, rot: 0 }, kd = null, rt = 0, rtype = "", fx = [], conf = [], mood = "n", first = true, started = false, best = [0, 0, 0, 0], shake = 0;
+  try { best = JSON.parse(localStorage.getItem("bus.goal.best") || "[0,0,0,0]"); } catch (e) {}
+
+  function makeKeeper(mood) {
+    var cvv = document.createElement("canvas"); cvv.width = 240; cvv.height = 428; var g = cvv.getContext("2d"); g.scale(2, 2); g.translate(-120, -228);
+  function lg(x0, y0, x1, y1, st) { var gr = g.createLinearGradient(x0, y0, x1, y1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
+  function rg(x, y, r0, r1, st) { var gr = g.createRadialGradient(x, y, r0, x, y, r1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function el(x, y, rx, ry, f, rot) { g.beginPath(); g.ellipse(x, y, rx, ry, rot || 0, 0, 7); g.fillStyle = f; g.fill(); }
+  function seg(x0, y0, x1, y1, w, col) { g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+
+
+    var X = 180, FY = 440, ub = 0, big = mood === "shock", happy = mood === "joy", side = 1, pos = 0, tm = 0;
+    // ноги
+    [-1, 1].forEach(function (sd) {
+      var lx = X + sd * 13 - 7;
+      g.fillStyle = lg(lx, 0, lx + 14, 0, [[0, "#d08c66"], [0.4, "#ffd2ae"], [1, "#c98660"]]); rr(g, lx, 392, 14, 36, 6); g.fill();
+      g.fillStyle = lg(lx, 0, lx + 14, 0, [[0, "#c9ced6"], [0.5, "#fff"], [1, "#bfc4cc"]]); rr(g, lx - 1, 414, 16, 16, 4); g.fill(); g.fillStyle = "#e63946"; g.fillRect(lx - 1, 417, 16, 2);
+      var sx = X + sd * 16 - 12; g.fillStyle = lg(0, 424, 0, 441, [[0, "#ffffff"], [1, "#c5cad2"]]); rr(g, sx, 424, 24, 14, 7); g.fill(); g.strokeStyle = "rgba(0,0,0,.45)"; g.lineWidth = 1; g.stroke();
+      g.fillStyle = "#222a44"; rr(g, sx - 1, 435, 26, 6, 3); g.fill(); g.fillStyle = "#e63946"; g.fillRect(sx + 4, 429, 14, 2);
+      g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1; for (var q = 0; q < 3; q++) { g.beginPath(); g.moveTo(sx + 8 + q * 3, 425); g.lineTo(sx + 10 + q * 3, 428); g.stroke(); }
+    });
+    // шорти
+    [-1, 1].forEach(function (sd) { var lx = sd < 0 ? X - 30 : X + 1; g.fillStyle = lg(lx, 0, lx + 29, 0, [[0, "#1d2029"], [0.5, "#3a3f4d"], [1, "#12141a"]]); rr(g, lx, 358 + ub, 29, 46, 8); g.fill(); g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(sd < 0 ? lx + 1.5 : lx + 27.5, 366 + ub); g.lineTo(sd < 0 ? lx + 1.5 : lx + 27.5, 400); g.stroke(); });
+    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1.8; g.beginPath(); for (var z = 0; z < 4; z++) { g.moveTo(X - 26 + z * 5, 392); g.lineTo(X - 23.5 + z * 5, 387); g.lineTo(X - 21 + z * 5, 392); } g.stroke();
+    g.fillStyle = "#454b5a"; rr(g, X - 30, 356 + ub, 60, 8, 4); g.fill();
+    // футболка
+    g.fillStyle = lg(X - 30, 0, X + 30, 0, [[0, "#1f7040"], [0.35, "#45c47a"], [0.7, "#34a566"], [1, "#1a5f37"]]); rr(g, X - 30, 298 + ub, 60, 66, 16); g.fill(); g.strokeStyle = "rgba(0,0,0,.4)"; g.lineWidth = 1.2; g.stroke();
+    g.strokeStyle = "rgba(0,0,0,.14)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X - 14, 330 + ub); g.quadraticCurveTo(X - 6, 338 + ub, X - 14, 350 + ub); g.moveTo(X + 16, 322 + ub); g.quadraticCurveTo(X + 10, 336 + ub, X + 18, 352 + ub); g.stroke();
+    g.fillStyle = "#e9ebef"; g.beginPath(); g.moveTo(X - 11, 299 + ub); g.lineTo(X + 11, 299 + ub); g.lineTo(X + 4, 316 + ub); g.lineTo(X, 320 + ub); g.lineTo(X - 4, 316 + ub); g.closePath(); g.fill(); g.strokeStyle = "rgba(0,0,0,.35)"; g.stroke();
+    g.strokeStyle = "#101114"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(X - 7, 301 + ub); g.lineTo(X - 1, 336 + ub); g.lineTo(X + 7, 301 + ub); g.stroke();
+    g.fillStyle = lg(X - 6, 0, X + 6, 0, [[0, "#9ea4ad"], [0.5, "#f1f3f6"], [1, "#8d939c"]]); rr(g, X - 6, 335 + ub, 12, 8, 4); g.fill(); g.strokeStyle = "rgba(0,0,0,.5)"; g.lineWidth = 1; g.stroke(); el(X + 3, 339 + ub, 1.6, 1.6, "#2b2e34");
+    g.fillStyle = "#fff"; g.font = "bold 17px Arial,sans-serif"; g.textAlign = "center"; g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 2; g.strokeText("8", X + 17, 331 + ub); g.fillText("8", X + 17, 331 + ub); g.textAlign = "left";
+    [-1, 1].forEach(function (FSIDE) {
+    // вільна рука
+    var f = FSIDE, fx0 = X + f * 31;
+    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 19; g.lineCap = "round"; g.beginPath(); g.moveTo(fx0, 314 + ub); g.lineTo(X + f * 36, 340 + ub); g.stroke();
+    seg(fx0, 314 + ub, X + f * 36, 340 + ub, 16, "#2f9b5d"); seg(X + f * 36, 340 + ub, X + f * 36, 366 + ub, 13, "#e9a982"); seg(X + f * 36, 358 + ub, X + f * 36, 366 + ub, 14, "#2f6fd1");
+    el(X + f * 36, 372 + ub, 7, 8, lg(0, 365, 0, 380, [[0, "#ffd0ac"], [1, "#d68f66"]]));
+      el(X + FSIDE * 36, 372, 10, 11, lg(0, 362, 0, 384, [[0, "#ffe27a"], [1, "#e0a800"]])); g.strokeStyle = "rgba(0,0,0,.5)"; g.lineWidth = 1.2; g.beginPath(); g.ellipse(X + FSIDE * 36, 372, 10, 11, 0, 0, 7); g.stroke(); g.fillStyle = "rgba(0,0,0,.3)"; g.fillRect(X + FSIDE * 36 - 6, 368, 12, 1.4); g.fillRect(X + FSIDE * 36 - 6, 373, 12, 1.4);
+    });
+    // шия й голова
+    g.fillStyle = lg(0, 286, 0, 304, [[0, "#d68f66"], [1, "#b97650"]]); rr(g, X - 8, 286 + ub, 16, 18, 4); g.fill();
+    var HY = 266 + ub;
+    el(X - 25, HY + 4, 4.5, 8, "#e9a982"); el(X + 25, HY + 4, 4.5, 8, "#e9a982"); el(X - 25, HY + 4, 2, 4.5, "#c47e58"); el(X + 25, HY + 4, 2, 4.5, "#c47e58");
+    g.beginPath(); g.ellipse(X, HY, 25, 30, 0, 0, 7); g.fillStyle = rg(X - 7, HY - 10, 2, 38, [[0, "#ffe0c4"], [0.55, "#f2b18a"], [1, "#d58d63"]]); g.fill(); g.strokeStyle = "rgba(90,45,20,.55)"; g.lineWidth = 1.4; g.stroke();
+    el(X - 7, HY - 21, 10, 4.5, "rgba(255,255,255,.4)", -0.35);
+    g.save(); g.beginPath(); g.ellipse(X, HY, 25, 30, 0, 0, 7); g.clip();
+    // борода
+    g.fillStyle = lg(0, HY + 2, 0, HY + 32, [[0, "#e2682c"], [1, "#8f360d"]]); g.beginPath(); g.moveTo(X - 28, HY - 4); g.bezierCurveTo(X - 28, HY + 40, X + 28, HY + 40, X + 28, HY - 4); g.bezierCurveTo(X + 22, HY + 8, X + 14, HY + 11, X, HY + 11); g.bezierCurveTo(X - 14, HY + 11, X - 22, HY + 8, X - 28, HY - 4); g.fill();
+    g.strokeStyle = "rgba(100,35,8,.45)"; g.lineWidth = 1; for (var b2 = -18; b2 <= 18; b2 += 6) { g.beginPath(); g.moveTo(X + b2, HY + 12 + Math.abs(b2) * 0.1); g.lineTo(X + b2 * 1.1, HY + 28); g.stroke(); }
+    g.restore();
+    // вуса й рот
+    g.fillStyle = "#c7561e"; g.beginPath(); g.moveTo(X - 15, HY + 12); g.quadraticCurveTo(X - 8, HY + 5, X, HY + 10); g.quadraticCurveTo(X + 8, HY + 5, X + 15, HY + 12); g.quadraticCurveTo(X + 8, HY + 15, X, HY + 13); g.quadraticCurveTo(X - 8, HY + 15, X - 15, HY + 12); g.fill();
+    if (big) { el(X, HY + 20, 5, 6.5, "#4d1010"); el(X, HY + 17.5, 3, 1.6, "#f4f4f0"); }
+    else {
+      var mw = happy ? 12 : 10, md = happy ? 13 : 9; g.beginPath(); g.moveTo(X - mw, HY + 14); g.quadraticCurveTo(X, HY + 14 + md, X + mw, HY + 14); g.quadraticCurveTo(X, HY + 13, X - mw, HY + 14); g.fillStyle = "#5a1414"; g.fill();
+      g.save(); g.clip(); g.fillStyle = "#fbfbf6"; g.fillRect(X - mw, HY + 13.5, mw * 2, 4); g.fillStyle = "rgba(0,0,0,.25)"; for (var tq = -mw + 3; tq < mw; tq += 3.5) g.fillRect(X + tq, HY + 13.5, 0.7, 4); g.fillStyle = "#c0443c"; el(X, HY + 21, 5, 2.5, "#c0443c"); g.restore();
+    }
+    // ніс, щоки
+    el(X, HY + 4, 4.3, 5.5, "rgba(190,105,75,.6)"); el(X - 1.2, HY + 2.5, 2, 2.6, "rgba(255,225,205,.55)");
+    el(X - 14, HY + 7, 6, 3.5, "rgba(255,110,90,.22)"); el(X + 14, HY + 7, 6, 3.5, "rgba(255,110,90,.22)");
+    // очі, брови
+    if (happy) { g.strokeStyle = "#3a1c0a"; g.lineWidth = 2.2; g.lineCap = "round"; g.beginPath(); g.arc(X - 10, HY - 3, 5, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); g.beginPath(); g.arc(X + 10, HY - 3, 5, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+    else { [-1, 1].forEach(function (sd) { var ex = X + sd * 10, ey = HY - 3, ry = big ? 6.5 : 4.2; el(ex, ey, 6, ry, "#fff"); g.strokeStyle = "rgba(0,0,0,.4)"; g.lineWidth = 0.9; g.beginPath(); g.ellipse(ex, ey, 6, ry, 0, 0, 7); g.stroke(); el(ex + sd * -0.8, ey + 0.4, 3, 3, rg(ex, ey, 0, 3, [[0, "#5c9bd0"], [1, "#2f5f8f"]])); el(ex + sd * -0.8, ey + 0.4, 1.4, 1.4, "#0a0a0a"); el(ex - 1.5, ey - 1, 0.9, 0.9, "#fff"); }); }
+    g.strokeStyle = "#6a2c0c"; g.lineWidth = 3.2; g.lineCap = "round"; var by = big ? -13 : -10;
+    g.beginPath(); g.moveTo(X - 16, HY + by + 2); g.lineTo(X - 5, HY + by + (big ? -2 : 3)); g.stroke(); g.beginPath(); g.moveTo(X + 16, HY + by + 2); g.lineTo(X + 5, HY + by + (big ? -2 : 3)); g.stroke();
+    return cvv;
+  }
+
+  var KS = { n: makeKeeper("n"), joy: makeKeeper("joy"), shock: makeKeeper("shock") };
+  function lg(x0, y0, x1, y1, st) { var gr = g.createLinearGradient(x0, y0, x1, y1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
+  function rg(x, y, r0, r1, st) { var gr = g.createRadialGradient(x, y, r0, x, y, r1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function el(x, y, rx, ry, f, rot) { g.beginPath(); g.ellipse(x, y, rx, ry, rot || 0, 0, 7); g.fillStyle = f; g.fill(); }
+  function seg(x0, y0, x1, y1, w, col) { g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+
+
+  /* ---------- фон ---------- */
+  var bgc = null;
+  function makeBg() {
+    bgc = document.createElement("canvas"); bgc.width = 720; bgc.height = 960; var b = bgc.getContext("2d"), t = g; g = b; g.scale(2, 2);
+    g.fillStyle = lg(0, 0, 0, 150, [[0, "#14213f"], [1, "#6f7fa6"]]); g.fillRect(0, 0, 360, 150);
+    // трибуни
+    g.fillStyle = lg(0, 50, 0, 130, [[0, "#2c3347"], [1, "#4a5268"]]); g.fillRect(0, 50, 360, 82);
+    var cols = ["#ffd23f", "#e63946", "#2f6fd1", "#f4f4f0", "#5fb08f", "#e08a2c"];
+    for (var r = 0; r < 7; r++) for (var x = 3 + (r % 2) * 4; x < 360; x += 8) { g.fillStyle = cols[(x * 7 + r * 13) % cols.length]; g.beginPath(); g.arc(x, 58 + r * 10, 2.6, 0, 7); g.fill(); g.fillStyle = "#e0b090"; g.beginPath(); g.arc(x, 54 + r * 10, 1.8, 0, 7); g.fill(); }
+    g.fillStyle = "rgba(10,15,30,.35)"; g.fillRect(0, 50, 360, 82);
+    // рекламні щити
+    var bw = 90; ["КУНИЦІ", "КУНІВСЬКИЙ ЛІЦЕЙ", "БУЛЬДОЗЕР", "КУНІВСЬКИЙ ЛІЦЕЙ"].forEach(function (tx, i) { g.fillStyle = i % 2 ? "#1b3f8f" : "#d62839"; g.fillRect(i * bw, 132, bw - 2, 20); g.fillStyle = "#ffd23f"; g.font = "bold 9px system-ui,sans-serif"; g.textAlign = "center"; g.fillText(tx, i * bw + bw / 2 - 1, 146); });
+    g.textAlign = "left"; g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, 150, 360, 3);
+    // прожектори
+    [[22, 24], [338, 24]].forEach(function (p) { g.fillStyle = rg(p[0], p[1], 2, 40, [[0, "rgba(255,255,230,.9)"], [1, "rgba(255,255,230,0)"]]); g.fillRect(p[0] - 40, p[1] - 40, 80, 80); g.fillStyle = "#f6f6e8"; g.fillRect(p[0] - 9, p[1] - 5, 18, 10); });
+    // газон смугами
+    for (var i = 0; i < 12; i++) { var y0 = 153 + 327 * Math.pow(i / 12, 1.7), y1 = 153 + 327 * Math.pow((i + 1) / 12, 1.7); g.fillStyle = i % 2 ? "#2f8a3f" : "#37994a"; g.fillRect(0, y0, 360, y1 - y0 + 1); }
+    g.fillStyle = lg(0, 153, 0, 300, [[0, "rgba(0,0,0,.28)"], [1, "rgba(0,0,0,0)"]]); g.fillRect(0, 153, 360, 147);
+    // розмітка
+    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 2.2; g.lineJoin = "round";
+    g.beginPath(); g.moveTo(10, 236); g.lineTo(350, 236); g.stroke();
+    g.beginPath(); g.moveTo(110, 236); g.lineTo(100, 268); g.lineTo(260, 268); g.lineTo(250, 236); g.stroke();
+    g.beginPath(); g.moveTo(40, 236); g.lineTo(-30, 450); g.lineTo(390, 450); g.lineTo(320, 236); g.stroke();
+    g.fillStyle = "#fff"; g.beginPath(); g.ellipse(180, BY + 14, 5, 2.5, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(180, 450, 70, 22, 0, Math.PI, 2 * Math.PI); g.stroke();
+    g.fillStyle = rg(180, 300, 120, 360, [[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.45)"]]); g.fillRect(0, 0, 360, 480);
+    g = t;
+  }
+  makeBg();
+
+  function drawBall(x, y, r, rot) {
+    g.save(); g.translate(x, y); g.scale(r / 12, r / 12);
+    g.beginPath(); g.arc(0, 0, 12, 0, 7); g.fillStyle = rg(-4, -4, 1, 14, [[0, "#ffffff"], [1, "#bfc4cc"]]); g.fill();
+    g.save(); g.beginPath(); g.arc(0, 0, 12, 0, 7); g.clip(); g.rotate(rot); g.fillStyle = "#20232b";
+    var p5 = function (cx, cy, rad, a0) { g.beginPath(); for (var i = 0; i < 5; i++) { var a = a0 + i * 1.2566; g.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); } g.closePath(); g.fill(); };
+    p5(0, 0, 4.6, -1.57); for (var j = 0; j < 5; j++) { var a2 = -1.57 + j * 1.2566 + 0.63; p5(Math.cos(a2) * 11.5, Math.sin(a2) * 11.5, 4.2, a2); g.strokeStyle = "rgba(60,60,70,.6)"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(Math.cos(a2 - 0.63) * 4.6, Math.sin(a2 - 0.63) * 4.6); g.lineTo(Math.cos(a2 - 0.4) * 9, Math.sin(a2 - 0.4) * 9); g.stroke(); }
+    g.restore(); g.beginPath(); g.arc(0, 0, 12, 0, 7); g.strokeStyle = "rgba(0,0,0,.5)"; g.lineWidth = 1.1; g.stroke();
+    g.fillStyle = rg(-4, -5, 0, 6, [[0, "rgba(255,255,255,.7)"], [1, "rgba(255,255,255,0)"]]); g.beginPath(); g.arc(-4, -5, 6, 0, 7); g.fill(); g.restore();
+  }
+  function net() {
+    var bl = 103, br = 257, bt = 171, bb = 229;
+    g.fillStyle = "rgba(10,20,15,.35)"; g.beginPath(); g.moveTo(GL, GT); g.lineTo(GR, GT); g.lineTo(GR, GB); g.lineTo(GL, GB); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 0.8;
+    for (var i = 0; i <= 12; i++) { var x = bl + (br - bl) * i / 12; g.beginPath(); g.moveTo(x, bt); g.lineTo(x, bb); g.stroke(); }
+    for (var j = 0; j <= 6; j++) { var y = bt + (bb - bt) * j / 6; g.beginPath(); g.moveTo(bl, y); g.lineTo(br, y); g.stroke(); }
+    g.strokeStyle = "rgba(255,255,255,.4)"; g.beginPath(); g.moveTo(GL, GT); g.lineTo(bl, bt); g.moveTo(GR, GT); g.lineTo(br, bt); g.moveTo(GL, GB); g.lineTo(bl, bb); g.moveTo(GR, GB); g.lineTo(br, bb); g.stroke();
+    g.strokeStyle = "#cfd3d8"; g.lineWidth = 2; g.beginPath(); g.moveTo(bl, bb); g.lineTo(bl, bt); g.lineTo(br, bt); g.lineTo(br, bb); g.stroke();
+  }
+  function frame() {
+    g.lineCap = "round"; g.lineJoin = "round";
+    g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 9; g.beginPath(); g.moveTo(GL + 2, GB + 3); g.lineTo(GL + 2, GT + 2); g.lineTo(GR + 2, GT + 2); g.lineTo(GR + 2, GB + 3); g.stroke();
+    g.strokeStyle = "#f4f4f0"; g.lineWidth = 7; g.beginPath(); g.moveTo(GL, GB); g.lineTo(GL, GT); g.lineTo(GR, GT); g.lineTo(GR, GB); g.stroke();
+    g.strokeStyle = "rgba(120,130,145,.7)"; g.lineWidth = 2; g.beginPath(); g.moveTo(GL + 2.5, GB); g.lineTo(GL + 2.5, GT + 2.5); g.lineTo(GR - 2.5, GT + 2.5); g.lineTo(GR - 2.5, GB); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(GL - 1.5, GB); g.lineTo(GL - 1.5, GT - 1.5); g.lineTo(GR + 1.5, GT - 1.5); g.stroke();
+  }
+  function keeperDraw() {
+    var im = mood === "joy" ? KS.joy : (mood === "shock" ? KS.shock : KS.n), s = 0.37, w = 120 * s, h = 214 * s;
+    g.save(); g.translate(kp.x, kp.y); g.rotate(kp.rot);
+    g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(0, h * 0.5 + 2, 22, 4, 0, 0, 7); g.fill();
+    g.drawImage(im, -w / 2, -h * 0.55, w, h); g.restore();
+  }
+  function ballPos() {
+    if (!ball) return { x: BX, y: BY - 10, r: 15, rot: 0, u: 0 };
+    var u = Math.min(1, ball.t / ball.T), e = u, x = BX + (ball.tx - BX) * e, y0 = BY - 10 + (ball.ty - (BY - 10)) * e, lift = Math.sin(Math.PI * u) * Math.min(70, (BY - ball.ty) * 0.25), r = 15 - 8 * e;
+    return { x: x, y: y0 - lift, r: r, rot: ball.t * 14, u: u, gy: BY + (GB + 4 - BY) * e };
+  }
+  function render() {
+    g.setTransform(2, 0, 0, 2, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    if (shake > 0) g.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+    if (bgc) g.drawImage(bgc, 0, 0, W, H);
+    net();
+    var bp = ballPos(), inFlight = !!ball, crossed = ball && ball.t >= ball.T && (rtype === "goal");
+    // тінь м'яча на землі
+    if (inFlight && st !== "result") { g.fillStyle = "rgba(0,0,0,.28)"; g.beginPath(); g.ellipse(bp.x, bp.gy, bp.r * 0.9, bp.r * 0.35, 0, 0, 7); g.fill(); } else if (!inFlight) { g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(BX, BY + 8, 14, 5, 0, 0, 7); g.fill(); }
+    if (crossed) { var q = Math.min(1, rt / 0.5); drawBall(bp.x + (bp.x - 180) * 0.1 * q, bp.y - 8 * q + rt * 18, bp.r * (1 - 0.15 * q), bp.rot); keeperDraw(); }
+    else { keeperDraw(); if (!(ball && ball.t >= ball.T && rtype === "post")) { /* під час польоту й після */ } drawBall(bp.x, bp.y + ((rtype === "save" && st === "result") ? Math.min(40, rt * rt * 200) : 0), bp.r, bp.rot); }
+    frame();
+    // приціл
+    if (st === "aim") {
+      var a = aim; g.strokeStyle = "rgba(255,230,90,.95)"; g.lineWidth = 2; g.beginPath(); g.arc(a.x, a.y, 11, 0, 7); g.stroke(); g.beginPath(); g.moveTo(a.x - 17, a.y); g.lineTo(a.x - 6, a.y); g.moveTo(a.x + 6, a.y); g.lineTo(a.x + 17, a.y); g.moveTo(a.x, a.y - 17); g.lineTo(a.x, a.y - 6); g.moveTo(a.x, a.y + 6); g.lineTo(a.x, a.y + 17); g.stroke();
+      if (aiming) { g.setLineDash([4, 5]); g.strokeStyle = "rgba(255,255,255,.4)"; g.beginPath(); g.moveTo(BX, BY - 10); g.lineTo(a.x, a.y); g.stroke(); g.setLineDash([]); }
+      // сила
+      var mx = W - 26, my = 250, mh = 130; g.fillStyle = "rgba(0,0,0,.55)"; rr(g, mx - 9, my - 6, 18, mh + 12, 8); g.fill(); g.fillStyle = lg(0, my, 0, my + mh, [[0, "#e63946"], [0.5, "#ffd23f"], [1, "#3fd07a"]]); rr(g, mx - 5, my, 10, mh, 5); g.fill();
+      var py = my + mh * (1 - pm); g.fillStyle = "#fff"; rr(g, mx - 11, py - 3, 22, 6, 3); g.fill(); g.fillStyle = "#fff"; g.font = "bold 9px system-ui"; g.textAlign = "center"; g.fillText("СИЛА", mx, my - 12); g.textAlign = "left";
+      if (first) { g.fillStyle = "rgba(0,0,0,.6)"; rr(g, 30, 424, 270, 40, 10); g.fill(); g.fillStyle = "#fff"; g.font = "bold 13px system-ui,sans-serif"; g.textAlign = "center"; g.fillText("Веди пальцем по воротах і відпусти,", 165, 441); g.fillText("щоб вдарити. Відпусти на потрібній силі!", 165, 457); g.textAlign = "left"; }
+    }
+    g.lineJoin = "round"; g.textAlign = "center";
+    fx.forEach(function (f) { g.globalAlpha = Math.max(0, 1 - f.t / f.l); g.font = "bold " + f.sz + "px system-ui,sans-serif"; g.lineWidth = 5; g.strokeStyle = "rgba(0,0,0,.75)"; g.strokeText(f.s, f.x, f.y - f.t * 12); g.fillStyle = f.c; g.fillText(f.s, f.x, f.y - f.t * 12); g.globalAlpha = 1; });
+    g.textAlign = "left";
+    conf.forEach(function (p) { g.fillStyle = p.c; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillRect(-3, -2, 6, 4); g.restore(); });
+    // HUD
+    g.fillStyle = lg(0, 6, 0, 42, [[0, "rgba(40,60,50,.8)"], [1, "rgba(10,20,15,.85)"]]); rr(g, 6, 6, 160, 36, 10); g.fill(); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 1.2; g.stroke();
+    for (var i = 0; i < 5; i++) { var cx = 22 + i * 28, rv = res[i]; g.beginPath(); g.arc(cx, 24, 10, 0, 7); g.fillStyle = rv === "goal" ? "#3fd07a" : (rv ? "#e63946" : "rgba(255,255,255,.22)"); g.fill(); g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = 1.2; g.stroke(); g.fillStyle = "#fff"; g.font = "bold 12px system-ui"; g.textAlign = "center"; g.fillText(rv === "goal" ? "✓" : (rv ? "✗" : ""), cx, 28.5); g.textAlign = "left"; }
+    g.fillStyle = lg(0, 6, 0, 42, [[0, "rgba(40,60,50,.8)"], [1, "rgba(10,20,15,.85)"]]); rr(g, W - 114, 6, 108, 36, 10); g.fill(); g.strokeStyle = "rgba(255,255,255,.28)"; g.stroke();
+    g.font = "bold 12px system-ui"; g.fillStyle = "#cfe"; g.fillText("ГОЛИ " + goals + "/" + LV[lvl].need, W - 108, 21); g.fillStyle = "#ffd23f"; g.font = "bold 15px system-ui"; g.fillText("★ " + score, W - 108, 37);
+  }
+  /* ---------- логіка ---------- */
+  function menu() {
+    st = "menu"; var lv = $("lv"); lv.innerHTML = "";
+    LV.forEach(function (L, i) { var b = document.createElement("button"); b.type = "button"; b.innerHTML = (i + 1) + ". " + L.n + "<small>" + L.d + " · рекорд " + (best[i] || 0) + "</small>"; b.onclick = function () { SFXLIB.ac(); start(i); }; lv.appendChild(b); });
+    $("ov").hidden = false;
+  }
+  function start(i) {
+    lvl = i; shot = 0; goals = 0; score = 0; res = []; $("ov").hidden = true; $("lvlname").textContent = "Рівень " + (i + 1) + ": " + LV[i].n;
+    if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("goal"); } catch (e) {} }
+    SFXLIB.tone(2600, 0.28, "square", 0.08, 0, 2400); reset();
+  }
+  function reset() { ball = null; rtype = ""; kd = null; kp = { x: 180, y: 198, rot: 0 }; mood = "n"; aim = { x: 180, y: 200 }; aiming = false; st = "aim"; rt = 0; }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function shoot() {
+    if (st !== "aim") return; first = false; var L = LV[lvl], pw = pm, T = 1.05 - 0.5 * pw, er = pw * pw * 15;
+    var tx = aim.x + rnd(-er, er), ty = aim.y + rnd(-er * 0.7, er * 0.7);
+    ball = { t: 0, T: T, tx: tx, ty: ty }; st = "shoot"; aiming = false;
+    var dx, dy; if (Math.random() < 0.1) { dx = 180; dy = 205; } else if (Math.random() < L.skill) { dx = tx + rnd(-20, 20); dy = ty + rnd(-12, 12); } else { dx = rnd(100, 260); dy = rnd(172, 230); }
+    kd = { x: Math.max(94, Math.min(266, dx)), y: Math.max(170, Math.min(232, dy)), dive: L.dive };
+    SFXLIB.noise(0.12, 0.25, 600); SFXLIB.tone(160, 0.14, "triangle", 0.3, 0, 70);
+  }
+  function resolve() {
+    var L = LV[lvl], b = ball, inside = b.tx >= GL + 4 && b.tx <= GR - 4 && b.ty >= GT + 4 && b.ty <= GB;
+    if (inside) {
+      var ex = (b.tx - kp.x) / L.reach, ey = (b.ty - kp.y) / (L.reach * 0.95);
+      if (ex * ex + ey * ey < 1) { rtype = "save"; mood = "joy"; SFXLIB.tone(110, 0.25, "sine", 0.4); SFXLIB.noise(0.15, 0.3, 300); fx.push({ s: "СЕЙВ!", x: 180, y: 320, c: "#ff5a64", sz: 42, t: 0, l: 1.3 }); fx.push({ s: "Артурович: «Не пройдеш!»", x: 180, y: 360, c: "#fff", sz: 15, t: 0, l: 1.3 }); }
+      else { rtype = "goal"; mood = "shock"; var top = b.ty < GT + 26 && (b.tx < GL + 38 || b.tx > GR - 38), pts = top ? 2 : 1; goals++; score += pts; shake = 0.25; SFXLIB.seq([523, 659, 784, 1047], 0.09, "triangle", 0.25); SFXLIB.noise(0.9, 0.18, 1500, "bandpass");
+        fx.push({ s: top ? "ДЕВ'ЯТКА! +2" : "ГОЛ!", x: 180, y: 320, c: "#ffd23f", sz: 46, t: 0, l: 1.5 }); for (var i = 0; i < 40; i++) conf.push({ x: rnd(40, 320), y: rnd(-20, 100), vx: rnd(-30, 30), vy: rnd(60, 140), r: rnd(0, 6), vr: rnd(-8, 8), c: ["#ffd23f", "#e63946", "#2f6fd1", "#5fb08f", "#fff"][i % 5] }); }
+    } else if (b.tx > GL - 14 && b.tx < GR + 14 && b.ty > GT - 14 && b.ty < GB + 4 && (b.tx < GL + 4 || b.tx > GR - 4 || b.ty < GT + 4)) { rtype = "post"; SFXLIB.tone(1900, 0.35, "sine", 0.3); SFXLIB.tone(1200, 0.3, "sine", 0.15, 0.02); fx.push({ s: "ШТАНГА!", x: 180, y: 320, c: "#9ad0ff", sz: 40, t: 0, l: 1.3 }); }
+    else { rtype = "wide"; SFXLIB.tone(180, 0.3, "sawtooth", 0.12, 0, 90); fx.push({ s: "МИМО!", x: 180, y: 320, c: "#ffb347", sz: 40, t: 0, l: 1.3 }); }
+    res.push(rtype === "goal" ? "goal" : "miss"); st = "result"; rt = 0;
+  }
+  function update(dt) {
+    tm += dt; pm = 0.5 + 0.5 * Math.sin(tm * 2.6); if (shake > 0) shake -= dt;
+    fx.forEach(function (f) { f.t += dt; }); fx = fx.filter(function (f) { return f.t < f.l; });
+    conf.forEach(function (p) { p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt; }); conf = conf.filter(function (p) { return p.y < 500; });
+    if (st === "aim") { kp.x = 180 + Math.sin(tm * 2) * 10; kp.rot = Math.sin(tm * 2) * 0.05; }
+    if (st === "shoot") {
+      ball.t += dt; var q = Math.max(0, Math.min(1, (ball.t - 0.1) / kd.dive)); q = q * q * (3 - 2 * q);
+      kp.x = 180 + (kd.x - 180) * q; kp.y = 198 + (kd.y - 205) * q * 0.9; kp.rot = ((kd.x - 180) / 90) * 1.0 * q;
+      if (ball.t >= ball.T) resolve();
+    } else if (st === "result") {
+      rt += dt; if (rtype === "post") { ball.t = ball.T; }
+      if (rt > 1.6) { shot++; if (shot >= 5) finish(); else reset(); }
+    }
+  }
+  function finish() {
+    st = "over"; var L = LV[lvl], win = goals >= L.need; if (score > (best[lvl] || 0)) { best[lvl] = score; try { localStorage.setItem("bus.goal.best", JSON.stringify(best)); } catch (e) {} }
+    var last = win && lvl === LV.length - 1;
+    $("h").textContent = last ? "Ти переміг Артуровича!" : (win ? "Рівень пройдено!" : "Артурович відбився!");
+    $("txt").textContent = "Забито голів: " + goals + " з 5, очок: " + score + ". " + (last ? "Степанович: «Легенда ліцею! Артуровичу є над чим працювати на тренуваннях».": (win ? "Далі воротар буде кращим." : "Потрібно було забити щонайменше " + L.need + ". Спробуєш ще?"));
+    if (win) SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22); else SFXLIB.seq([400, 330, 260], 0.14, "sawtooth", 0.13);
+    var lv = $("lv"); lv.innerHTML = ""; var b1 = document.createElement("button"); b1.type = "button"; b1.textContent = win && lvl < LV.length - 1 ? "Наступний рівень" : "Ще раз"; b1.onclick = function () { SFXLIB.ac(); start(win && lvl < LV.length - 1 ? lvl + 1 : lvl); }; lv.appendChild(b1);
+    var b2 = document.createElement("button"); b2.type = "button"; b2.textContent = "Усі рівні"; b2.onclick = function () { $("h").textContent = "Забий гол Артуровичу"; $("txt").textContent = "Обери рівень:"; menu(); }; lv.appendChild(b2);
+    $("ov").hidden = false;
+  }
+
+  /* ---------- керування ---------- */
+  function pt(e) { var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+  function setAim(e) { var p = pt(e); aim.x = Math.max(55, Math.min(305, p.x)); aim.y = Math.max(128, Math.min(262, p.y)); }
+  cv.addEventListener("pointerdown", function (e) { if (st !== "aim") return; aiming = true; setAim(e); try { cv.setPointerCapture(e.pointerId); } catch (x) {} SFXLIB.ac(); });
+  cv.addEventListener("pointermove", function (e) { if (aiming) setAim(e); });
+  cv.addEventListener("pointerup", function (e) { if (aiming) { setAim(e); shoot(); } aiming = false; });
+  cv.addEventListener("pointercancel", function () { aiming = false; });
+  addEventListener("keydown", function (e) { if (st !== "aim") return; var k = e.key; if (k === "ArrowLeft") aim.x = Math.max(55, aim.x - 8); else if (k === "ArrowRight") aim.x = Math.min(305, aim.x + 8); else if (k === "ArrowUp") aim.y = Math.max(128, aim.y - 6); else if (k === "ArrowDown") aim.y = Math.min(262, aim.y + 6); else if (k === " " || k === "Enter") shoot(); else return; e.preventDefault(); });
+  SFXLIB.bind($("snd"));
+  var last = 0; function loop(t) { var dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t; update(dt); render(); requestAnimationFrame(loop); }
+  menu(); requestAnimationFrame(loop);
+  window.__g = { tick: function (dt) { update(dt); render(); }, start: start, aim: function (x, y) { aim.x = x; aim.y = y; }, pm: function (v) { tm = Math.asin(v * 2 - 1) / 2.6; }, shoot: shoot, get s() { return { st: st, shot: shot, goals: goals, score: score, rtype: rtype, res: res.slice() }; } };
+})();
+</script>
+</body>
+</html>
