@@ -1,5 +1,5 @@
-// Заповніть ці два значення після налаштування Firebase (див. README.md)
+// Налаштування Firebase для сайту «Шкільний автобус»
 window.CONFIG = {
-  dbUrl: "https://ВАШ-ПРОЄКТ-default-rtdb.europe-west1.firebasedatabase.app",
-  key: "ЗАМІНІТЬ-НА-ДОВГИЙ-ВИПАДКОВИЙ-РЯДОК-ЛАТИНИЦЕЮ"
+  dbUrl: "https://bus-kuniv-default-rtdb.europe-west1.firebasedatabase.app",
+  key: "cetdRPZc8FZcZYedNL1Gfw3CMoc5"
 };
