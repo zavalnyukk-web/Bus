@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#1a1f2b">
-<title>Боб-Куниця: операція «Конфіскат»</title>
+<title>Сторож Боб: нічна зміна</title>
 <style>
   :root { --y:#ffd23f; --g:#5fb08f; --ink:#fff; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
@@ -16,15 +16,18 @@
   .wrap { position:relative; width:min(100%, 440px, calc((100vh - 150px) * 360 / 520)); aspect-ratio:360/520; min-width:240px; }
   @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 150px) * 360 / 520)); } }
   canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
-  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:16px; border-radius:14px; background:rgba(12,15,24,.93); }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:8px; text-align:center; padding:14px; border-radius:14px; background:rgba(12,15,24,.94); overflow:auto; }
   .ov[hidden] { display:none; }
-  .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
+  .ov img { width:104px; height:104px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
   .ov img.circ { border-radius:50%; }
   .big { font-size:72px; line-height:1; }
-  .ov h1 { margin:0; font-size:21px; color:var(--y); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:300px; }
+  .ov h1 { margin:0; font-size:21px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:310px; }
   .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--g); font-weight:700; }
-  .go { font:inherit; font-size:18px; font-weight:700; padding:12px 28px; border:0; border-radius:12px; background:var(--y); color:#2a2200; cursor:pointer; }
-  .go2 { font:inherit; font-size:13px; font-weight:600; padding:7px 14px; border:1px solid rgba(255,255,255,.35); border-radius:10px; background:transparent; color:#fff; cursor:pointer; }
+  .go { font:inherit; font-size:18px; font-weight:700; padding:11px 28px; border:0; border-radius:12px; background:var(--y); color:#2a2200; cursor:pointer; }
+  .lvs { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:300px; }
+  .lvs button { font:inherit; font-size:13px; font-weight:700; width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; cursor:pointer; }
+  .lvs button.cur { background:var(--g); color:#06241a; border-color:var(--g); }
+  .lvs button:disabled { opacity:.3; cursor:default; }
   .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; }
   .bar { width:100%; max-width:440px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:#b9c0cf; }
   .sneak { font:inherit; font-size:16px; font-weight:700; padding:12px 18px; border:2px solid rgba(255,255,255,.35); border-radius:14px; background:rgba(255,255,255,.1); color:#fff; touch-action:none; }
@@ -34,15 +37,15 @@
 <body>
 <header><a href="./">← На сайт</a><span id="lvlname"></span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
 <div class="wrap">
-  <canvas id="c" width="360" height="520" aria-label="Гра-стелс: прокрадайся ліцеєм повз учителів. Тягни пальцем, щоб рухатись."></canvas>
+  <canvas id="c" width="720" height="1040" aria-label="Гра-стелс: сторож Боб обходить ліцей і проходить повз учителів. Тягни пальцем, щоб рухатись."></canvas>
   <div class="ov" id="ov">
     <img id="oimg" src="stepanovych.jpg" alt="">
     <div class="big" id="oemo" hidden></div>
     <div class="lvl" id="lvl"></div>
-    <h1 id="h">Боб-Куниця</h1>
+    <h1 id="h">Сторож Боб</h1>
     <p id="txt"></p>
     <button class="go" id="go" type="button">Грати</button>
-    <button class="go2" id="again" type="button" hidden>Почати спочатку</button>
+    <div class="lvs" id="lvs"></div>
   </div>
 </div>
 <div class="bar"><span>Тягни пальцем по екрану. На комп’ютері: стрілки або WASD, Shift тихо.</span><button class="sneak" id="sneak" type="button">🤫 Тихо</button></div>
@@ -53,66 +56,94 @@
 (function () {
   var $ = function (i) { return document.getElementById(i); };
   var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 520, T = 28;
-  var MAP = ["################################################E#####", "############################################fffffffff#", "############################################fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#########oo############oo#############oo####fffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhofffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhho#####oo###", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#######hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhh############", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhholllllll#GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#######hhhhholllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#######hhhhh#lll#lll#GGGGGGGGGGGGGGGG#oo##########oo##", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh##o###o##GGGGGGGGGGGGgggggggggggggggggggg#", "#ccccc#hhhhhohhhhhhhhhhGGGGGGGGGGgggggggggggggggggggg#", "#######hhhhhohhhhhhhhhhEGGGGGGGGGgggggggggggggggggggg#", "########oo##G###oo#####GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#ddddddddddEG#kkkkkkkk#GGGGGGGGGEgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "######################################################"];
-  var MW = MAP[0].length, MH = MAP.length;
-  var LABELS = [[5.5, 4.5, "4"], [19, 4.5, "3"], [35, 4.5, "2"], [48.5, 4.5, "Фойє"], [3.5, 9.5, "5"], [3.5, 15, "6"], [3.5, 20, "7"], [3.5, 25, "8"], [5.5, 34, "Їдальня"], [16, 17, "13"], [14.5, 22.5, "12"], [18.5, 22.5, "11"], [17.5, 34, "Кухня"], [48.5, 11, "14"], [45.5, 15, "15"], [45.5, 18, "16"], [45.5, 21, "17"], [51, 18, "18"], [43, 31, "Спортзал"]];
-  var FLOOR = { c: "#e4d2ac", h: "#cdd2d6", f: "#e9e3d2", d: "#efe3c2", k: "#f0f0f0", l: "#d6e2e6", g: "#e2a04f", s: "#b9bcc2", o: "#a9743d", E: "#2fb36b" };
+  var DATA = {"floors": {"1": {"map": ["################################################E#####", "############################################fffffffff#", "############################################fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#cccccccccc#cccccccccccccc##cccccccccccccc##fffffffff#", "#########oo############oo#############oo####fffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhofffffffff#", "#ccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhho#####oo###", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#cccccohhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhssocccccccc#", "#######hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhhss#cccccccc#", "#ccccc#hhhhhGGGGGGGGGGGGGGGGGGGGGGGGGhhhhh############", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhholllllll#GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#######hhhhholllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lllllll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#cccccohhhhh#########GGGGGGGGGGGGGGGGhhhhh#######cccc#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGGGGGhhhhhoccccc#cccc#", "#######hhhhh#lll#lll#GGGGGGGGGGGGGGGG#oo##########oo##", "#ccccc#hhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh#lll#lll#GGGGGGGGGGGGgggggggggggggggggggg#", "#cccccohhhhh##o###o##GGGGGGGGGGGGgggggggggggggggggggg#", "#ccccc#hhhhhohhhhhhhhhhGGGGGGGGGGgggggggggggggggggggg#", "#######hhhhhohhhhhhhhhhEGGGGGGGGGgggggggggggggggggggg#", "########oo##G###oo#####GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "#ddddddddddEG#kkkkkkkk#GGGGGGGGGEgggggggggggggggggggg#", "#dddddddddd#G#kkkkkkkk#GGGGGGGGGGgggggggggggggggggggg#", "######################################################"], "furn": ["......................................................", "............................................F.......F.", "......................................................", ".....QQ...........QQ..............QQ..................", "......................................................", "..PP.PP......PP.PP.PP........PP.PP.PP.................", "......................................................", "...QQ.........................................TT....F.", "......................................................", "..PP..................................................", "......................................................", "..PP..........................................PP.PP...", "......................................................", "...QQ.................................................", "............................................BBBB.BBBB.", "..PP..........BBBBBB..................................", "......................................................", "............................................BBBB..B...", "...QQ.........B.B.B...................................", "......................................................", "..PP.........BBB.BBB........................BBBB..B...", "......................................................", "......................................................", "...QQ.........B...B................TT.........TTT.....", "......................................................", "..PP..................................................", ".................................B....................", ".................................B....................", ".................................B....................", "..............Q....QQQ...........B....................", "..TTT..TTT............................................", "......................................................", "................QQQQ..................................", "..TTT..TTT..........................................B.", "....................................................B.", "................QQQQ................................B.", "..TTT..TTT..........................................B.", "......................................................", "......................................................", "......................................................"], "labels": [[5.5, 4.5, "4"], [19, 4.5, "3"], [35, 4.5, "2"], [48.5, 3, "Фойє"], [3.5, 9.5, "5"], [3.5, 15, "6"], [3.5, 20, "7"], [3.5, 25, "8"], [5.5, 34, "Їдальня"], [16, 17, "13"], [14.5, 22.5, "12"], [18.5, 22.5, "11"], [17.5, 34, "Кухня"], [48.5, 11, "14"], [45.5, 15, "15"], [45.5, 18, "16"], [45.5, 21, "17"], [51, 18, "18"], [43, 31, "Спортзал"]]}, "2": {"map": ["########################################", "#############################ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "#ccccccccccc#ccccccc#ddddddd#ccccccccc##", "##########oo####oo#####oo########oo#####", "#cccccccc#hhhhhhhhhhhhhhhhhhhhhhhhhhhh##", "#ccccccccohhhhhhhhhhhhhhhhhhhhhhhhhhhh##", "#ccccccccohhhhhhhhhhhhhhhhhhhhhhhhhhhh##", "#cccccccc#hh#GGGGGGGGGGGGGG#oo##hh######", "#cccccccc#hh#GGGGGGGGGGGGGGssss#hh#fff##", "#cccccccc#hh#GGGGGGGGGGGGGGssss#hhofff##", "##########hh#GGGGGGGGGGGGGGssss#hhofff##", "#llllllll#hh#GGGGGGGGGGGGGGssss#hh#fff##", "#llllllll#hh#GGGGGGGGGGGGGGssss#hh#fff##", "#llllllllohh#GGGGGGGGGGGGGGssEs#hh#fff##", "#llllllllohh#cccccc#########o###oo######", "#llllllll#hhocccccc########lll#fffffff##", "#llllllll#hhocccccc########lll#fffffff##", "#llllllll#hh#cccccc########lllofffffff##", "##########hh###############lll#fffffff##", "#kkkkkkkkohhocccccc########lll#fffffff##", "#kkkkkkkkohhocccccc#####################", "##########hh#cccccc#####################", "#ddddddddohh############################", "#ddddddddohh#cccccc#####################", "##########hhocccccc#####################", "#ddddddddohhocccccc#####################", "#ddddddddohh#cccccc#####################", "##########hh############################", "#llllllllohhollllll#####################", "#llllllllohhollllll#####################", "#llllllll#hh#llllll#####################", "##########hh############################", "#cccccccc#hh#dddddd#####################", "#ccccccccohhodddddd#####################", "#ccccccccohhodddddd#####################", "#cccccccc#hh#dddddd#####################", "##########hhhhhhhhh#####################", "##########EE#####E######################", "########################################"], "furn": ["........................................", ".................................QQ.....", "......QQ........QQ...B..................", ".......................QQQ....PP.PP.P...", "..PP.PP.PP....PP.PP..B..................", ".......................TTT....PP.PP.P...", "..PP.PP.PP....PP.PP..B..................", "..............................PP....P...", "........................................", "....QQ..................................", "........................................", "..PP.PP.................................", "........................................", "..PP.PP.................................", "........................................", "........................................", "....QQ..................................", "........................................", "..PP.PP.................................", "..............BBBBB.....................", "..PP.PP............................BBB..", "........................................", "..PP.PP.......B.B.......................", "............................B...B.B.B...", ".B.............QQ.......................", "...QQQ..................................", "..............PP.P......................", ".BBBBBBB................................", "...............QQ.......................", "........................................", "..............PP.P......................", "..TTTTTT................................", "........................................", "...............QQ.......................", "........................................", "..CC.CC.......PP.P......................", "........................................", "....QQ..................................", "..............QQQ.......................", "..PP.PP.................................", "........................................", "........................................", "........................................", "........................................"], "labels": [[6, 4.5, "4 історичний"], [16, 4.5, "3 біологічний"], [24, 4.5, "2 учительська"], [33, 4, "1 український"], [4.5, 11.5, "5 іноземний"], [4.5, 19, "6 хімічний"], [4.5, 25, "7 медсестра"], [4.5, 28, "8 бібліотека"], [4.5, 31, "9 читальний"], [4.5, 34, "10 комп'ютерний"], [4.5, 38.5, "11 зарубіжний"], [15.5, 20.5, "16"], [15.5, 25, "15 матем."], [15.5, 29.5, "14 євро клуб"], [15.5, 34, "13 фізичний"], [15.5, 38.5, "12 директор"], [36, 15.5, "19 світлиця"], [28.5, 16, "Сходи"], [28.5, 22, "17 препар."], [34, 22, "18 музей"]]}}, "levels": [{"fl": 1, "name": "Нічна зміна", "s": [9, 9], "ex": [11, 37], "loot": [[4, 15, "📱"], [3, 24, "🎮"], [5, 33, "🍫"]], "range": 5, "fov": 0.6, "intro": "Степанович: Бобе, нічна зміна! Діти позабували речі в класах. Збери три речі й вийди через їдальню. Але вчителі засиділись на педраді й шукають, кому б дати доручення, тож не потрапляй їм на очі. Кнопка «Тихо» вимикає ліхтарик і робить тебе непомітнішим.", "g": [{"k": "geo", "w": [[9, 18], [9, 26]], "sp": 1.5}, {"k": "cook", "w": [[3, 31], [8, 37], [3, 37]], "sp": 1.5}]}, {"fl": 1, "name": "Кухня й підсобки", "s": [5, 30], "ex": [23, 27], "loot": [[18, 33, "🍪"], [16, 16, "🔬"], [14, 22, "🏐"]], "range": 5.5, "fov": 0.62, "intro": "Степанович: Печиво забули в кухні, мікроскоп у препараторській, а м'яч у кімнаті 12. Завгосп чергує в коридорі, кухарка в кухні. Вихід за східним коридором.", "g": [{"k": "zav", "w": [[13, 26], [21, 26]], "sp": 1.5}, {"k": "cook", "w": [[15, 31], [20, 31], [20, 36], [15, 36]], "sp": 1.5}, {"k": "geo", "w": [[9, 10], [9, 24]], "sp": 1.5}]}, {"fl": 1, "name": "Директорський коридор", "s": [8, 8], "ex": [48, 0], "loot": [[5, 4, "🎒"], [18, 4, "📔"], [35, 4, "📱"]], "range": 6, "fov": 0.62, "intro": "Степанович: У верхніх класах лежать рюкзак, журнал і телефон. Директорка обходить коридор, завуч стоїть у фойє. Вихід у фойє. Тільки тихо!", "g": [{"k": "dir", "w": [[16, 8], [40, 8]], "sp": 1.5}, {"k": "vice", "w": [[46, 3], [50, 5], [47, 6]], "sp": 1.5}, {"k": "teacher", "w": [[30, 4], [40, 4]], "sp": 1.5}]}, {"fl": 1, "name": "Спортзал", "s": [39, 10], "ex": [32, 37], "loot": [[45, 30, "⚽"], [36, 36, "🏐"], [51, 17, "📱"]], "range": 6, "fov": 0.65, "intro": "Степанович: Тут господар Артурович, і він швидкий. Забери м'ячі зі спортзалу й телефон у кімнаті 18, а тоді виходь з лівого кутка спортзалу.", "g": [{"k": "pe", "w": [[35, 25], [50, 25], [50, 36], [35, 36]], "sp": 1.8}, {"k": "geo", "w": [[39, 17], [39, 21]], "sp": 1.5}, {"k": "teacher", "w": [[45, 18], [51, 17]], "sp": 1.5}]}, {"fl": 1, "name": "Велика ревізія", "s": [3, 37], "ex": [48, 0], "loot": [[20, 31, "🍫"], [16, 16, "🔬"], [45, 15, "📱"], [45, 30, "⚽"], [48, 11, "📔"]], "range": 6, "fov": 0.65, "intro": "Степанович: П'ять речей по всьому першому поверху, а вчителі на кожному кроці. Бери все й виходь через головний вхід у фойє.", "g": [{"k": "geo", "w": [[9, 10], [9, 26]], "sp": 1.5}, {"k": "zav", "w": [[13, 26], [21, 26]], "sp": 1.5}, {"k": "dir", "w": [[40, 8], [8, 8]], "sp": 1.5}, {"k": "pe", "w": [[35, 25], [50, 36]], "sp": 1.7}, {"k": "vice", "w": [[46, 3], [50, 5]], "sp": 1.5}]}, {"fl": 2, "name": "Другий поверх: обхід", "s": [11, 10], "ex": [10, 42], "loot": [[4, 12, "📱"], [5, 19, "🎒"], [3, 24, "🧣"]], "range": 5, "fov": 0.6, "intro": "Степанович: Бобе, піднімайся на другий поверх за планом! У класах іноземної й хімії та в кабінеті медсестри теж забуті речі. Вихід униз, на сходи в кінці лівого коридору.", "g": [{"k": "geo", "w": [[10, 14], [10, 30]], "sp": 1.5}, {"k": "teacher", "w": [[14, 10], [26, 10]], "sp": 1.5}]}, {"fl": 2, "name": "Бібліотека й комп'ютерний", "s": [11, 13], "ex": [17, 42], "loot": [[4, 28, "📘"], [5, 30, "🕶"], [4, 34, "🎧"]], "range": 5.5, "fov": 0.62, "intro": "Степанович: У бібліотеці, читальному залі та комп'ютерному класі теж чекають речі. Вихід на праві сходи внизу. Завгосп уже на обході!", "g": [{"k": "zav", "w": [[10, 24], [11, 38]], "sp": 1.6}, {"k": "vice", "w": [[12, 41], [18, 41]], "sp": 1.5}, {"k": "dir", "w": [[14, 10], [30, 10]], "sp": 1.5}]}, {"fl": 2, "name": "Учительська", "s": [20, 10], "ex": [29, 18], "loot": [[4, 4, "📔"], [16, 4, "🔬"], [24, 4, "☕"]], "range": 6, "fov": 0.62, "intro": "Степанович: Верхні кабінети: історичний, біологічний і сама учительська! Там сидять вчителі, будь обережним. Вихід на сходи в центрі поверху.", "g": [{"k": "dir", "w": [[14, 10], [26, 10]], "sp": 1.55}, {"k": "vice", "w": [[23, 4], [25, 6]], "sp": 1.4}, {"k": "teacher", "w": [[33, 10], [37, 10]], "sp": 1.5}]}, {"fl": 2, "name": "Музей і Світлиця", "s": [11, 10], "ex": [17, 42], "loot": [[28, 22, "🧪"], [34, 22, "🏺"], [36, 15, "🕯"]], "range": 6, "fov": 0.65, "intro": "Степанович: Музей, світлиця й препараторська. Біля сходів чергує Артурович, а директорка ходить коридором. Вихід на праві сходи внизу.", "g": [{"k": "pe", "w": [[33, 13], [33, 17]], "sp": 1.8}, {"k": "dir", "w": [[20, 10], [36, 10]], "sp": 1.55}, {"k": "geo", "w": [[34, 22], [36, 22]], "sp": 1.4}]}, {"fl": 2, "name": "Велика нічна ревізія", "s": [11, 10], "ex": [10, 42], "loot": [[33, 4, "📗"], [15, 39, "🗝"], [15, 34, "🔬"], [15, 29, "⚽"], [15, 21, "📟"], [36, 16, "🔔"]], "range": 6.5, "fov": 0.66, "intro": "Степанович: Фінал нічної зміни! Шість речей по всьому другому поверсі, а вчителів п'ятеро. Зберіть усе й виходьте через сходи в кінці лівого коридору. Удачі, Бобе!", "g": [{"k": "pe", "w": [[33, 13], [33, 17], [20, 10]], "sp": 1.8}, {"k": "dir", "w": [[14, 10], [36, 10]], "sp": 1.6}, {"k": "geo", "w": [[10, 16], [10, 36]], "sp": 1.5}, {"k": "vice", "w": [[12, 41], [18, 41]], "sp": 1.5}, {"k": "zav", "w": [[15, 25], [15, 31], [15, 39]], "sp": 1.4}]}]};
+  var FLOORS = DATA.floors, LV = DATA.levels;
+  var MAP, FURN, LABELS, MW, MH;
+  var FLOOR = { c: ["#e4d2ac", "#d9c59a"], h: ["#cdd2d6", "#c3c9cd"], f: ["#ece6d4", "#e2dac4"], d: ["#e6d6b4", "#dbc9a3"], k: ["#f1f1ee", "#e4e6e4"], l: ["#d6e2e6", "#cbd9de"], g: ["#e2a04f", "#d8963f"], s: ["#b9bcc2", "#adb0b7"], o: ["#a9743d", "#a9743d"], E: ["#2fb36b", "#2fb36b"] };
   var KINDS = {
-    teacher: { n: "Вчителька початкових класів", e: "👩‍🏫", c: "#c44f9a" },
-    cook: { n: "Кухарка", e: "👩‍🍳", c: "#e8e8e8" },
-    geo: { n: "Вчитель географії", e: "🧑‍🏫", c: "#4f7bc4" },
-    zav: { n: "Завгосп", e: "🧰", c: "#8a6a3a" },
-    dir: { n: "Директорка", e: "👩‍💼", c: "#7a3f9a" },
-    vice: { n: "Завуч", e: "🧐", c: "#3f8a7a" },
-    pe: { n: "Фізрук Артурович", e: "🏀", c: "#d62839", head: 1 }
+    teacher: { n: "Вчителька початкових класів", e: "👩‍🏫", c: "#c44f9a", al: "tch" },
+    cook: { n: "Кухарка", e: "👩‍🍳", c: "#e8e8e8", al: "pan" },
+    geo: { n: "Вчитель географії", e: "🧑‍🏫", c: "#4f7bc4", al: "tch" },
+    zav: { n: "Завгосп", e: "🧰", c: "#8a6a3a", al: "key" },
+    dir: { n: "Директорка", e: "👩‍💼", c: "#7a3f9a", al: "bell" },
+    vice: { n: "Завуч", e: "🧐", c: "#3f8a7a", al: "hm" },
+    pe: { n: "Фізрук Артурович", e: "🏀", c: "#d62839", head: 1, al: "whistle" }
   };
-  var LV = [
-    { name: "Перший конфіскат", s: [9, 9], ex: [11, 37], loot: [[3, 15, "📱"], [3, 24, "🎮"], [5, 33, "🍫"]], range: 5, fov: 0.6,
-      intro: "Степанович: Боб-Куниця, вчителі позабирали наші телефони й смаколики! Пробігся по класах, забери три речі й вийди через їдальню. Кнопка «Тихо» робить тебе непомітнішим, але повільнішим.",
-      g: [{ k: "geo", w: [[9, 18], [9, 26]] }, { k: "cook", w: [[3, 31], [8, 36], [3, 36]] }] },
-    { name: "Кухня й підсобки", s: [5, 30], ex: [23, 27], loot: [[18, 33, "🍪"], [16, 16, "🔬"], [14, 22, "🏐"]], range: 5.5, fov: 0.62,
-      intro: "Степанович: Тепер складніше: печиво в кухні, мікроскоп у препараторській і м’яч у збройній кімнаті. Завгосп стоїть у коридорі, кухарка в кухні. Вихід за східним коридором.",
-      g: [{ k: "zav", w: [[13, 26], [21, 26]] }, { k: "cook", w: [[15, 31], [20, 31], [20, 36], [15, 36]] }, { k: "geo", w: [[9, 10], [9, 24]] }] },
-    { name: "Директорський коридор", s: [8, 8], ex: [48, 0], loot: [[5, 4, "🎒"], [18, 4, "📔"], [35, 4, "📱"]], range: 6, fov: 0.62,
-      intro: "Степанович: У верхніх класах лежать рюкзаки, журнал і телефон. Директорка обходить коридор, завуч стоїть у фойє. Вихід угорі у фойє, лише тихо!",
-      g: [{ k: "dir", w: [[16, 8], [40, 8]] }, { k: "vice", w: [[46, 3], [50, 5], [47, 6]] }, { k: "teacher", w: [[30, 4], [40, 4]] }] },
-    { name: "Спортзал", s: [39, 10], ex: [32, 37], loot: [[45, 30, "⚽"], [36, 36, "🏐"], [50, 17, "📱"]], range: 6, fov: 0.65,
-      intro: "Степанович: Тут господар Артурович, і він швидкий. Забери м’ячі зі спортзалу й телефон у кімнаті 18, а тоді виходь з лівого кутка спортзалу.",
-      g: [{ k: "pe", w: [[35, 25], [50, 25], [50, 36], [35, 36]], sp: 1.8 }, { k: "geo", w: [[39, 17], [39, 21]] }, { k: "teacher", w: [[45, 17], [50, 17]] }] },
-    { name: "Велика втеча", s: [3, 37], ex: [48, 0], loot: [[20, 31, "🍫"], [16, 16, "🔬"], [45, 15, "📱"], [45, 30, "⚽"], [48, 11, "📔"]], range: 6, fov: 0.65,
-      intro: "Степанович: Фінал! П’ять речей по всьому ліцею, а вчителі на кожному кроці. Бери все й тікай через головний вхід у фойє. Я чекаю біля автобуса!",
-      g: [{ k: "geo", w: [[9, 10], [9, 26]] }, { k: "zav", w: [[13, 26], [21, 26]] }, { k: "dir", w: [[40, 8], [8, 8]] }, { k: "pe", w: [[35, 25], [50, 36]], sp: 1.7 }, { k: "vice", w: [[46, 3], [50, 5]] }] }
-  ];
   var head = new Image(); head.src = "fizruk-head.jpg";
-  var lvl = 0, saved = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null;
-  try { saved = +localStorage.getItem("bus.bob.level") || 0; } catch (e) {}
-  if (saved >= LV.length) saved = 0;
+  var lvl = 0, saved = 0, maxU = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null, lastDoor = "", bellT = 40, blT = 0, flip = 0;
+  try { saved = +localStorage.getItem("bus.bob.level") || 0; maxU = +localStorage.getItem("bus.bob.max") || 0; } catch (e) {}
+  if (saved >= LV.length) saved = 0; if (maxU < saved) maxU = saved;
+
+  /* ---------- звуки ---------- */
+  var S = {
+    step: function (c, sn, sp) {
+      if (sn) { SFXLIB.noise(0.03, 0.025, 500); return; }
+      if (c === "g") { SFXLIB.tone(flip ? 1300 : 900, 0.07, "sine", 0.05, 0, flip ? 900 : 1500); }
+      else if (c === "k" || c === "l") { SFXLIB.noise(0.03, 0.07, 3000, "highpass"); }
+      else if (c === "h" || c === "s") { SFXLIB.noise(0.07, 0.1, 260); }
+      else if (c === "f") { SFXLIB.noise(0.04, 0.08, 1800, "highpass"); SFXLIB.noise(0.05, 0.05, 300); }
+      else { SFXLIB.noise(0.045, 0.08, 700); SFXLIB.tone(160, 0.05, "triangle", 0.04); }
+    },
+    door: function () { SFXLIB.tone(180, 0.35, "sawtooth", 0.05, 0, 340); SFXLIB.noise(0.2, 0.05, 900, "bandpass"); },
+    pick: function (e) {
+      if (e === "📱" || e === "📟") { [1400, 1800, 1400, 1800].forEach(function (f, i) { SFXLIB.tone(f, 0.07, "square", 0.08, i * 0.09); }); }
+      else if (e === "🎒" || e === "🧣") { SFXLIB.noise(0.2, 0.3, 250); SFXLIB.tone(110, 0.15, "sine", 0.3); }
+      else if (e === "📔" || e === "📘" || e === "📗") { SFXLIB.noise(0.18, 0.1, 4000, "highpass"); SFXLIB.noise(0.15, 0.08, 3000, "highpass"); SFXLIB.seq([660, 880], 0.07, "triangle", 0.1); }
+      else if (e === "🍫" || e === "🍪") { for (var i = 0; i < 4; i++) SFXLIB.noise(0.05, 0.2, 2200, "bandpass"); SFXLIB.seq([784, 988], 0.07, "triangle", 0.12); }
+      else if (e === "⚽" || e === "🏀" || e === "🏐") { [0, 0.16, 0.29, 0.38].forEach(function (d, i) { SFXLIB.tone(210 - i * 20, 0.12, "sine", 0.3 / (i + 1), d, 90); }); }
+      else if (e === "🔬" || e === "🧪" || e === "🏺") { SFXLIB.tone(2300, 0.3, "sine", 0.1); SFXLIB.tone(3100, 0.25, "sine", 0.07, 0.05); SFXLIB.seq([784, 1175], 0.07, "triangle", 0.1); }
+      else if (e === "🗝") { for (var j = 0; j < 6; j++) SFXLIB.tone(2400 + j * 230, 0.06, "triangle", 0.06, j * 0.045); }
+      else if (e === "🔔" || e === "🕯") { SFXLIB.tone(1568, 0.7, "sine", 0.14); SFXLIB.tone(2349, 0.5, "sine", 0.07, 0.01); }
+      else if (e === "☕") { SFXLIB.noise(0.5, 0.09, 1400, "bandpass"); SFXLIB.seq([660, 880], 0.08, "triangle", 0.1); }
+      else { SFXLIB.seq([660, 880, 1320], 0.07, "triangle", 0.2); }
+      SFXLIB.tone(1760, 0.12, "triangle", 0.1, 0.12);
+    },
+    exitOpen: function () { SFXLIB.noise(0.25, 0.12, 1200); SFXLIB.seq([784, 988, 1175, 1568], 0.08, "triangle", 0.2); SFXLIB.tone(120, 0.3, "square", 0.1, 0.35, 220); },
+    alert: function (k) {
+      if (k === "whistle") { SFXLIB.tone(2500, 0.3, "square", 0.1, 0, 2100); SFXLIB.tone(2900, 0.25, "square", 0.08, 0.32, 2300); }
+      else if (k === "bell") { for (var i = 0; i < 5; i++) SFXLIB.tone(1900, 0.12, "triangle", 0.12, i * 0.1); }
+      else if (k === "pan") { SFXLIB.noise(0.25, 0.3, 2500, "bandpass"); SFXLIB.tone(520, 0.35, "triangle", 0.15, 0, 480); }
+      else if (k === "key") { for (var j = 0; j < 7; j++) SFXLIB.tone(2000 + (j % 3) * 500, 0.05, "triangle", 0.08, j * 0.04); SFXLIB.tone(300, 0.25, "sawtooth", 0.1, 0.1, 250); }
+      else if (k === "hm") { SFXLIB.tone(220, 0.35, "sawtooth", 0.1, 0, 160); SFXLIB.tone(300, 0.3, "sawtooth", 0.08, 0.3, 200); }
+      else { SFXLIB.tone(320, 0.25, "sawtooth", 0.12, 0, 520); SFXLIB.tone(460, 0.3, "sawtooth", 0.12, 0.26, 360); }
+    },
+    caught: function () { SFXLIB.noise(0.12, 0.4, 800); [[392, 370], [370, 350], [349, 330], [311, 190]].forEach(function (p, i) { SFXLIB.tone(p[0], i === 3 ? 0.8 : 0.32, "sawtooth", 0.14, i * 0.34, p[1]); }); },
+    win: function () { SFXLIB.seq([523, 659, 784, 1047, 784, 1047, 1319, 1568], 0.1, "triangle", 0.22); SFXLIB.noise(0.9, 0.12, 2500, "bandpass"); },
+    bell: function () { for (var i = 0; i < 16; i++) { SFXLIB.tone(2093, 0.06, "square", 0.04, i * 0.075); SFXLIB.tone(3136, 0.05, "triangle", 0.03, i * 0.075); } },
+    click: function () { SFXLIB.tone(900, 0.04, "square", 0.08); SFXLIB.tone(1400, 0.04, "square", 0.06, 0.04); },
+    start: function () { SFXLIB.seq([392, 494, 587, 784], 0.09, "triangle", 0.16); SFXLIB.noise(0.15, 0.05, 1500); }
+  };
+
+  /* ---------- карта ---------- */
   function say(t, s) { msg = t; msgT = s || 2.6; }
-  function ch(x, y) { if (x < 0 || y < 0 || x >= MW || y >= MH) return "#"; return MAP[y][x]; }
-  function solid(x, y) { var c = ch(x, y); return c === "#" || c === "G" || (c === "E" && !exitOpen); }
-  function opaque(x, y) { var c = ch(x, y); return c === "#" || c === "G" || c === "E"; }
+  function base(x, y) { if (x < 0 || y < 0 || x >= MW || y >= MH) return "#"; return MAP[y][x]; }
+  function furn(x, y) { if (x < 0 || y < 0 || x >= MW || y >= MH) return "."; return FURN[y][x]; }
+  function solid(x, y) { var c = base(x, y); if (c === "#" || c === "G" || (c === "E" && !exitOpen)) return true; return furn(x, y) !== "."; }
+  function opaque(x, y) { var c = base(x, y); return c === "#" || c === "G" || c === "E" || furn(x, y) === "B"; }
   function blocked(x, y, r) { return solid(Math.floor(x - r), Math.floor(y - r)) || solid(Math.floor(x + r), Math.floor(y - r)) || solid(Math.floor(x - r), Math.floor(y + r)) || solid(Math.floor(x + r), Math.floor(y + r)); }
   function move(e, dx, dy, r) { if (!blocked(e.x + dx, e.y, r)) e.x += dx; if (!blocked(e.x, e.y + dy, r)) e.y += dy; }
   function los(x0, y0, x1, y1) { var d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 0.2); for (var i = 1; i < n; i++) { var k = i / n; if (opaque(Math.floor(x0 + (x1 - x0) * k), Math.floor(y0 + (y1 - y0) * k))) return false; } return true; }
   function bfsNext(sx, sy, tx, ty) {
     if (sx === tx && sy === ty) return null;
-    var prev = {}, q = [[sx, sy]]; prev[sx + "," + sy] = null; var D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    while (q.length) {
-      var c = q.shift();
+    var prev = {}, q = [[sx, sy]], qi = 0; prev[sx + "," + sy] = null; var D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (qi < q.length) {
+      var c = q[qi++];
       if (c[0] === tx && c[1] === ty) { var cur = c, p = null; while (cur) { var pk = prev[cur[0] + "," + cur[1]]; if (!pk) break; p = cur; cur = pk; } return p; }
       for (var i = 0; i < 4; i++) { var nx = c[0] + D[i][0], ny = c[1] + D[i][1], k = nx + "," + ny; if (k in prev || solid(nx, ny)) continue; prev[k] = c; q.push([nx, ny]); }
     }
     return null;
   }
   function load(l) {
-    lvl = l; var L = LV[l];
-    P = { x: L.s[0] + 0.5, y: L.s[1] + 0.5, a: 0 }; got = 0; exitOpen = false; grace = 2.5; msg = ""; msgT = 0; caughtBy = null; hbT = 0;
+    lvl = l; var L = LV[l], F = FLOORS[L.fl]; MAP = F.map; FURN = F.furn; LABELS = F.labels; MW = MAP[0].length; MH = MAP.length;
+    P = { x: L.s[0] + 0.5, y: L.s[1] + 0.5, a: 0 }; got = 0; exitOpen = false; grace = 2.5; msg = ""; msgT = 0; caughtBy = null; hbT = 0; lastDoor = ""; bellT = 25 + Math.random() * 20;
     loot = L.loot.map(function (i) { return { x: i[0] + 0.5, y: i[1] + 0.5, e: i[2], got: false }; });
-    gs = L.g.map(function (o) { var k = KINDS[o.k], w = o.w; return { k: k, w: w, wi: 1 % w.length, x: w[0][0] + 0.5, y: w[0][1] + 0.5, a: 0, mode: "patrol", meter: 0, lost: 0, lx: 0, ly: 0, sp: o.sp || 1.5, range: L.range, fov: L.fov, pause: 0 }; });
+    gs = L.g.map(function (o) { var k = KINDS[o.k], w = o.w; return { k: k, w: w, wi: 1 % w.length, x: w[0][0] + 0.5, y: w[0][1] + 0.5, a: 0, mode: "patrol", meter: 0, lost: 0, lx: 0, ly: 0, sp: o.sp || 1.5, range: L.range, fov: L.fov, pause: 0, stp: Math.random(), bl: 0 }; });
     hud(); say("Старт! Збери всі речі: " + L.loot.length + " шт.", 2.8);
   }
   function hud() { $("lvlname").textContent = "Рівень " + (lvl + 1) + ": " + LV[lvl].name + " · " + got + "/" + loot.length; }
   function sneaking() { return sneakBtn || keys.Shift || keys[" "]; }
+
+  /* ---------- логіка ---------- */
   function update(dt) {
     if (st !== "play") return;
     tm += dt; if (grace > 0) grace -= dt;
@@ -123,20 +154,23 @@
       if (m > 1) { dx /= m; dy /= m; m = 1; }
       var sp = (sn ? 1.6 : 3.1) * Math.min(1, m * (joy ? 1.1 : 1)); P.a = Math.atan2(dy, dx);
       move(P, dx / (m || 1) * sp * dt, dy / (m || 1) * sp * dt, 0.28);
-      lastStep -= dt; if (lastStep <= 0) { lastStep = sn ? 0.5 : 0.28; if (!sn) SFXLIB.noise(0.04, 0.05, 500); }
+      lastStep -= dt; if (lastStep <= 0) { lastStep = sn ? 0.5 : 0.3; flip ^= 1; S.step(base(Math.floor(P.x), Math.floor(P.y)), sn); }
     }
+    var cb = base(Math.floor(P.x), Math.floor(P.y)), key = Math.floor(P.x) + "," + Math.floor(P.y);
+    if (cb === "o" && lastDoor !== key) { lastDoor = key; S.door(); } else if (cb !== "o") lastDoor = "";
     loot.forEach(function (it) {
-      if (it.got || Math.hypot(it.x - P.x, it.y - P.y) > 0.6) return; it.got = true; got++; hud();
-      SFXLIB.seq([660, 880, 1320], 0.07, "triangle", 0.2);
-      if (got === loot.length) { exitOpen = true; say("Все зібрано! Біжи до зеленого виходу!", 3.5); SFXLIB.seq([784, 988, 1175, 1568], 0.08, "triangle", 0.2); } else say(it.e + " Є! Залишилось " + (loot.length - got), 2.2);
+      if (it.got || Math.hypot(it.x - P.x, it.y - P.y) > 0.6) return; it.got = true; got++; hud(); S.pick(it.e);
+      if (got === loot.length) { exitOpen = true; say("Все зібрано! Біжи до виходу (🚪 або сходи)!", 3.5); S.exitOpen(); } else say(it.e + " Є! Залишилось " + (loot.length - got), 2.2);
     });
     if (alertCd > 0) alertCd -= dt;
-    var chasing = false;
-    gs.forEach(function (e) { guard(e, dt, sn); if (e.mode === "chase") chasing = true; if (grace <= 0 && Math.hypot(e.x - P.x, e.y - P.y) < 0.65) caughtBy = caughtBy || e; });
+    var chasing = false, maxm = 0;
+    gs.forEach(function (e) { guard(e, dt, sn); if (e.mode === "chase") chasing = true; if (e.meter > maxm && e.mode === "patrol") maxm = e.meter; if (grace <= 0 && Math.hypot(e.x - P.x, e.y - P.y) < 0.65) caughtBy = caughtBy || e; });
     if (chasing) { hbT -= dt; if (hbT <= 0) { hbT = 0.5; SFXLIB.tone(65, 0.13, "sine", 0.3); } }
+    if (maxm > 0.05) { blT -= dt; if (blT <= 0) { blT = 0.14; SFXLIB.tone(350 + maxm * 900, 0.06, "square", 0.05); } }
+    bellT -= dt; if (bellT <= 0) { bellT = 35 + Math.random() * 25; S.bell(); say("🔔 Дзвінок на перерву!", 2); }
     if (msgT > 0) msgT -= dt;
     if (caughtBy) return lose();
-    if (exitOpen && ch(Math.floor(P.x), Math.floor(P.y)) === "E") win();
+    if (exitOpen && base(Math.floor(P.x), Math.floor(P.y)) === "E") win();
   }
   function guard(e, dt, sn) {
     if (grace > 0) return;
@@ -145,10 +179,11 @@
     var see = d < rng && (da < e.fov || d < 1.3) && los(e.x, e.y, P.x, P.y);
     if (e.mode === "patrol") {
       if (see) { e.meter += dt / (d < 2.5 ? 0.3 : 0.75); } else e.meter = Math.max(0, e.meter - dt * 0.8);
-      if (e.meter >= 1) { e.mode = "chase"; e.lost = 0; if (alertCd <= 0) { alertCd = 2.5; SFXLIB.tone(900, 0.18, "square", 0.12, 0, 600); SFXLIB.tone(1200, 0.2, "square", 0.1, 0.18, 800); } say(e.k.n + " тебе помітив(ла)! Тікай!", 2.2); }
+      if (e.meter >= 1) { e.mode = "chase"; e.lost = 0; if (alertCd <= 0) { alertCd = 2.5; S.alert(e.k.al); } say(e.k.n + " помітив(ла) Боба! Тікай!", 2.2); }
     } else {
       if (see) { e.lost = 0; e.lx = P.x; e.ly = P.y; } else { e.lost += dt; if (e.lost > 4) { e.mode = "patrol"; e.meter = 0; } }
     }
+    e.stp -= dt; if (e.stp <= 0) { e.stp = e.mode === "chase" ? 0.26 : 0.5; if (d < 7) SFXLIB.noise(0.04, 0.1 * (1 - d / 7), 350); }
     var tx, ty, sp;
     if (e.mode === "chase") { sp = e.sp * 1.8; tx = see ? P.x : e.lx; ty = see ? P.y : e.ly; if (!tx) { tx = P.x; ty = P.y; } }
     else {
@@ -162,54 +197,72 @@
     if (dd > 0.02) { var vx = (gx - e.x) / dd, vy = (gy - e.y) / dd, ta = Math.atan2(vy, vx), df = ((ta - e.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; e.a += df * Math.min(1, dt * 8); move(e, vx * sp * dt, vy * sp * dt, 0.3); }
   }
   function lose() {
-    st = "over"; SFXLIB.tone(240, 0.7, "sawtooth", 0.2, 0, 60);
+    st = "over"; S.caught();
     var e = caughtBy, im = $("oimg"), em = $("oemo");
     if (e.k.head) { im.src = "fizruk-full.jpg"; im.className = ""; im.hidden = false; em.hidden = true; } else { im.hidden = true; em.hidden = false; em.textContent = e.k.e; }
-    $("h").textContent = "Спіймали!"; $("lvl").textContent = "Рівень " + (lvl + 1);
-    $("txt").textContent = e.k.n + " забрав(ла) тебе до кабінету. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("again").hidden = true; $("ov").hidden = false;
-    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; };
+    $("h").textContent = "Боба впіймали!"; $("lvl").textContent = "Рівень " + (lvl + 1);
+    $("txt").textContent = e.k.n + " знайшов(ла) сторожа й дав(ла) йому купу доручень: замінити лампочки, полагодити парти й помити коридор. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("lvs").innerHTML = ""; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; S.start(); };
   }
   function win() {
-    st = "win"; SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22);
-    try { localStorage.setItem("bus.bob.level", String(lvl + 1 < LV.length ? lvl + 1 : 0)); } catch (e) {}
-    var last = lvl === LV.length - 1, im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
-    $("h").textContent = last ? "Усі речі повернуто!" : "Рівень пройдено!"; $("lvl").textContent = last ? "Фінал" : "Рівень " + (lvl + 1);
-    $("txt").textContent = last ? "Степанович: Ти справжня легенда ліцею! Усі телефони, м’ячі й смаколики вдома. Автобус уже чекає біля виходу!" : "Степанович: Чудово, Боб! Але далі буде складніше.";
-    $("go").textContent = last ? "Зіграти ще" : "Далі"; $("again").hidden = true; $("ov").hidden = false;
+    st = "win"; S.win();
+    var last = lvl === LV.length - 1; try { localStorage.setItem("bus.bob.level", String(last ? 0 : lvl + 1)); if (!last && lvl + 1 > maxU) { maxU = lvl + 1; localStorage.setItem("bus.bob.max", String(maxU)); } } catch (e) {}
+    var im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
+    $("h").textContent = last ? "Нічна зміна закінчена!" : "Рівень пройдено!"; $("lvl").textContent = last ? "Фінал" : "Рівень " + (lvl + 1);
+    $("txt").textContent = last ? "Степанович: Бобе, ти найкращий сторож у районі! Усі речі знайдено, учні отримають їх зранку, а вчителі так і не здогадались, що ти був тут." : "Степанович: Чудово, Бобе! Далі буде складніше.";
+    $("go").textContent = last ? "Зіграти ще" : "Далі"; $("lvs").innerHTML = ""; $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(last ? 0 : lvl + 1); intro(); };
   }
   function intro() {
     st = "intro"; var L = LV[lvl], im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
-    $("h").textContent = L.name; $("lvl").textContent = "Рівень " + (lvl + 1) + " з " + LV.length; $("txt").textContent = L.intro; $("go").textContent = "Почати місію";
-    $("again").hidden = !(lvl > 0 && !started); $("ov").hidden = false;
-    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("bob"); } catch (e) {} } };
+    $("h").textContent = L.name; $("lvl").textContent = "Рівень " + (lvl + 1) + " з " + LV.length + " · " + L.fl + " поверх"; $("txt").textContent = L.intro; $("go").textContent = "Почати обхід";
+    var box = $("lvs"); box.innerHTML = "";
+    LV.forEach(function (x, i) { var b = document.createElement("button"); b.type = "button"; b.textContent = i + 1; b.disabled = i > maxU; if (i === lvl) b.className = "cur"; b.onclick = function () { SFXLIB.ac(); load(i); intro(); }; box.appendChild(b); });
+    $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; S.start(); if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("bob"); } catch (e) {} } };
   }
 
   /* ---------- малювання ---------- */
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function furnDraw(t, x, y, bx, by) {
+    g.fillStyle = "rgba(0,0,0,.18)"; 
+    if (t === "P") { g.fillRect(x + 4, y + 8, 22, 14); g.fillStyle = "#6b4a2a"; rr(g, x + 9, y + 19, 10, 6, 2); g.fill(); g.fillStyle = "#c79a5e"; rr(g, x + 3, y + 4, 22, 15, 3); g.fill(); g.fillStyle = "#e0b87c"; g.fillRect(x + 4, y + 5, 20, 3); g.fillStyle = "#fff"; g.fillRect(x + 8, y + 10, 8, 5); }
+    else if (t === "Q") { g.fillRect(x + 2, y + 6, 26, 20); g.fillStyle = "#7a4a1c"; rr(g, x + 1, y + 3, 26, 21, 3); g.fill(); g.fillStyle = "#9a6430"; g.fillRect(x + 2, y + 4, 24, 4); g.fillStyle = "#f4f4f0"; g.fillRect(x + 5, y + 11, 9, 7); g.fillStyle = "#2b2f3a"; g.fillRect(x + 16, y + 9, 8, 6); }
+    else if (t === "C") { g.fillRect(x + 3, y + 8, 22, 14); g.fillStyle = "#cfd3d8"; rr(g, x + 2, y + 5, 24, 17, 3); g.fill(); g.fillStyle = "#222836"; g.fillRect(x + 8, y + 6, 12, 8); g.fillStyle = "#5fc0ff"; g.fillRect(x + 9, y + 7, 10, 5); g.fillStyle = "#8a8f98"; g.fillRect(x + 7, y + 16, 14, 3); }
+    else if (t === "B") { g.fillRect(x + 1, y + 5, 28, 24); g.fillStyle = "#4a2f16"; g.fillRect(x, y, 28, 28); g.fillStyle = "#6b4423"; g.fillRect(x + 1, y + 1, 26, 26); var cs = ["#d62839", "#2f6fd1", "#ffd23f", "#3fa06a", "#f4f4f0", "#e08a2c"]; for (var r = 0; r < 2; r++) for (var i = 0; i < 6; i++) { g.fillStyle = cs[(bx * 3 + by * 5 + i + r * 2) % 6]; g.fillRect(x + 3 + i * 4, y + 4 + r * 12, 3, 9 - (i % 3)); } g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(x + 1, y + 14, 26, 2); }
+    else if (t === "T") { g.fillRect(x + 2, y + 6, 26, 20); g.fillStyle = "#b98550"; rr(g, x + 1, y + 3, 26, 21, 4); g.fill(); g.fillStyle = "#d4a469"; g.fillRect(x + 3, y + 5, 22, 3); g.fillStyle = "#f4f4f0"; g.beginPath(); g.arc(x + 9, y + 15, 3.5, 0, 7); g.arc(x + 19, y + 15, 3.5, 0, 7); g.fill(); }
+    else if (t === "F") { g.beginPath(); g.ellipse(x + 15, y + 24, 9, 3, 0, 0, 7); g.fill(); g.fillStyle = "#8a4b2a"; g.fillRect(x + 9, y + 15, 10, 9); g.fillStyle = "#2f9a4a"; [[14, 9, 7], [8, 12, 5], [20, 12, 5], [14, 4, 5]].forEach(function (p) { g.beginPath(); g.arc(x + p[0], y + p[1], p[2], 0, 7); g.fill(); }); g.fillStyle = "#58c46c"; g.beginPath(); g.arc(x + 12, y + 7, 3, 0, 7); g.fill(); }
+  }
+  function cone(x, y, a, fov, rng, fill) {
+    var n = 22, pts = [[x * T, y * T]];
+    for (var k = 0; k <= n; k++) { var an = a - fov + 2 * fov * k / n, d = 0; while (d < rng && !opaque(Math.floor(x + Math.cos(an) * d), Math.floor(y + Math.sin(an) * d))) d += 0.2; pts.push([(x + Math.cos(an) * d) * T, (y + Math.sin(an) * d) * T]); }
+    g.fillStyle = fill; g.beginPath(); pts.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.fill();
+  }
   function render() {
+    g.setTransform(2, 0, 0, 2, 0, 0); g.imageSmoothingEnabled = true;
     var cx = Math.max(0, Math.min(MW * T - W, P.x * T - W / 2)), cy = Math.max(0, Math.min(MH * T - H, P.y * T - H / 2 - 30));
+    if (MW * T < W) cx = (MW * T - W) / 2;
     g.fillStyle = "#1a1f2b"; g.fillRect(0, 0, W, H);
-    var c0 = Math.floor(cx / T), r0 = Math.floor(cy / T), c1 = Math.min(MW - 1, c0 + Math.ceil(W / T) + 1), r1 = Math.min(MH - 1, r0 + Math.ceil(H / T) + 1);
+    var c0 = Math.max(0, Math.floor(cx / T)), r0 = Math.max(0, Math.floor(cy / T)), c1 = Math.min(MW - 1, c0 + Math.ceil(W / T) + 1), r1 = Math.min(MH - 1, r0 + Math.ceil(H / T) + 1);
+    g.save(); g.translate(-cx, -cy);
     for (var r = r0; r <= r1; r++) for (var c = c0; c <= c1; c++) {
-      var t = MAP[r][c], x = c * T - cx, y = r * T - cy;
+      var t = MAP[r][c], x = c * T, y = r * T;
       if (t === "#") { g.fillStyle = "#3a4150"; g.fillRect(x, y, T, T); g.fillStyle = "#4a5266"; g.fillRect(x, y, T, 3); }
       else if (t === "G") { g.fillStyle = "#3f7d3f"; g.fillRect(x, y, T, T); g.fillStyle = "#4f8f4a"; g.fillRect(x + 4, y + 6, 6, 3); g.fillRect(x + 16, y + 17, 6, 3); }
-      else { g.fillStyle = FLOOR[t] || "#ccc"; g.fillRect(x, y, T, T); if (t === "c" || t === "d") { g.fillStyle = "rgba(120,80,30,.12)"; g.fillRect(x, y + T - 1, T, 1); } else if (t !== "E" && t !== "o") { g.fillStyle = "rgba(0,0,0,.06)"; g.fillRect(x, y, T, 1); g.fillRect(x, y, 1, T); }
-        if (t === "s") { g.fillStyle = "rgba(0,0,0,.18)"; for (var i = 1; i < 5; i++) g.fillRect(x, y + i * 6, T, 2); }
-        if (t === "E") { g.fillStyle = exitOpen ? "#fff" : "rgba(0,0,0,.35)"; g.font = "18px sans-serif"; g.textAlign = "center"; g.fillText("🚪", x + T / 2, y + 20); g.textAlign = "left"; if (!exitOpen) { g.fillStyle = "#d62839"; g.fillRect(x, y, T, 4); } } }
+      else { var fc = FLOOR[t] || ["#ccc", "#bbb"]; g.fillStyle = fc[(c + r) % 2]; g.fillRect(x, y, T, T);
+        if (t === "s") { g.fillStyle = "rgba(0,0,0,.2)"; for (var i = 1; i < 5; i++) g.fillRect(x, y + i * 6, T, 2); }
+        if (t === "E") { g.font = "18px sans-serif"; g.textAlign = "center"; g.fillStyle = "#fff"; g.fillText(exitOpen ? "🚪" : "🔒", x + T / 2, y + 20); g.textAlign = "left"; if (!exitOpen) { g.fillStyle = "#d62839"; g.fillRect(x, y, T, 4); } } }
     }
-    g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 2; g.strokeRect(34 * T - cx, 24 * T - cy, 18 * T, 14 * T); g.beginPath(); g.arc(43 * T - cx, 31 * T - cy, 2.2 * T, 0, 7); g.stroke();
-    g.font = "bold 11px system-ui,sans-serif"; g.textAlign = "center"; g.fillStyle = "rgba(60,40,10,.55)";
-    LABELS.forEach(function (l) { g.fillText(l[2], l[0] * T - cx, l[1] * T - cy + 4); }); g.textAlign = "left";
-    loot.forEach(function (it) { if (it.got) return; var x = it.x * T - cx, y = it.y * T - cy + Math.sin(tm * 4 + it.x) * 2; g.fillStyle = "rgba(255,230,120,.5)"; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.font = "18px sans-serif"; g.textAlign = "center"; g.fillText(it.e, x, y + 6); g.textAlign = "left"; });
+    if (MAP[24] && LV[lvl].fl === 1) { g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 2; g.strokeRect(34 * T, 24 * T, 18 * T, 14 * T); g.beginPath(); g.arc(43 * T, 31 * T, 2.2 * T, 0, 7); g.stroke(); }
+    for (var r2 = r0; r2 <= r1; r2++) for (var c2 = c0; c2 <= c1; c2++) { var ft = FURN[r2][c2]; if (ft !== ".") furnDraw(ft, c2 * T, r2 * T, c2, r2); }
+    g.font = "bold 11px system-ui,sans-serif"; g.textAlign = "center"; g.fillStyle = "rgba(60,40,10,.6)";
+    LABELS.forEach(function (l) { g.fillText(l[2], l[0] * T, l[1] * T + 4); }); g.textAlign = "left";
+    loot.forEach(function (it) { if (it.got) return; var x = it.x * T, y = it.y * T + Math.sin(tm * 4 + it.x) * 2; g.fillStyle = "rgba(255,230,120,.55)"; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.font = "18px sans-serif"; g.textAlign = "center"; g.fillText(it.e, x, y + 6); g.textAlign = "left"; });
+    var sn = sneaking();
+    if (!sn) cone(P.x, P.y, P.a, 0.5, 3.4, "rgba(255,240,170,.2)");
+    gs.forEach(function (e) { var col = e.mode === "chase" ? "255,40,50" : (e.meter > 0.05 ? "255,160,40" : "255,235,90"); cone(e.x, e.y, e.a, e.fov, e.range, "rgba(" + col + ",.26)"); });
     gs.forEach(function (e) {
-      var col = e.mode === "chase" ? "255,40,50" : (e.meter > 0.05 ? "255,160,40" : "255,235,90");
-      var n = 22, pts = [[e.x * T - cx, e.y * T - cy]], rng = e.range;
-      for (var k = 0; k <= n; k++) { var a = e.a - e.fov + (2 * e.fov) * k / n, d = 0; while (d < rng && !opaque(Math.floor(e.x + Math.cos(a) * d), Math.floor(e.y + Math.sin(a) * d))) d += 0.2; pts.push([(e.x + Math.cos(a) * d) * T - cx, (e.y + Math.sin(a) * d) * T - cy]); }
-      g.fillStyle = "rgba(" + col + ",.26)"; g.beginPath(); pts.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.fill();
-    });
-    gs.forEach(function (e) {
-      var x = e.x * T - cx, y = e.y * T - cy;
+      var x = e.x * T, y = e.y * T;
       g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(x, y + 10, 11, 5, 0, 0, 7); g.fill();
       g.fillStyle = e.k.c; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.strokeStyle = "#222"; g.lineWidth = 2; g.stroke();
       if (e.k.head && head.complete && head.naturalWidth) { g.save(); g.beginPath(); g.arc(x, y, 11, 0, 7); g.clip(); g.drawImage(head, x - 12, y - 14, 24, 30); g.restore(); }
@@ -218,20 +271,31 @@
       if (e.mode === "chase") { g.fillStyle = "#ff2a38"; g.font = "bold 22px sans-serif"; g.textAlign = "center"; g.fillText("!", x, y - 18); g.textAlign = "left"; }
       else if (e.meter > 0.05) { g.fillStyle = "#ffb02e"; g.fillRect(x - 12, y - 20, 24 * Math.min(1, e.meter), 4); g.strokeStyle = "#222"; g.lineWidth = 1; g.strokeRect(x - 12, y - 20, 24, 4); }
     });
-    var px = P.x * T - cx, py = P.y * T - cy, sn = sneaking();
-    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(px, py + 9, 9, 4, 0, 0, 7); g.fill();
-    g.globalAlpha = sn ? 0.72 : 1; g.fillStyle = "#e08a2c"; g.beginPath(); g.arc(px, py, sn ? 9 : 11, 0, 7); g.fill(); g.strokeStyle = "#5a3210"; g.lineWidth = 2; g.stroke();
-    g.fillStyle = "#fff"; g.beginPath(); g.arc(px + Math.cos(P.a) * 5 - 3, py + Math.sin(P.a) * 5 - 2, 2.2, 0, 7); g.arc(px + Math.cos(P.a) * 5 + 3, py + Math.sin(P.a) * 5 - 2, 2.2, 0, 7); g.fill();
-    g.fillStyle = "#222"; g.fillRect(px - 8, py - 12, 16, 4); g.globalAlpha = 1;
+    // Сторож Боб (вид зверху)
+    var px = P.x * T, py = P.y * T, moving = (keys.L || keys.R || keys.U || keys.D || (joy && joy.m > 0.15));
+    g.save(); g.translate(px, py); g.globalAlpha = sn ? 0.8 : 1;
+    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(0, 9, 10, 4, 0, 0, 7); g.fill();
+    g.rotate(P.a);
+    var ph = moving ? Math.sin(tm * 14) * 3 : 0;
+    g.fillStyle = "#1c2230"; g.beginPath(); g.ellipse(-3 + ph, -5, 4, 2.6, 0, 0, 7); g.ellipse(-3 - ph, 5, 4, 2.6, 0, 0, 7); g.fill();
+    g.fillStyle = "#2b4a8f"; g.beginPath(); g.ellipse(0, 0, sn ? 7 : 8, 11, 0, 0, 7); g.fill(); g.strokeStyle = "#16264d"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#ffd23f"; g.fillRect(-2, -8, 2, 16);
+    g.fillStyle = "#f0b48c"; g.beginPath(); g.arc(5, 8, 2.4, 0, 7); g.arc(5, -8, 2.4, 0, 7); g.fill();
+    g.fillStyle = "#555c69"; g.fillRect(5, 6, 7, 4); g.fillStyle = sn ? "#777" : "#fff6b0"; g.fillRect(11, 6, 2, 4);
+    g.fillStyle = "#f0b48c"; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill();
+    g.fillStyle = "#1d2e66"; g.beginPath(); g.arc(-0.5, 0, 6.2, 0, 7); g.fill(); g.fillStyle = "#16264d"; g.beginPath(); g.ellipse(5.5, 0, 3.2, 5.4, 0, 0, 7); g.fill();
+    g.fillStyle = "#ffd23f"; g.beginPath(); g.arc(1.5, 0, 1.8, 0, 7); g.fill();
+    g.restore(); g.globalAlpha = 1;
+    g.restore();
     // HUD
     var ms = 2, mx = W - MW * ms - 6, my = 6; g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(mx - 2, my - 2, MW * ms + 4, MH * ms + 4);
-    for (var rr = 0; rr < MH; rr++) for (var cc = 0; cc < MW; cc++) { var tt = MAP[rr][cc]; if (tt === "#") continue; g.fillStyle = tt === "G" ? "#2f5f2f" : (tt === "E" ? (exitOpen ? "#2fb36b" : "#d62839") : "#c9ccd2"); g.fillRect(mx + cc * ms, my + rr * ms, ms, ms); }
+    for (var rr2 = 0; rr2 < MH; rr2++) for (var cc = 0; cc < MW; cc++) { var tt = MAP[rr2][cc]; if (tt === "#") continue; g.fillStyle = tt === "G" ? "#2f5f2f" : (tt === "E" ? (exitOpen ? "#2fb36b" : "#d62839") : (FURN[rr2][cc] !== "." ? "#8a6a44" : "#c9ccd2")); g.fillRect(mx + cc * ms, my + rr2 * ms, ms, ms); }
     loot.forEach(function (it) { if (!it.got) { g.fillStyle = "#ffd23f"; g.fillRect(mx + it.x * ms - 1, my + it.y * ms - 1, 3, 3); } });
     gs.forEach(function (e) { if (Math.hypot(e.x - P.x, e.y - P.y) < 12 || e.mode === "chase") { g.fillStyle = "#ff3040"; g.fillRect(mx + e.x * ms - 1, my + e.y * ms - 1, 3, 3); } });
     g.fillStyle = "#4fc3ff"; g.fillRect(mx + P.x * ms - 1.5, my + P.y * ms - 1.5, 4, 4);
-    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(6, 6, 26 * loot.length + 6, 28);
-    loot.forEach(function (it, i) { g.globalAlpha = it.got ? 1 : 0.3; g.font = "18px sans-serif"; g.fillText(it.e, 9 + i * 26, 27); }); g.globalAlpha = 1;
-    if (sn) { g.fillStyle = "rgba(95,176,143,.9)"; g.font = "bold 11px system-ui"; g.fillText("🤫 тихо", 8, 50); }
+    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(6, 6, Math.min(150, 26 * loot.length + 6), 28 + (loot.length > 5 ? 0 : 0));
+    loot.forEach(function (it, i) { g.globalAlpha = it.got ? 1 : 0.3; g.font = "18px sans-serif"; g.fillText(it.e, 9 + i * 24, 27); }); g.globalAlpha = 1;
+    if (sn) { g.fillStyle = "rgba(95,176,143,.95)"; g.font = "bold 11px system-ui"; g.fillText("🤫 тихо (ліхтарик вимкнено)", 8, 50); }
     if (msgT > 0 && msg) {
       g.font = "bold 14px system-ui,sans-serif"; var words = msg.split(" "), lines = [], cur = "";
       words.forEach(function (w) { var t2 = cur ? cur + " " + w : w; if (g.measureText(t2).width > W - 50 && cur) { lines.push(cur); cur = w; } else cur = t2; }); lines.push(cur);
@@ -251,16 +315,15 @@
   cv.addEventListener("pointermove", function (e) { if (!joy || joy.id !== e.pointerId) return; var p = pt(e), dx = p[0] - joy.ox, dy = p[1] - joy.oy, d = Math.hypot(dx, dy), m = Math.min(1, d / 40); joy.m = m; joy.x = d ? dx / d * m : 0; joy.y = d ? dy / d * m : 0; });
   function jend(e) { if (joy && joy.id === e.pointerId) joy = null; }
   cv.addEventListener("pointerup", jend); cv.addEventListener("pointercancel", jend);
-  $("sneak").addEventListener("click", function () { sneakBtn = !sneakBtn; this.classList.toggle("on", sneakBtn); });
+  $("sneak").addEventListener("click", function () { sneakBtn = !sneakBtn; this.classList.toggle("on", sneakBtn); S.click(); });
   SFXLIB.bind($("snd"));
-  $("again").onclick = function () { load(0); intro(); };
   var last = 0;
   function frame(t) { var dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t; update(dt); render(); requestAnimationFrame(frame); }
   load(Math.min(saved, LV.length - 1)); intro(); requestAnimationFrame(frame);
   window.__b = {
     tick: function (dt) { update(dt); render(); },
     get s() { return { st: st, lvl: lvl, P: P, got: got, total: loot.length, exitOpen: exitOpen, gs: gs.map(function (e) { return { x: e.x, y: e.y, mode: e.mode, meter: e.meter }; }), loot: loot }; },
-    go: function (l) { load(l); st = "play"; $("ov").hidden = true; }, put: function (x, y, a) { P.x = x; P.y = y; if (a !== undefined) P.a = a; }, grace: function (v) { grace = v; }, keys: keys, LV: LV
+    go: function (l) { load(l); st = "play"; $("ov").hidden = true; }, put: function (x, y, a) { P.x = x; P.y = y; if (a !== undefined) P.a = a; }, grace: function (v) { grace = v; }, keys: keys, LV: LV, S: S
   };
 })();
 </script>
