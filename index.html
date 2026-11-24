@@ -310,6 +310,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
+<script src="push-config.js"></script>
 <script src="tracks.js"></script>
 <script src="facts.js"></script>
 <script src="track.js"></script>
@@ -542,7 +543,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
       txt += ", їде до вас " + kmTxt(m) + " дорогою";
       if (Math.abs(nm.eff - nm.t) >= 2) txt += " (за розкладом " + fmt(nm.t) + ")";
       txt += left < 1 ? ". Він уже біля вас." : ". Приблизно через " + Math.ceil(left) + " хв.";
-      if (notifyOn() && (left <= 5 || m <= 1500)) {
+      if (notifyOn() && !pushOn() && (left <= 5 || m <= 1500)) {
         var nk = new Date().toDateString() + nm.key + nm.j;
         if (!notified[nk]) { notified[nk] = 1; notify("Автобус поруч", s.n + ": буде приблизно через " + Math.max(1, Math.ceil(left)) + " хв (" + kmTxt(m) + ")."); }
       }
@@ -589,6 +590,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
     st.mine = code || null;
     store("bus.mine", st.mine);
     refresh();
+    if (pushOn()) pushSync();
   }
 
   /* справжній GPS */
@@ -679,22 +681,61 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
   })();
 
   /* сповіщення */
+  /* Web Push: сповіщення приходять і при закритому сайті */
+  var PUSH = window.PUSH || {};
+  function pushSupported() { return !!(PUSH.vapid && "serviceWorker" in navigator && "PushManager" in window && location.protocol === "https:"); }
+  function pushOn() { return pushSupported() && store("bus.push") === "1"; }
+  function b64uToU8(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); s += "=".repeat((4 - s.length % 4) % 4); var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+  function shaId(s) { return crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)).then(function (b) { return Array.prototype.map.call(new Uint8Array(b).slice(0, 12), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }); }
+  function dbBase() { var C = window.CONFIG; return C.dbUrl + "/bus/" + C.key + "/push/"; }
+  function pushSave(sub) {
+    if (!st.mine || !STOPS[st.mine]) return Promise.resolve(null);
+    var times = []; ["am", "pm"].forEach(function (k) { SCHED[k].forEach(function (r) { if (r[0] === st.mine) times.push(r[1]); }); });
+    var rec = { sub: sub.toJSON(), stop: st.mine, name: STOPS[st.mine].n, ll: STOPS[st.mine].ll, times: times, radius: 1500, notices: true, ts: Date.now() };
+    return shaId(sub.endpoint).then(function (id) {
+      store("bus.pushid", id);
+      return fetch(dbBase() + id + ".json", { method: "PUT", body: JSON.stringify(rec) }).then(function (r) { if (!r.ok) throw new Error("db"); return id; });
+    });
+  }
+  function pushSubscribe() {
+    return navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToU8(PUSH.vapid) }); });
+    });
+  }
+  function pushSync() { return pushSubscribe().then(pushSave).catch(function () {}); }
+  function pushEnable() {
+    return pushSubscribe().then(pushSave).then(function (id) {
+      store("bus.push", "1");
+      if (PUSH.worker && id) fetch(PUSH.worker.replace(/\/$/, "") + "/test?id=" + id + "&k=" + encodeURIComponent(window.CONFIG.key)).then(function (r) { if (!r.ok) throw 0; }).catch(function () { notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою."); });
+      else notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою.");
+    });
+  }
+  function pushDisable() {
+    var id = store("bus.pushid"); store("bus.push", "0");
+    if (id) fetch(dbBase() + id + ".json", { method: "DELETE" }).catch(function () {});
+    return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (s) { if (s) return s.unsubscribe(); }).catch(function () {});
+  }
   function syncNotifyUi() {
     var b = $("notifybtn"), h = $("notifyhint");
     if (!window.Notification) { b.hidden = true; h.hidden = false; h.textContent = "Цей браузер не показує сповіщень."; return; }
     if (Notification.permission === "denied") { b.hidden = true; h.hidden = false; h.textContent = "Сповіщення заблоковані в налаштуваннях браузера для цього сайту."; return; }
     b.hidden = false; h.hidden = false;
-    if (notifyOn()) { b.textContent = "Вимкнути сповіщення"; b.className = "btn ghost"; h.textContent = "Телефон сповістить за 5 хвилин до вашої зупинки, поки сайт відкритий у браузері. Якщо закрити вкладку, сповіщення не прийде."; }
-    else { b.textContent = "Сповістити, коли автобус буде поруч"; b.className = "btn"; h.textContent = "Працює, поки сайт відкритий у браузері."; }
+    if (notifyOn()) {
+      b.textContent = "Вимкнути сповіщення"; b.className = "btn ghost";
+      h.textContent = pushOn() ? "Сповіщення приходять на телефон, навіть коли сайт закрито: коли автобус наближається до вашої зупинки і коли водій надсилає повідомлення." : "Телефон сповістить за 5 хвилин до вашої зупинки, поки сайт відкритий у браузері. Якщо закрити вкладку, сповіщення не прийде.";
+    } else { b.textContent = "Сповістити, коли автобус буде поруч"; b.className = "btn"; h.textContent = pushSupported() ? "Сповіщення приходитимуть навіть тоді, коли сайт закрито." : "Працює, поки сайт відкритий у браузері."; }
   }
   $("notifybtn").onclick = function () {
-    if (notifyOn()) { store("bus.notify", "0"); syncNotifyUi(); return; }
+    if (notifyOn()) { store("bus.notify", "0"); if (pushOn()) pushDisable().then(syncNotifyUi); else syncNotifyUi(); return; }
     if (!st.mine) { $("notifyhint").hidden = false; $("notifyhint").textContent = "Спочатку оберіть свою зупинку."; return; }
     Notification.requestPermission().then(function (p) {
-      if (p === "granted") { store("bus.notify", "1"); notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою."); }
-      syncNotifyUi(); refresh();
+      if (p !== "granted") { syncNotifyUi(); return; }
+      store("bus.notify", "1");
+      if (pushSupported()) pushEnable().catch(function () { store("bus.push", "0"); notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою (поки сайт відкритий)."); }).then(function () { syncNotifyUi(); refresh(); });
+      else { notify("Сповіщення увімкнено", "Я попереджу, коли автобус буде поруч із вашою зупинкою."); syncNotifyUi(); refresh(); }
     });
   };
+  if (notifyOn() && pushOn()) pushSync();
   syncNotifyUi();
 
   /* додати на головний екран */
