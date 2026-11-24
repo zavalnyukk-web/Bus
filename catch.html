@@ -18,6 +18,7 @@
   canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
   .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:14px; border-radius:14px; background:linear-gradient(rgba(8,14,10,.8),rgba(8,14,10,.9)), url(gym.jpg) center/cover; }
   .ov[hidden] { display:none; }
+  .ov img.hero { width:auto; height:118px; border:0; border-radius:0; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
   .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
   .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:300px; }
   .lv { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:300px; }
@@ -37,7 +38,7 @@
 <div class="wrap">
   <canvas id="c" width="720" height="960" aria-label="Фізрук ловить м’ячі, що скочуються з чотирьох жолобів. Кнопки внизу або дотик до кутів екрана."></canvas>
   <div class="ov" id="ov">
-    <img src="fizruk-full.jpg" alt="Фізрук Артурович">
+    <img class="hero" src="art-win.png" alt="Фізрук Артурович">
     <h1 id="h">Фізрук ловить м’ячі</h1>
     <p id="txt">М’ячі скочуються з чотирьох жолобів. Переставляй Артуровича (кнопки або дотик до кутів екрана) і ловіть кошиком. Три пропущені м’ячі, і урок закінчено. Обери швидкість:</p>
     <div class="lv" id="lv"></div>
@@ -48,6 +49,7 @@
   <div><button data-p="2" type="button" aria-label="Вгору праворуч">↗</button><button data-p="3" type="button" aria-label="Вниз праворуч">↘</button></div>
 </div>
 <script src="sfx.js"></script>
+<script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
@@ -69,11 +71,16 @@
     { x0: 374, y0: 232, x1: 248, y1: 300, bx: 248, by: 378 }
   ];
   var DROP = 0.5;
+  function maxMiss() { return DIFF.pick(5, 3, 2); }
+  function ivK() { return DIFF.pick(1.25, 1, 0.85); }
+  function trK() { return DIFF.pick(1.15, 1, 0.88); }
   
   var lvl = 0, st = "menu", pos = 0, balls = [], score = 0, miss = 0, tm = 0, spawn = 0, fx = [], flash = 0, speedK = 1, best = [0, 0, 0, 0], shock = 0, joy = 0;
   try { best = JSON.parse(localStorage.getItem("bus.egg.best") || "[0,0,0,0]"); } catch (e) {}
   var started = false;
 
+  DIFF.mount($("ov"), $("lv"));
+  DIFF.on(function () { if (st === "menu") menu(); });
   function menu() {
     st = "menu"; var lv = $("lv"); lv.innerHTML = "";
     LEVELS.forEach(function (L, i) {
@@ -83,13 +90,13 @@
     $("ov").hidden = false;
   }
   function start(i) {
-    lvl = i; score = 0; miss = 0; balls = []; fx = []; spawn = 1; tm = 0; speedK = 1; pos = 0; flash = 0; shock = 0; joy = 0; st = "play"; $("ov").hidden = true;
+    lvl = i; score = 0; miss = 0; balls = []; fx = []; spawn = 1; tm = 0; speedK = DIFF.pick(0.9, 1, 1.12); pos = 0; flash = 0; shock = 0; joy = 0; st = "play"; $("ov").hidden = true;
     $("lvlname").textContent = LEVELS[i].n;
     if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("egg"); } catch (e) {} }
   }
   function landings(ch) { return balls.filter(function (b) { return !b.done; }).map(function (b) { return { t: b.t0 + b.tr + DROP, c: b.c }; }); }
   function trySpawn() {
-    var L = LEVELS[lvl], tr = L.tr / speedK, c = Math.floor(Math.random() * 4), land = tm + tr + DROP, ok = true, gap = Math.max(0.45, 0.8 / speedK);
+    var L = LEVELS[lvl], tr = L.tr * trK() / speedK, c = Math.floor(Math.random() * 4), land = tm + tr + DROP, ok = true, gap = Math.max(0.45, 0.8 / speedK);
     landings().forEach(function (l) { if (Math.abs(l.t - land) < (l.c === c ? 0.35 : gap)) ok = false; });
     if (!ok) return false;
     balls.push({ c: c, k: Math.floor(Math.random() * 5), t0: tm, tr: tr, rot: 0, done: false, ph: "roll", fy: 0, vx: 0, vy: 0, x: 0, y: 0 });
@@ -99,7 +106,7 @@
     if (st !== "play") return;
     tm += dt; var L = LEVELS[lvl]; if (flash > 0) flash -= dt; if (shock > 0) shock -= dt; if (joy > 0) joy -= dt;
     spawn -= dt;
-    if (spawn <= 0) { if (trySpawn()) spawn = L.iv / speedK * (0.75 + Math.random() * 0.5); else spawn = 0.12; }
+    if (spawn <= 0) { if (trySpawn()) spawn = L.iv * ivK() / speedK * (0.75 + Math.random() * 0.5); else spawn = 0.12; }
     balls.forEach(function (b) {
       var C = CH[b.c], el = tm - b.t0;
       if (b.ph === "roll") {
@@ -109,12 +116,12 @@
         b.dt += dt; var q = Math.min(1, b.dt / DROP); b.x = C.x1; b.y = C.y1 - 10 + (C.by - 16 - (C.y1 - 10)) * q * q; b.rot += dt * 4;
         if (b.dt >= DROP) {
           if (pos === b.c) { b.ph = "done"; b.done = true; score++; joy = 0.35; SFXLIB.seq([740, 988], 0.05, "triangle", 0.2); fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "+1", c: "#ffd23f" });
-            if (score % 10 === 0) { speedK = Math.min(2.2, speedK + 0.08); SFXLIB.seq([523, 659, 784], 0.07, "square", 0.12); fx.push({ x: 180, y: 120, t: 0, s: "Швидше!", c: "#5fb08f" }); } }
+            if (score % 10 === 0) { speedK = Math.min(2.4, speedK + 0.08); SFXLIB.seq([523, 659, 784], 0.07, "square", 0.12); fx.push({ x: 180, y: 120, t: 0, s: "Швидше!", c: "#5fb08f" }); } }
           else { b.ph = "fall"; b.vx = (C.x1 < 180 ? -1 : 1) * 60; b.vy = -140; }
         }
       } else if (b.ph === "fall") {
         b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 8;
-        if (b.y >= FL - 10) { b.y = FL - 10; b.vy = -b.vy * 0.45; b.vx *= 0.8; if (!b.hit) { b.hit = 1; miss++; flash = 0.4; shock = 0.6; SFXLIB.tone(200, 0.35, "sawtooth", 0.18, 0, 70); fx.push({ x: b.x, y: FL - 30, t: 0, s: "ОЙ!", c: "#ff5060" }); if (miss >= 3) over(); } }
+        if (b.y >= FL - 10) { b.y = FL - 10; b.vy = -b.vy * 0.45; b.vx *= 0.8; if (!b.hit) { b.hit = 1; miss++; flash = 0.4; shock = 0.6; SFXLIB.tone(200, 0.35, "sawtooth", 0.18, 0, 70); fx.push({ x: b.x, y: FL - 30, t: 0, s: "ОЙ!", c: "#ff5060" }); if (miss >= maxMiss()) over(); } }
         if (b.x < -30 || b.x > W + 30) { b.ph = "done"; b.done = true; }
       }
     });
@@ -206,7 +213,23 @@
     g.save(); g.clip(); g.strokeStyle = "rgba(80,42,8,.45)"; g.lineWidth = 1; for (var i = 0; i < 5; i++) { g.beginPath(); g.moveTo(x - 26, y - 8 + i * 6); g.quadraticCurveTo(x, y - 4 + i * 6 + 5, x + 26, y - 8 + i * 6); g.stroke(); } for (var j = -20; j <= 20; j += 8) { g.beginPath(); g.moveTo(x + j, y - 14); g.lineTo(x + j * 0.7, y + 20); g.stroke(); } g.restore();
     g.beginPath(); g.ellipse(x, y - 14, 24, 6, 0, 0, 7); g.fillStyle = "#3a220c"; g.fill(); g.strokeStyle = "#e0b06a"; g.lineWidth = 3; g.stroke();
   }
+  var ART = {}; ["thumb", "win", "wave"].forEach(function (n) { var im = new Image(); im.src = "art-" + n + ".png"; ART[n] = im; });
+  function artReady() { return ART.thumb.complete && ART.thumb.naturalWidth && ART.win.complete && ART.win.naturalWidth && ART.wave.complete && ART.wave.naturalWidth; }
   function fizruk() {
+    if (!artReady()) return fizrukOld();
+    var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, ub = Math.sin(tm * 6) * 1.1, big = shock > 0, happy = joy > 0;
+    el(X, FY + 1, 46, 8, "rgba(0,0,0,.35)");
+    // рука, що тягнеться до кошика (позаду фігури)
+    var Sx = X + side * 26, Sy = 318 + ub, Bx = C.bx - side * 14, By = C.by + 4, Ex = (Sx + Bx) / 2 + side * 3, Ey = (Sy + By) / 2 + 6;
+    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 19; g.lineCap = "round"; g.beginPath(); g.moveTo(Sx, Sy); g.lineTo(Ex, Ey); g.stroke(); g.lineWidth = 15; g.beginPath(); g.moveTo(Ex, Ey); g.lineTo(Bx, By); g.stroke();
+    seg(Sx, Sy, Ex, Ey, 16, "#a9a9a9"); seg(Ex, Ey, Bx, By, 13, "#f0b896");
+    basket(C.bx, C.by);
+    el(Bx - side * 2, By + 1, 7.5, 8, lg(0, By - 7, 0, By + 9, [[0, "#ffd0ac"], [1, "#d68f66"]]));
+    // сам Артурович
+    var im = big ? ART.wave : happy ? ART.win : ART.thumb, h = 206, w = h * im.naturalWidth / im.naturalHeight;
+    g.save(); g.translate(X, FY + 1 + ub * 0.5); if (side > 0) g.scale(-1, 1); g.drawImage(im, -w / 2 - 2, -h, w, h); g.restore();
+  }
+  function fizrukOld() {
     var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, ub = Math.sin(tm * 6) * 1.1, big = shock > 0, happy = joy > 0;
     el(X, FY + 1, 46, 8, "rgba(0,0,0,.35)");
     // ноги
@@ -280,7 +303,7 @@
     g.textAlign = "left";
     panel(6, 6, 110, 36); drawBall(0, 26, 24, tm, 11); g.font = "bold 22px system-ui,sans-serif"; g.lineWidth = 3; g.strokeStyle = "rgba(0,0,0,.6)"; g.strokeText(String(score), 46, 32); g.fillStyle = "#ffd23f"; g.fillText(String(score), 46, 32);
     panel(W - 106, 6, 100, 36);
-    for (var i = 0; i < 3; i++) { var lx = W - 86 + i * 30; g.globalAlpha = i < miss ? 0.3 : 1; drawBall(i, lx, 24, 0, 9); g.globalAlpha = 1; if (i < miss) { g.strokeStyle = "#ff3040"; g.lineWidth = 3.5; g.lineCap = "round"; g.beginPath(); g.moveTo(lx - 7, 17); g.lineTo(lx + 7, 31); g.moveTo(lx + 7, 17); g.lineTo(lx - 7, 31); g.stroke(); } }
+    for (var i = 0; i < maxMiss(); i++) { var lx = W - 20 - (maxMiss() - 1 - i) * 26; g.globalAlpha = i < miss ? 0.3 : 1; drawBall(i, lx, 24, 0, 9); g.globalAlpha = 1; if (i < miss) { g.strokeStyle = "#ff3040"; g.lineWidth = 3.5; g.lineCap = "round"; g.beginPath(); g.moveTo(lx - 7, 17); g.lineTo(lx + 7, 31); g.moveTo(lx + 7, 17); g.lineTo(lx - 7, 31); g.stroke(); } }
     g.fillStyle = "rgba(255,255,255,.85)"; g.font = "bold 11px system-ui,sans-serif"; g.textAlign = "center"; g.strokeStyle = "rgba(0,0,0,.6)"; g.lineWidth = 3; g.strokeText("швидкість ×" + speedK.toFixed(2), W / 2, 58); g.fillText("швидкість ×" + speedK.toFixed(2), W / 2, 58); g.textAlign = "left";
     if (flash > 0) { g.fillStyle = "rgba(220,30,40," + (flash * 0.5).toFixed(2) + ")"; g.fillRect(0, 0, W, H); }
   }

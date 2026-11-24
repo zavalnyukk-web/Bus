@@ -18,6 +18,7 @@
   canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
   .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:14px; border-radius:14px; background:linear-gradient(rgba(8,20,12,.82),rgba(8,20,12,.92)), url(gym.jpg) center/cover; }
   .ov[hidden] { display:none; }
+  .ov img.hero { width:auto; height:118px; border:0; border-radius:0; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
   .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
   .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:300px; }
   .lv { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:300px; }
@@ -33,13 +34,14 @@
 <div class="wrap">
   <canvas id="c" width="720" height="960" aria-label="Пенальті: веди пальцем, щоб прицілитись у ворота, і відпусти, щоб вдарити. У воротах Артурович."></canvas>
   <div class="ov" id="ov">
-    <img id="oimg" src="fizruk-full.jpg" alt="Артурович">
+    <img id="oimg" class="hero" src="art-win.png" alt="Артурович">
     <h1 id="h">Забий гол Артуровичу</h1>
     <p id="txt">Артурович став у ворота! Веди пальцем по воротах, щоб прицілитись, і відпусти, щоб вдарити. Біла смужка збоку це сила: сильний удар швидший, але менш точний. 5 ударів на рівень. Обери рівень:</p>
     <div class="lv" id="lv"></div>
   </div>
 </div>
 <script src="sfx.js"></script>
+<script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
@@ -47,12 +49,21 @@
   var $ = function (i) { return document.getElementById(i); };
   var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 480;
   var GL = 85, GR = 275, GT = 160, GB = 235, BX = 180, BY = 392;
-  var LV = [
+  var LV0 = [
     { n: "Розминка", d: "Артурович зі сну", skill: 0.1, dive: 0.85, reach: 30, need: 2 },
     { n: "Тренування", d: "уже прокинувся", skill: 0.3, dive: 0.68, reach: 34, need: 3 },
     { n: "Матч", d: "читає твої удари", skill: 0.5, dive: 0.55, reach: 37, need: 3 },
     { n: "Фінал", d: "залізний воротар", skill: 0.65, dive: 0.45, reach: 40, need: 4 }
   ];
+  var LV = [];
+  function applyDiff() {
+    LV = LV0.map(function (b) {
+      var L = {}; for (var k in b) L[k] = b[k];
+      L.skill = Math.max(0, Math.min(0.9, b.skill + DIFF.pick(-0.12, 0, 0.12))); L.dive = b.dive + DIFF.pick(0.1, 0, -0.07);
+      L.reach = b.reach + DIFF.pick(-3, 0, 3); L.need = Math.max(1, Math.min(5, b.need + DIFF.pick(-1, 0, 1))); return L;
+    });
+  }
+  applyDiff();
   var lvl = 0, st = "menu", shot = 0, goals = 0, score = 0, res = [], aim = { x: 180, y: 200 }, aiming = false, tm = 0, pm = 0, ball = null, kp = { x: 180, y: 198, rot: 0 }, kd = null, rt = 0, rtype = "", fx = [], conf = [], mood = "n", first = true, started = false, best = [0, 0, 0, 0], shake = 0;
   try { best = JSON.parse(localStorage.getItem("bus.goal.best") || "[0,0,0,0]"); } catch (e) {}
 
@@ -123,7 +134,7 @@
     return cvv;
   }
 
-  var KS = { n: makeKeeper("n"), joy: makeKeeper("joy"), shock: makeKeeper("shock") };
+  var KS = {}; [["n", "thumb"], ["joy", "win"], ["shock", "wave"]].forEach(function (a) { var im = new Image(); im.src = "art-" + a[1] + ".png"; KS[a[0]] = im; });
   function lg(x0, y0, x1, y1, st) { var gr = g.createLinearGradient(x0, y0, x1, y1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
   function rg(x, y, r0, r1, st) { var gr = g.createRadialGradient(x, y, r0, x, y, r1); st.forEach(function (q) { gr.addColorStop(q[0], q[1]); }); return gr; }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -187,7 +198,7 @@
     g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(GL - 1.5, GB); g.lineTo(GL - 1.5, GT - 1.5); g.lineTo(GR + 1.5, GT - 1.5); g.stroke();
   }
   function keeperDraw() {
-    var im = mood === "joy" ? KS.joy : (mood === "shock" ? KS.shock : KS.n), s = 0.37, w = 120 * s, h = 214 * s;
+    var im = mood === "joy" ? KS.joy : (mood === "shock" ? KS.shock : KS.n), h = 90, w = im.naturalWidth ? h * im.naturalWidth / im.naturalHeight : 40;
     g.save(); g.translate(kp.x, kp.y); g.rotate(kp.rot);
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(0, h * 0.5 + 2, 22, 4, 0, 0, 7); g.fill();
     g.drawImage(im, -w / 2, -h * 0.55, w, h); g.restore();
@@ -233,6 +244,8 @@
     LV.forEach(function (L, i) { var b = document.createElement("button"); b.type = "button"; b.innerHTML = (i + 1) + ". " + L.n + "<small>" + L.d + " · рекорд " + (best[i] || 0) + "</small>"; b.onclick = function () { SFXLIB.ac(); start(i); }; lv.appendChild(b); });
     $("ov").hidden = false;
   }
+  DIFF.mount($("ov"), $("lv"));
+  DIFF.on(function () { applyDiff(); if (st === "menu") menu(); });
   function start(i) {
     lvl = i; shot = 0; goals = 0; score = 0; res = []; $("ov").hidden = true; $("lvlname").textContent = "Рівень " + (i + 1) + ": " + LV[i].n;
     if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("goal"); } catch (e) {} }

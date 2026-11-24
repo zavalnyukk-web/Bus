@@ -20,6 +20,7 @@
   .ov[hidden] { display:none; }
   .ov img { width:130px; height:130px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
   .ov img.circ { border-radius:50%; }
+  .ov img.hero { width:auto; height:128px; border:0; border-radius:0; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
   .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:300px; }
   .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--g); font-weight:700; }
   .go { font:inherit; font-size:18px; font-weight:700; padding:12px 28px; border:0; border-radius:12px; background:var(--y); color:#2a2200; cursor:pointer; }
@@ -36,7 +37,7 @@
 <div class="wrap">
   <canvas id="c" width="360" height="480" aria-label="Квест у 3D: втеча від злого фізрука. Кнопки керування внизу."></canvas>
   <div class="ov" id="ov">
-    <img id="oimg" src="fizruk-full.jpg" alt="">
+    <img id="oimg" src="art-face.jpg" alt="">
     <div class="lvl" id="lvl"></div>
     <h1 id="h">Злий фізрук</h1>
     <p id="txt"></p>
@@ -49,6 +50,7 @@
   <div><button data-k="F" type="button" aria-label="Вперед">▲</button><button data-k="B" type="button" aria-label="Назад">▼</button></div>
 </div>
 <script src="sfx.js"></script>
+<script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
@@ -77,7 +79,7 @@
       doorOn: null, done: "",
       ts: [{ x: 9.5, y: 12.5, wp: [[9, 12], [9, 26], [20, 27]] }, { x: 40.5, y: 8.5, wp: [[40, 8], [20, 8]], sp: 1.1 }, { x: 36.5, y: 26.5, wp: [[36, 26], [50, 36]], sp: 1.1 }] }
   ];
-  var IMG = {}; ["stepanovych", "arturovych"].forEach(function (n) { IMG[n] = n + ".jpg"; });
+  var IMG = {}; ["stepanovych", "arturovych"].forEach(function (n) { IMG[n] = (n === "arturovych" ? "art-face" : n) + ".jpg"; });
   
 
   /* ---------- спрайти ---------- */
@@ -148,6 +150,8 @@
     g.beginPath(); g.moveTo(X - 16, HY + by + 2); g.lineTo(X - 5, HY + by + (big ? -2 : 3)); g.stroke(); g.beginPath(); g.moveTo(X + 16, HY + by + 2); g.lineTo(X + 5, HY + by + (big ? -2 : 3)); g.stroke();
     TS = cvv;
   }
+  var ART = {}; ["thumb", "win", "wave"].forEach(function (n) { var im = new Image(); im.src = "art-" + n + ".png"; ART[n] = im; });
+  function artImg(t) { var im = t.mode === "chase" ? ART.win : ART.thumb; return im.complete && im.naturalWidth ? im : TS; }
   function icon(t) {
     var c = cvs(64, 64), x = c.getContext("2d");
     x.lineCap = "round"; x.lineJoin = "round";
@@ -195,8 +199,8 @@
     items = L.items.map(function (i) { return { t: i.t, x: i.x + 0.5, y: i.y + 0.5, n: i.n, d: i.d, opt: i.opt, got: false }; });
     var sx = 1.5, sy = 1.5; for (var y = 0; y < MH; y++) { var xi = map[y].indexOf("P"); if (xi >= 0) { sx = xi + 0.5; sy = y + 0.5; } }
     P = { x: sx, y: sy, a: 0.3 };
-    ts = L.ts.map(function (t) { return { x: t.x, y: t.y, wp: t.wp, wi: 0, mode: "patrol", lost: 0, lx: 0, ly: 0, sx: t.x, sy: t.y, sT: 0, sp: t.sp || 1.25, vis: L.vis, cs: L.chase, bob: Math.random() * 6 }; });
-    found = 0; doorOpen = !L.doorOn; exitOpen = false; grace = 3; boost = 0; msg = ""; msgT = 0; chasedT = 0; caught = false;
+    ts = L.ts.map(function (t) { return { x: t.x, y: t.y, wp: t.wp, wi: 0, mode: "patrol", lost: 0, lx: 0, ly: 0, sx: t.x, sy: t.y, sT: 0, sp: (t.sp || 1.25) * DIFF.pick(0.85, 1, 1.1), vis: L.vis * DIFF.pick(0.8, 1, 1.2), cs: L.chase * DIFF.pick(0.88, 1, 1.12), bob: Math.random() * 6 }; });
+    found = 0; doorOpen = !L.doorOn; exitOpen = false; grace = DIFF.pick(5, 3, 2); boost = 0; msg = ""; msgT = 0; chasedT = 0; caught = false;
     updHud(); say("Артурович ще шукає свисток… 3 секунди на старт!", 2.6);
   }
   function need() { return items.filter(function (i) { return !i.opt; }).length; }
@@ -242,7 +246,7 @@
     if (sees) {
       if (t.mode !== "chase") { t.mode = "chase"; if (alertCd <= 0) { alertCd = 3; SFXLIB.tone(2500, 0.3, "square", 0.1, 0, 2100); SFXLIB.tone(2900, 0.25, "square", 0.08, 0.32, 2300); } say("Артурович тебе помітив! Тікай!", 2); }
       t.lost = 0; t.lx = P.x; t.ly = P.y;
-    } else if (t.mode === "chase") { t.lost += dt; if (t.lost > 3) { t.mode = "patrol"; } }
+    } else if (t.mode === "chase") { t.lost += dt; if (t.lost > DIFF.pick(2, 3, 4.5)) { t.mode = "patrol"; } }
     var sp = t.mode === "chase" ? t.cs : t.sp, tx, ty;
     if (t.mode === "chase") {
       if (sees) { tx = P.x; ty = P.y; } else { tx = t.lx; ty = t.ly; }
@@ -264,7 +268,7 @@
   }
   function lose() {
     st = "over"; SFXLIB.tone(240, 0.7, "sawtooth", 0.2, 0, 60); SFXLIB.tone(2500, 0.2, "square", 0.1, 0.05, 1800);
-    show("fizruk-full.jpg", false, "Попався!", "Рівень " + (lvl + 1), "Фізрук Артурович: «Двадцять віджимань, і щоб без розмов!» Спробуєш ще раз?", "Ще раз", true);
+    show("art-win.png", false, "Попався!", "Рівень " + (lvl + 1), "Фізрук Артурович: «Двадцять віджимань, і щоб без розмов!» Спробуєш ще раз?", "Ще раз", true);
   }
   function win() {
     var L = LV[lvl]; st = "win"; SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22);
@@ -276,7 +280,7 @@
     }
   }
   function show(img, circ, h, lv, txt, btn, retry) {
-    var im = $("oimg"); im.src = img; im.className = circ ? "circ" : ""; im.style.display = "";
+    var im = $("oimg"); im.src = img; im.className = circ ? "circ" : (/art-win|art-wave|art-thumb|art-medal/.test(img) ? "hero" : ""); im.style.display = "";
     $("h").textContent = h; $("lvl").textContent = lv; $("txt").textContent = txt; $("go").textContent = btn; $("again").hidden = true; $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; if (retry) { load(lvl); st = "play"; } else if (st === "win" && lvl < LV.length - 1) { load(lvl + 1); intro(); } else if (st === "win") { load(0); intro(); } };
   }
@@ -341,7 +345,7 @@
     }
     var sp = [];
     items.forEach(function (it) { if (!it.got) sp.push({ img: ICON[it.t], x: it.x, y: it.y, sc: 0.3, lift: 0.04 + 0.02 * Math.sin(tm * 3 + it.x), glow: 1 }); });
-    ts.forEach(function (t) { sp.push({ img: TS, x: t.x, y: t.y, sc: 0.78, lift: 0, bob: Math.abs(Math.sin(t.bob)) * 0.02, red: t.mode === "chase" }); });
+    ts.forEach(function (t) { sp.push({ img: artImg(t), x: t.x, y: t.y, sc: 0.84, lift: 0, bob: Math.abs(Math.sin(t.bob)) * 0.02, red: t.mode === "chase" }); });
     var det = px * dy - dx * py;
     sp.forEach(function (s) { var rx = s.x - P.x, ry = s.y - P.y; s.ty = (-py * rx + px * ry) / det; s.tx = (dy * rx - dx * ry) / det; });
     sp.sort(function (a, b) { return b.ty - a.ty; });
@@ -398,6 +402,8 @@
   cv.addEventListener("pointermove", function (e) { if (dragX === null || st !== "play") return; P.a += (e.clientX - dragX) * 0.009; dragX = e.clientX; });
   cv.addEventListener("pointerup", function () { dragX = null; }); cv.addEventListener("pointercancel", function () { dragX = null; });
   SFXLIB.bind($("snd"));
+  DIFF.mount($("ov"), $("go"));
+  DIFF.on(function () { if (st === "intro") load(lvl); });
   $("again").onclick = function () { lvl = 0; load(0); intro(); started = started; };
 
   var last = 0;

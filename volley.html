@@ -17,7 +17,7 @@
   canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; }
   .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:10px; text-align:center; padding:18px; background:rgba(5,12,22,.82); border-radius:14px; }
   .ov[hidden] { display:none; }
-  .ov img { width:130px; height:130px; border-radius:50%; object-fit:cover; }
+  .ov > img { width:84px; height:84px; border-radius:50%; object-fit:cover; }
   .ov h1 { margin:0; font-size:22px; color:var(--gold); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:290px; }
   .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--gold); font-weight:700; }
   .go { font:inherit; font-size:18px; font-weight:700; padding:13px 28px; border:0; border-radius:12px; background:var(--gold); color:#241a00; cursor:pointer; }
@@ -43,17 +43,28 @@
 </div>
 <div class="ctl"><button id="bl" type="button" aria-label="Вліво">◀</button><button id="bj" class="jump" type="button">Стрибок</button><button id="br" type="button" aria-label="Вправо">▶</button></div>
 <script src="sfx.js"></script>
+<script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
 (function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 440, FLOOR = 390, NETX = 180, NETTOP = 290, SR = 36, BR = 11;
   var $ = function (i) { return document.getElementById(i); };
-  var OPP = [
+  var OPP0 = [
     { name: "Сусіди-новачки", speed: 2.3, err: 34, jump: 0.55, color: "#4a90d9", txt: "Розминка! Перші суперники ще вчаться грати. Забийте 5 очок." },
     { name: "Збірна району", speed: 3.0, err: 20, jump: 0.8, color: "#d94a4a", txt: "Серйозніші суперники швидше біжать до м’яча. Забийте 5 очок." },
     { name: "Чемпіони області", speed: 3.7, err: 9, jump: 1, color: "#8a4ad9", txt: "Фінал! Суперник майже не помиляється. Покажіть, на що здатні куниці." }
   ];
+  var OPP = [], TARGET = 5;
+  function applyDiff() {
+    TARGET = DIFF.pick(4, 5, 6);
+    OPP = OPP0.map(function (b) {
+      var L = {}; for (var k in b) L[k] = b[k];
+      L.speed = b.speed * DIFF.pick(0.82, 1, 1.15); L.err = b.err * DIFF.pick(1.6, 1, 0.6); L.jump = Math.min(1, b.jump * DIFF.pick(0.8, 1, 1.1));
+      L.txt = b.txt.replace(/Забийте \d+ очок/, "Забийте " + TARGET + " очок"); return L;
+    });
+  }
+  applyDiff();
   var head = new Image(); head.src = "kunytsi-head.jpg";
   var lvl = 0, saved = 0, you, opp, ball, sy, so, serve, wait, run, keys = { l: 0, r: 0 }, jumpReq = 0, aiTarget, aiErr, msg = "", msgT = 0, acc = 0, last = 0, rally = 0;
   try { saved = +localStorage.getItem("bus.volley.level") || 0; } catch (e) {}
@@ -101,8 +112,8 @@
     SFXLIB.noise(0.18, 0.3, 500); if (winner === "you") SFXLIB.seq([660, 880], 0.09, "sine", 0.18); else SFXLIB.tone(300, 0.3, "triangle", 0.2, 0.05, 150);
     if (winner === "you") sy++; else so++;
     $("lvlname").textContent = "Матч " + (lvl + 1) + ": " + OPP[lvl].name;
-    if (sy >= 5) { win(); return; }
-    if (so >= 5) { lose(); return; }
+    if (sy >= TARGET) { win(); return; }
+    if (so >= TARGET) { lose(); return; }
     msg = winner === "you" ? "Очко куницям!" : "Очко суперникам"; msgT = 70; reset(winner);
   }
   function update() {
@@ -221,7 +232,7 @@
     while (acc >= 1000 / 60) { acc -= 1000 / 60; update(); if (!run) return; }
     draw(); requestAnimationFrame(loop);
   }
-  function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; }
+  function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; DIFF.coachFor($("ov"), /Чемпіони/.test(h) ? "final" : /Перемога/.test(h) ? "win" : /програно/.test(h) ? "lose" : "start"); }
   function win() {
     run = false; draw(); SFXLIB.seq(lvl + 1 < OPP.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
     if (lvl + 1 < OPP.length) { saved = Math.max(saved, lvl + 1); try { localStorage.setItem("bus.volley.level", String(saved)); } catch (e) {} show("Рахунок " + sy + ":" + so, "Перемога!", "Куниці виграли матч! Далі: " + OPP[lvl + 1].name + ".", "Наступний матч"); $("go").dataset.n = "next"; }
@@ -246,6 +257,11 @@
   $("vw").onclick = function () { view3d = !view3d; try { localStorage.setItem("bus.game.view", view3d ? "3d" : "2d"); } catch (e) {} vwLabel(); draw(); };
   vwLabel();
   SFXLIB.bind($("snd"));
+  DIFF.mount($("ov"), $("go"));
+  DIFF.on(function () {
+    applyDiff(); var t = $("txt");
+    if (!$("ov").hidden) { t.textContent = t.textContent.replace(/Забийте \d+ очок/, "Забийте " + TARGET + " очок"); DIFF.coachFor($("ov"), "start"); }
+  });
   hold("bl", "l"); hold("br", "r");
   $("bj").addEventListener("pointerdown", function (e) { jumpReq = 1; e.preventDefault(); });
   document.addEventListener("keydown", function (e) {

@@ -20,6 +20,7 @@
   .ov[hidden] { display:none; }
   .ov img { width:104px; height:104px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
   .ov img.circ { border-radius:50%; }
+  .ov img.hero { width:auto; height:124px; border:0; border-radius:0; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
   .big { font-size:72px; line-height:1; }
   .ov h1 { margin:0; font-size:21px; color:var(--y); } .ov p { margin:0; font-size:14px; line-height:1.4; max-width:310px; }
   .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--g); font-weight:700; }
@@ -50,6 +51,7 @@
 </div>
 <div class="bar"><span>Тягни пальцем по екрану. На комп’ютері: стрілки або WASD, Shift тихо.</span><button class="sneak" id="sneak" type="button">🤫 Тихо</button></div>
 <script src="sfx.js"></script>
+<script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
 <script>
@@ -69,7 +71,7 @@
     vice: { n: "Завуч", e: "🧐", c: "#3f8a7a", al: "hm" },
     pe: { n: "Фізрук Артурович", e: "🏀", c: "#d62839", head: 1, al: "whistle" }
   };
-  var head = new Image(); head.src = "fizruk-head.jpg";
+  var head = new Image(); head.src = "art-face.jpg";
   var lvl = 0, saved = 0, maxU = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null, lastDoor = "", bellT = 40, blT = 0, flip = 0;
   try { saved = +localStorage.getItem("bus.bob.level") || 0; maxU = +localStorage.getItem("bus.bob.max") || 0; } catch (e) {}
   if (saved >= LV.length) saved = 0; if (maxU < saved) maxU = saved;
@@ -135,9 +137,9 @@
   }
   function load(l) {
     lvl = l; var L = LV[l], F = FLOORS[L.fl]; MAP = F.map; FURN = F.furn; LABELS = F.labels; MW = MAP[0].length; MH = MAP.length;
-    P = { x: L.s[0] + 0.5, y: L.s[1] + 0.5, a: 0 }; got = 0; exitOpen = false; grace = 2.5; msg = ""; msgT = 0; caughtBy = null; hbT = 0; lastDoor = ""; bellT = 25 + Math.random() * 20;
+    P = { x: L.s[0] + 0.5, y: L.s[1] + 0.5, a: 0 }; got = 0; exitOpen = false; grace = DIFF.pick(4, 2.5, 1.5); msg = ""; msgT = 0; caughtBy = null; hbT = 0; lastDoor = ""; bellT = 25 + Math.random() * 20;
     loot = L.loot.map(function (i) { return { x: i[0] + 0.5, y: i[1] + 0.5, e: i[2], got: false }; });
-    gs = L.g.map(function (o) { var k = KINDS[o.k], w = o.w; return { k: k, w: w, wi: 1 % w.length, x: w[0][0] + 0.5, y: w[0][1] + 0.5, a: 0, mode: "patrol", meter: 0, lost: 0, lx: 0, ly: 0, sp: o.sp || 1.5, range: L.range, fov: L.fov, pause: 0, stp: Math.random(), bl: 0 }; });
+    gs = L.g.map(function (o) { var k = KINDS[o.k], w = o.w; return { k: k, w: w, wi: 1 % w.length, x: w[0][0] + 0.5, y: w[0][1] + 0.5, a: 0, mode: "patrol", meter: 0, lost: 0, lx: 0, ly: 0, sp: (o.sp || 1.5) * DIFF.pick(0.85, 1, 1.12), range: L.range * DIFF.pick(0.85, 1, 1.12), fov: L.fov * DIFF.pick(0.88, 1, 1.1), pause: 0, stp: Math.random(), bl: 0 }; });
     hud(); say("Старт! Збери всі речі: " + L.loot.length + " шт.", 2.8);
   }
   function hud() { $("lvlname").textContent = "Рівень " + (lvl + 1) + ": " + LV[lvl].name + " · " + got + "/" + loot.length; }
@@ -178,10 +180,10 @@
     var ang = Math.atan2(dy, dx), da = Math.abs(((ang - e.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
     var see = d < rng && (da < e.fov || d < 1.3) && los(e.x, e.y, P.x, P.y);
     if (e.mode === "patrol") {
-      if (see) { e.meter += dt / (d < 2.5 ? 0.3 : 0.75); } else e.meter = Math.max(0, e.meter - dt * 0.8);
+      if (see) { e.meter += dt * DIFF.pick(0.7, 1, 1.3) / (d < 2.5 ? 0.3 : 0.75); } else e.meter = Math.max(0, e.meter - dt * 0.8);
       if (e.meter >= 1) { e.mode = "chase"; e.lost = 0; if (alertCd <= 0) { alertCd = 2.5; S.alert(e.k.al); } say(e.k.n + " помітив(ла) Боба! Тікай!", 2.2); }
     } else {
-      if (see) { e.lost = 0; e.lx = P.x; e.ly = P.y; } else { e.lost += dt; if (e.lost > 4) { e.mode = "patrol"; e.meter = 0; } }
+      if (see) { e.lost = 0; e.lx = P.x; e.ly = P.y; } else { e.lost += dt; if (e.lost > DIFF.pick(3, 4, 6)) { e.mode = "patrol"; e.meter = 0; } }
     }
     e.stp -= dt; if (e.stp <= 0) { e.stp = e.mode === "chase" ? 0.26 : 0.5; if (d < 7) SFXLIB.noise(0.04, 0.1 * (1 - d / 7), 350); }
     var tx, ty, sp;
@@ -199,7 +201,7 @@
   function lose() {
     st = "over"; S.caught();
     var e = caughtBy, im = $("oimg"), em = $("oemo");
-    if (e.k.head) { im.src = "fizruk-full.jpg"; im.className = ""; im.hidden = false; em.hidden = true; } else { im.hidden = true; em.hidden = false; em.textContent = e.k.e; }
+    if (e.k.head) { im.src = "art-win.png"; im.className = "hero"; im.hidden = false; em.hidden = true; } else { im.hidden = true; em.hidden = false; em.textContent = e.k.e; }
     $("h").textContent = "Боба впіймали!"; $("lvl").textContent = "Рівень " + (lvl + 1);
     $("txt").textContent = e.k.n + " знайшов(ла) сторожа й дав(ла) йому купу доручень: замінити лампочки, полагодити парти й помити коридор. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("lvs").innerHTML = ""; $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; S.start(); };
@@ -213,6 +215,8 @@
     $("go").textContent = last ? "Зіграти ще" : "Далі"; $("lvs").innerHTML = ""; $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(last ? 0 : lvl + 1); intro(); };
   }
+  DIFF.mount($("ov"), $("go"));
+  DIFF.on(function () { if (st === "intro") load(lvl); });
   function intro() {
     st = "intro"; var L = LV[lvl], im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
     $("h").textContent = L.name; $("lvl").textContent = "Рівень " + (lvl + 1) + " з " + LV.length + " · " + L.fl + " поверх"; $("txt").textContent = L.intro; $("go").textContent = "Почати обхід";
@@ -265,7 +269,7 @@
       var x = e.x * T, y = e.y * T;
       g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(x, y + 10, 11, 5, 0, 0, 7); g.fill();
       g.fillStyle = e.k.c; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.strokeStyle = "#222"; g.lineWidth = 2; g.stroke();
-      if (e.k.head && head.complete && head.naturalWidth) { g.save(); g.beginPath(); g.arc(x, y, 11, 0, 7); g.clip(); g.drawImage(head, x - 12, y - 14, 24, 30); g.restore(); }
+      if (e.k.head && head.complete && head.naturalWidth) { g.save(); g.beginPath(); g.arc(x, y, 11, 0, 7); g.clip(); g.drawImage(head, x - 12, y - 12, 24, 24); g.restore(); }
       else { g.font = "15px sans-serif"; g.textAlign = "center"; g.fillText(e.k.e, x, y + 5); g.textAlign = "left"; }
       g.fillStyle = "#222"; g.beginPath(); g.arc(x + Math.cos(e.a) * 9, y + Math.sin(e.a) * 9, 2.5, 0, 7); g.fill();
       if (e.mode === "chase") { g.fillStyle = "#ff2a38"; g.font = "bold 22px sans-serif"; g.textAlign = "center"; g.fillText("!", x, y - 18); g.textAlign = "left"; }
