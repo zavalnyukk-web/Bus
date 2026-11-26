@@ -75,6 +75,7 @@
   .modebar button { font:inherit; font-size:12px; font-weight:700; padding:6px 14px; border-radius:8px; border:1px solid #2c4a6b; background:#14304d; color:#fff; cursor:pointer; }
   .modebar button.on { background:var(--gold); color:#241a00; border-color:var(--gold); }
   .hint { font-size:11px; opacity:.75; line-height:1.35; max-width:300px; }
+  .err { color:#ffb3b3; font-size:12px; max-width:300px; }
 </style>
 </head>
 <body>
@@ -84,7 +85,7 @@
   <span class="hb">
     <span class="tourbadge" id="tourbadge">👥 6×6</span>
     <span class="trophy" id="trophy">🏆 0</span>
-    <button class="snd" id="vw" type="button" aria-label="Вигляд">5D</button>
+    <button class="snd" id="vw" type="button" aria-label="Вигляд">3D</button>
     <button class="snd" id="voice" type="button" aria-label="Озвучка імен">🔊</button>
     <button class="snd" id="snd" type="button" aria-label="Звук"></button>
   </span>
@@ -104,13 +105,67 @@
   <button id="bs" class="skill" type="button">Скіл<span class="bar" id="cdbar" style="width:0"></span></button>
   <button id="br" type="button" aria-label="Вправо">▶</button>
 </div>
-<script src="sfx.js"></script>
-<script src="diff.js"></script>
-<script src="config.js"></script>
-<script src="track.js"></script>
 <script>
+/* ================= ВБУДОВАНІ ЗАГЛУШКИ ================= */
+window.SFXLIB = window.SFXLIB || (function () {
+  var ctx = null, on = true;
+  function ac() { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return ctx; }
+  function tone(freq, dur, type, vol, delay, slide) {
+    if (!on) return; var c = ac(); if (!c) return;
+    try {
+      var t0 = c.currentTime + (delay || 0);
+      var o = c.createOscillator(), gn = c.createGain();
+      o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(60, freq + slide), t0 + dur);
+      gn.gain.setValueAtTime(vol || 0.1, t0);
+      gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      o.connect(gn).connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+  function noise(dur, vol, lp) {
+    if (!on) return; var c = ac(); if (!c) return;
+    try {
+      var buf = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      var s = c.createBufferSource(); s.buffer = buf;
+      var gn = c.createGain(); gn.gain.value = vol || 0.1;
+      var f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = lp || 1000;
+      s.connect(f).connect(gn).connect(c.destination); s.start();
+    } catch (e) {}
+  }
+  function seq(arr, dur, type, vol) { arr.forEach(function (f, i) { tone(f, dur, type || "sine", vol || 0.12, i * dur); }); }
+  function bind(btn) {
+    if (!btn) return;
+    function upd() { btn.textContent = on ? "🔊" : "🔇"; }
+    upd();
+    btn.onclick = function () { on = !on; upd(); };
+  }
+  return { tone: tone, noise: noise, seq: seq, bind: bind };
+})();
+window.DIFF = window.DIFF || (function () {
+  var mode = "normal", cbs = [];
+  function pick(a, b, c) { return mode === "easy" ? a : mode === "hard" ? c : b; }
+  function mount(ov, btn) {}
+  function on(cb) { cbs.push(cb); }
+  function coachFor(ov, kind) {}
+  return { pick: pick, mount: mount, on: on, coachFor: coachFor };
+})();
+window.trackPlay = window.trackPlay || function () {};
+/* ===================================================== */
+
 (function () {
   "use strict";
+  function showFatal(msg) {
+    try {
+      var ov = document.getElementById("ov");
+      ov.hidden = false;
+      document.getElementById("ovContent").innerHTML = '<h1 style="color:#ffb3b3">Помилка</h1><p class="err">' + msg + '</p><p>Спробуй відкрити файл у Chrome/Safari (не в Telegram), або онови сторінку.</p>';
+      document.getElementById("ovBtns").innerHTML = "";
+    } catch (e) {}
+  }
+  window.addEventListener("error", function (e) { showFatal("Сталася помилка: " + (e.message || "невідома")); });
+
   var cv = document.getElementById("c"), g = cv.getContext("2d");
   var W = 360, H = 440;
   var NETX = 180, NETTOP = 286, FLOOR = 392;
@@ -288,14 +343,14 @@
   var particles = [], flashes = [], combo = 0, comboT = 0, rally = 0;
   var active = 0, you = [], opp = [], ball = { x:90, y:150, vx:0, vy:0, spin:0 };
   var keys = { l:0, r:0 }, jumpReq = 0, hitReq = 0, skillReq = 0;
-  var viewMode = 1; // 0=2D, 1=3D, 2=5D
+  var viewMode = 1;
   var aiErr = 0, oppFreeze = 0, oppSlow = 0, teamShield = 0, nextHitBoost = 0;
   var cleanMatch = true, matchSkillUsed = {}, matchMasksUsed = {}, skillTypesToday = {};
   var mvpScores = {};
   var tick = 0;
   var ballTrail = [];
   var slowmo = 0;
-  var camX = 0, camY = 0;
+  var camX = 0;
 
   try {
     var ls = load("bus.volley.lineup2", null);
@@ -456,7 +511,6 @@
           dailyAdd("combo", 1);
           stats.comboTotal = (stats.comboTotal || 0) + 1;
           save("bus.volley.stats2", stats); checkAch();
-          if (teamSize === 1) { ball.vx *= 1.08; }
         }
       }
     }
@@ -578,7 +632,6 @@
     if (teamShield > 0) teamShield--;
     if (slowmo > 0) slowmo--;
 
-    // камера: злегка слідує за активним гравцем (5D)
     var targetCamX = you[active] ? (you[active].x - W / 2) * 0.06 : 0;
     camX += (targetCamX - camX) * 0.1;
 
@@ -616,7 +669,6 @@
     ball.vy += 0.28; ball.x += ball.vx; ball.y += ball.vy;
     ball.vx *= 0.999; ball.spin *= 0.985; ball.vx += ball.spin * 0.06;
 
-    // трейл м'яча (5D/3D)
     if (viewMode > 0) {
       ballTrail.push({ x: ball.x, y: ball.y, life: 14 });
       if (ballTrail.length > 14) ballTrail.shift();
@@ -679,7 +731,6 @@
 
     if (hologram) g.globalAlpha = 0.6;
 
-    // пульсуючий контур (5D)
     if (viewMode === 2) {
       var pulseR = 1 + 0.15 * Math.sin((tick + p.idx * 10) / 8);
       g.strokeStyle = col; g.globalAlpha = 0.35 * (hologram ? 0.5 : 1);
@@ -765,7 +816,6 @@
       g.globalAlpha = hologram ? 0.6 : 1;
     }
 
-    // підсвітка удару (5D)
     if (p.hitFlash > 0) {
       g.globalAlpha = p.hitFlash / 8;
       g.strokeStyle = col; g.lineWidth = 3;
@@ -785,7 +835,6 @@
       g.lineTo(x - 5 * sc, ay);
       g.lineTo(x + 5 * sc, ay);
       g.closePath(); g.fill();
-      // пульсуюче кільце (5D)
       if (viewMode === 2) {
         var pr = 1 + 0.25 * Math.sin(tick / 6);
         g.strokeStyle = "#E8B923"; g.globalAlpha = 0.4;
@@ -862,7 +911,6 @@
 
   function drawCourt() {
     var FY = 250;
-    // паралакс фон (5D)
     var pShift = viewMode === 2 ? camX * 0.6 : 0;
     var wg = g.createLinearGradient(0, 0, 0, FY); wg.addColorStop(0, "#0a1b30"); wg.addColorStop(1, "#1f4470"); g.fillStyle = wg; g.fillRect(0, 0, W, FY);
     for (var r = 0; r < 4; r++) {
@@ -877,7 +925,6 @@
     var lg = g.createRadialGradient(90 - pShift, -10, 5, 90 - pShift, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
     lg = g.createRadialGradient(270 - pShift, -10, 5, 270 - pShift, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
 
-    // підлога з паралаксом
     var fg = g.createLinearGradient(0, FY, 0, H); fg.addColorStop(0, "#8a5424"); fg.addColorStop(1, "#c98340"); g.fillStyle = fg;
     g.beginPath(); g.moveTo(0, FY); g.lineTo(W, FY); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
     g.strokeStyle = "rgba(60,30,10,.35)"; g.lineWidth = 1; g.beginPath();
@@ -885,12 +932,10 @@
     for (var k = -9; k <= 9; k++) { g.moveTo(180 + k * 18 - pShift2, FY); g.lineTo(180 + k * 52 - pShift2, H); }
     for (k = 1; k < 9; k++) { var py = FY + (H - FY) * Math.pow(k / 9, 1.7); g.moveTo(0, py); g.lineTo(W, py); }
     g.stroke();
-    // лінії поля
     g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 3; g.beginPath();
     var pShift3 = viewMode === 2 ? camX * 0.2 : 0;
     g.moveTo(70 - pShift3, FY + 14); g.lineTo(290 - pShift3, FY + 14); g.lineTo(400 - pShift3, H - 4); g.lineTo(-40 - pShift3, H - 4); g.closePath(); g.stroke();
     g.beginPath(); g.moveTo(180 - pShift3, FY + 14); g.lineTo(180 - pShift3, H - 4); g.stroke();
-    // зона активного гравця (5D)
     if (viewMode === 2 && you[active]) {
       g.fillStyle = "rgba(232,185,35,.08)";
       g.fillRect(0, FY + 14, NETX - 14, H - FY - 18);
@@ -977,9 +1022,7 @@
   }
 
   function draw5d() {
-    // шар 1: фон-трибуни
     drawCourt();
-    // шар 2: далекі гравці + голограми
     var all = you.concat(opp);
     all.sort(function (a, b) { return a.y - b.y; });
     var FY = 250;
@@ -988,19 +1031,12 @@
         if (p !== you[active]) drawPlayer(p, p.side === "you", true);
       }
     });
-    // шар 3: сітка (пульсує)
     drawNet();
-    // шар 4: ближні гравці + активний гравець (яскравий)
     all.forEach(function (p) {
       if (p.y > FY || p === you[active]) drawPlayer(p, p.side === "you");
     });
-    // шар 5: м'яч з ехом
     drawBall();
-    // голографічний ехо-м'яч
-    if (ballTrail.length > 4) {
-      g.globalAlpha = 0.25; drawBall(true); g.globalAlpha = 1;
-    }
-    // глядацький передній план (віньєтка)
+    if (ballTrail.length > 4) { g.globalAlpha = 0.25; drawBall(true); g.globalAlpha = 1; }
     var vg = g.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 280); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.6)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
     drawFx(); drawHud();
   }
@@ -1011,7 +1047,7 @@
     else draw2d();
   }
 
-  /* ---------- Panels ---------- */
+  /* ---------- Панелі ---------- */
   function modal(title, bodyHtml, buttons) {
     $("ovContent").innerHTML = '<div class="lvl">' + title + '</div>' + bodyHtml;
     $("ovBtns").innerHTML = buttons;
@@ -1119,7 +1155,7 @@
     $("go").onclick = function () { done(); };
   }
 
-  /* ---------- Team selection ---------- */
+  /* ---------- Вибір команди ---------- */
   var pendingGo = null;
   var teamTab = "girls";
 
@@ -1277,7 +1313,7 @@
     $("ovBtns").innerHTML = '<button class="go" id="go" type="button">' + btn + '</button>';
     $("ov").hidden = false;
     $("go").onclick = onGo;
-    DIFF.coachFor($("ov"), /Чемпіони/.test(h) ? "final" : /Перемога/.test(h) ? "win" : /програно/.test(h) ? "lose" : "start");
+    if (window.DIFF && DIFF.coachFor) DIFF.coachFor($("ov"), /Чемпіони/.test(h) ? "final" : /Перемога/.test(h) ? "win" : /програно/.test(h) ? "lose" : "start");
   }
   function win() {
     run = false; draw();
@@ -1351,15 +1387,14 @@
   $("voice").onclick = function () { voiceOn = !voiceOn; save("bus.volley.voice", voiceOn ? "1" : "0"); voiceLabel(); if (voiceOn) speakName("Голос увімкнено"); };
   vwLabel(); voiceLabel();
   SFXLIB.bind($("snd"));
-  DIFF.mount($("ov"), $("go"));
-  DIFF.on(function () { applyDiff(); });
+  if (window.DIFF && DIFF.mount) DIFF.mount($("ov"), $("go"));
+  if (window.DIFF && DIFF.on) DIFF.on(function () { applyDiff(); });
 
   hold("bl", "l"); hold("br", "r");
   $("bj").addEventListener("pointerdown", function (e) { jumpReq = 1; e.preventDefault(); });
   $("bh").addEventListener("pointerdown", function (e) { hitReq = 1; e.preventDefault(); });
   $("bs").addEventListener("pointerdown", function (e) { skillReq = 1; e.preventDefault(); });
 
-  /* --- Сенсорне керування на canvas: свайпи + тапи --- */
   var ptr = { active: false, sx: 0, sy: 0, lx: 0, moved: false, startTime: 0 };
   function toCanvas(e) {
     var r = cv.getBoundingClientRect();
