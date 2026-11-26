@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0f2238">
-<title>Кунівські куниці: волейбол 6×6</title>
+<title>Кунівські куниці: волейбол</title>
 <style>
   :root { --gold:#E8B923; --navy:#0f2238; --ink:#fff; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
@@ -46,6 +46,7 @@
   .card b { display:block; font-size:12px; margin-bottom:1px; }
   .card small { opacity:.8; display:block; }
   .card .masktag { display:inline-block; margin-top:2px; padding:1px 5px; border-radius:5px; font-size:9.5px; font-weight:700; }
+  .card .ord { position:absolute; top:4px; right:6px; font-size:10px; font-weight:700; color:var(--gold); background:#0a1729; padding:1px 5px; border-radius:6px; }
   .tabs { display:flex; gap:5px; margin-bottom:4px; flex-wrap:wrap; justify-content:center; }
   .tabs button { font:inherit; font-size:11px; padding:5px 9px; border-radius:8px; border:1px solid #2c4a6b; background:#14304d; color:#fff; cursor:pointer; }
   .tabs button.on { background:var(--gold); color:#241a00; border-color:var(--gold); font-weight:700; }
@@ -70,6 +71,9 @@
   .tourbtn { padding:12px 14px; border-radius:12px; border:2px solid #2c4a6b; background:#14304d; color:#fff; font:inherit; font-size:14px; font-weight:700; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center; }
   .tourbtn.on { border-color:var(--gold); background:#1c3a5c; }
   .tourbtn small { display:block; font-size:11px; opacity:.75; font-weight:400; margin-top:2px; }
+  .modebar { display:flex; gap:6px; justify-content:center; margin-bottom:6px; }
+  .modebar button { font:inherit; font-size:12px; font-weight:700; padding:6px 14px; border-radius:8px; border:1px solid #2c4a6b; background:#14304d; color:#fff; cursor:pointer; }
+  .modebar button.on { background:var(--gold); color:#241a00; border-color:var(--gold); }
 </style>
 </head>
 <body>
@@ -77,7 +81,7 @@
   <a href="./">← На сайт</a>
   <span id="lvlname" style="font-size:12px"></span>
   <span class="hb">
-    <span class="tourbadge" id="tourbadge">👥</span>
+    <span class="tourbadge" id="tourbadge">👥 6×6</span>
     <span class="trophy" id="trophy">🏆 0</span>
     <button class="snd" id="vw" type="button" aria-label="Вигляд">3D</button>
     <button class="snd" id="voice" type="button" aria-label="Озвучка імен">🔊</button>
@@ -85,7 +89,7 @@
   </span>
 </header>
 <div class="wrap">
-  <canvas id="c" width="360" height="440" aria-label="Гра у волейбол 6 на 6"></canvas>
+  <canvas id="c" width="360" height="440" aria-label="Гра у волейбол"></canvas>
   <div class="ov" id="ov">
     <div id="ovContent"></div>
     <div class="row" id="ovBtns"></div>
@@ -107,7 +111,8 @@
 (function () {
   "use strict";
   var cv = document.getElementById("c"), g = cv.getContext("2d");
-  var W = 360, H = 440, FLOOR = 392, NETX = 180, NETTOP = 286;
+  var W = 360, H = 440;
+  var NETX = 180, NETTOP = 286, FLOOR = 392;
   var $ = function (i) { return document.getElementById(i); };
   function save(k, v) { try { localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); } catch (e) {} }
   function load(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
@@ -194,6 +199,7 @@
   var totalWins = 0, upgrades = {}, achDone = {}, champDone = false;
   var todayKey, dailyState, stats = { comboTotal: 0, rating: {} };
   var tournament = "mix";
+  var teamSize = 6;
   var tourData = { girls: { level:0, wins:0 }, boys: { level:0, wins:0 }, mix: { level:0, wins:0 } };
   var voiceOn = true;
 
@@ -245,6 +251,7 @@
     tourData = load("bus.volley.tours", tourData);
     if (!tourData.girls) tourData = { girls: { level:0, wins:0 }, boys: { level:0, wins:0 }, mix: { level:0, wins:0 } };
     tournament = load("bus.volley.tour", "mix");
+    teamSize = load("bus.volley.teamsize", 6);
   }
   function upgLevel(id) { return upgrades[id] || 0; }
   function upgCost(l) { return l === 0 ? 3 : l === 1 ? 6 : 0; }
@@ -261,7 +268,7 @@
   }
 
   function applyDiff() {
-    TARGET = DIFF.pick ? DIFF.pick(5, 7, 9) : 7;
+    TARGET = teamSize === 3 ? 5 : (DIFF.pick ? DIFF.pick(5, 7, 9) : 7);
     OPP = OPP0.map(function (b) {
       var L = {}; for (var k in b) L[k] = b[k];
       L.speed = b.speed * DIFFX.sp; L.err = b.err * DIFFX.er; L.jump = Math.min(1, b.jump * DIFFX.jp);
@@ -277,6 +284,7 @@
   var aiErr = 0, oppFreeze = 0, oppSlow = 0, teamShield = 0, nextHitBoost = 0;
   var cleanMatch = true, matchSkillUsed = {}, matchMasksUsed = {}, skillTypesToday = {};
   var mvpScores = {};
+  var tick = 0;
 
   try {
     var ls = load("bus.volley.lineup2", null);
@@ -302,6 +310,7 @@
   function maskById(id) { return MASKS.filter(function(m){return m.id===id;})[0]; }
   function playerById(id) { return PLAYERS.filter(function(p){return p.id===id;})[0]; }
   function tourLabel() { return tournament === "girls" ? "👧 Дівчата" : tournament === "boys" ? "👦 Хлопці" : "👥 Мікс"; }
+  function modeLabel() { return teamSize === 3 ? "3×3" : "6×6"; }
 
   function speakName(name) {
     if (!voiceOn) return;
@@ -320,28 +329,36 @@
   function mkPlayer(x, side, idx, entry) {
     var mask = maskById(entry.maskId) || MASKS[0];
     var player = playerById(entry.playerId) || PLAYERS[idx];
-    var role = ROLES[idx];
+    var role = ROLES[idx % ROLES.length];
     return { x:x, y:FLOOR, vx:0, vy:0, side:side, idx:idx, mask:mask, role:role, player:player,
       cool:0, hitFlash:0, skCd:0, shield:0, dash:0, upg:upgLevel(mask.id),
-      super:!!player.super };
+      super:!!player.super, anim:0 };
+  }
+  function activeLineup() {
+    if (teamSize === 3) return lineup.slice(0, 3);
+    return lineup.slice(0, 6);
   }
   function reset(server) {
     you = []; opp = [];
-    var xs = [70,130,120,40,90,160], os = [290,230,240,320,270,200];
-    for (var i = 0; i < 6; i++) you.push(mkPlayer(xs[i], "you", i, lineup[i]));
-    for (var j = 0; j < 6; j++) opp.push(mkPlayer(os[j], "opp", j, { playerId:PLAYERS[j].id, maskId:MASKS[j%MASKS.length].id }));
-    active = 2;
-    ball = { x: server === "you" ? you[2].x : opp[2].x, y:150, vx:0, vy:0, spin:0 };
+    var n = teamSize;
+    var xs6 = [70,130,120,40,90,160], os6 = [290,230,240,320,270,200];
+    var xs3 = [85,130,60], os3 = [275,230,300];
+    var xs = n === 3 ? xs3 : xs6, os = n === 3 ? os3 : os6;
+    var lu = activeLineup();
+    for (var i = 0; i < n; i++) you.push(mkPlayer(xs[i], "you", i, lu[i]));
+    for (var j = 0; j < n; j++) opp.push(mkPlayer(os[j], "opp", j, { playerId:PLAYERS[j].id, maskId:MASKS[j%MASKS.length].id }));
+    active = n === 3 ? 1 : 2;
+    ball = { x: server === "you" ? you[active].x : opp[active].x, y:150, vx:0, vy:0, spin:0 };
     wait = 70; rally = 0; aiErr = 0; combo = 0; comboT = 0;
     oppFreeze = 0; oppSlow = 0; teamShield = 0;
   }
   function hud() { $("lvlname").textContent = "Матч " + (lvl + 1) + "/" + OPP.length + ": " + OPP[lvl].name; }
   function trophyHud() { $("trophy").textContent = "🏆 " + totalWins; }
-  function tourHud() { $("tourbadge").textContent = tourLabel(); }
+  function tourHud() { $("tourbadge").textContent = tourLabel() + " " + modeLabel(); }
   function newMatch(l) {
     lvl = l; sy = 0; so = 0; cleanMatch = true; matchSkillUsed = {}; matchMasksUsed = {};
     mvpScores = {};
-    lineup.forEach(function (e) { mvpScores[e.playerId] = 0; });
+    activeLineup().forEach(function (e) { mvpScores[e.playerId] = 0; });
     reset("you"); hud(); trophyHud(); tourHud(); teamBar(); draw();
   }
   function teamBar() {
@@ -375,6 +392,8 @@
       p.vy += 0.52; p.y += p.vy;
       if (p.y >= FLOOR) { p.y = FLOOR; p.vy = 0; }
     }
+    if (Math.abs(p.vx) > 0.5 || p.y < FLOOR) p.anim += 0.18 + Math.abs(p.vx) * 0.08;
+    else p.anim += 0.04;
     if (p.cool > 0) p.cool--;
     if (p.hitFlash > 0) p.hitFlash--;
     if (p.skCd > 0) p.skCd--;
@@ -387,10 +406,10 @@
   function skillAim(p)   { var b = (p.mask.skill === "aim" || p.mask.skill === "ace") ? 1.4 : 1; return b * roleAim(p); }
 
   function hitPlayer(p) {
-    var dx = ball.x - p.x, dy = ball.y - (p.y - 6), d = Math.hypot(dx, dy);
-    if (d < 34 + 11 && dy < 10 && p.cool <= 0) {
+    var dx = ball.x - p.x, dy = ball.y - (p.y - 34), d = Math.hypot(dx, dy);
+    if (d < 26 + 11 && dy < 10 && p.cool <= 0) {
       var nx = dx / (d || 1), ny = dy / (d || 1);
-      ball.x = p.x + nx * (34 + 11); ball.y = (p.y - 6) + ny * (34 + 11);
+      ball.x = p.x + nx * (26 + 11); ball.y = (p.y - 34) + ny * (26 + 11);
       var rvx = ball.vx - p.vx, rvy = ball.vy - p.vy, dot = rvx * nx + rvy * ny;
       if (dot < 0) { ball.vx -= 1.9 * dot * nx; ball.vy -= 1.9 * dot * ny; }
       ball.vy -= 2.2 * skillPower(p);
@@ -422,7 +441,7 @@
     for (var i = 0; i < 260; i++) {
       vy += 0.28; x += vx; y += vy;
       if (x < 11 || x > W - 11) { vx = -vx; x = clamp(x, 11, W - 11); }
-      if (y >= FLOOR - 20) return x;
+      if (y >= FLOOR - 30) return x;
     }
     return x;
   }
@@ -437,7 +456,7 @@
         if (p.y >= FLOOR && ball.x > NETX && Math.abs(ball.x - p.x) < 70 && ball.y > FLOOR - 150 && ball.y < FLOOR - 30 && ball.vy > -1 && Math.random() < O.jump * 0.18) p.vy = -9.5 * skillJump(p);
         stepPlayer(p, ctl, O.speed * skillSpeed(p), false);
       } else {
-        var home = NETX + 30 + (p.idx * 22) % (W - NETX - 60);
+        var home = NETX + 30 + (p.idx * 30) % (W - NETX - 60);
         var c2 = Math.abs(home - p.x) > 6 ? (home > p.x ? 1 : -1) : 0;
         stepPlayer(p, c2, O.speed * 0.45 * skillSpeed(p), false);
       }
@@ -459,9 +478,9 @@
     var pw = upgPower(ap) * (ap.super ? 1.25 : 1);
     if (s === "dash") {
       ap.dash = 18; ap.vx = (keys.r - keys.l || (ball.x > ap.x ? 1 : -1)) * 3;
-      burst(ap.x, ap.y - 20, ap.mask.c, 12); SFXLIB.tone(700, 0.12, "sawtooth", 0.16);
+      burst(ap.x, ap.y - 34, ap.mask.c, 12); SFXLIB.tone(700, 0.12, "sawtooth", 0.16);
     } else if (s === "block") {
-      ap.shield = 90; flash(ap.x, ap.y - 20, ap.mask.c, 34); SFXLIB.tone(220, 0.18, "square", 0.18);
+      ap.shield = 90; flash(ap.x, ap.y - 34, ap.mask.c, 34); SFXLIB.tone(220, 0.18, "square", 0.18);
     } else if (s === "superjump") {
       if (ap.y >= FLOOR) ap.vy = -13.5 * pw;
       burst(ap.x, ap.y, ap.mask.c, 10); SFXLIB.tone(520, 0.14, "triangle", 0.16);
@@ -471,17 +490,17 @@
       burst(ball.x, ball.y, ap.mask.c, 14); flash(ball.x, ball.y, ap.mask.c, 30);
       SFXLIB.tone(880, 0.12, "sine", 0.18);
     } else if (s === "boom") {
-      var bx = ap.x, by = ap.y - 20;
+      var bx = ap.x, by = ap.y - 34;
       opp.forEach(function (o) { if (Math.hypot(o.x - bx, o.y - by) < 110) { o.x += (o.x < bx ? -30 : 30); o.vy = -4; } });
       if (Math.hypot(ball.x - bx, ball.y - by) < 130) { ball.vx = (ball.x < NETX ? 1 : -1) * 10 * pw; ball.vy = -10; }
       burst(bx, by, "#ffb347", 26); flash(bx, by, "#ffb347", 60);
       SFXLIB.tone(140, 0.25, "sawtooth", 0.22);
     } else if (s === "tp") {
       ap.x = clamp(ball.x + (ball.x < NETX ? 24 : -24), 14, W - 14);
-      burst(ap.x, ap.y - 20, ap.mask.c, 16); flash(ap.x, ap.y - 20, ap.mask.c, 30);
+      burst(ap.x, ap.y - 34, ap.mask.c, 16); flash(ap.x, ap.y - 34, ap.mask.c, 30);
       SFXLIB.tone(1200, 0.1, "sine", 0.16);
     } else if (s === "roar") {
-      oppFreeze = Math.floor(80 * pw); burst(ap.x, ap.y - 30, "#c9a227", 24); flash(ap.x, ap.y - 20, "#c9a227", 90);
+      oppFreeze = Math.floor(80 * pw); burst(ap.x, ap.y - 44, "#c9a227", 24); flash(ap.x, ap.y - 34, "#c9a227", 90);
       SFXLIB.tone(110, 0.4, "sawtooth", 0.3);
     } else if (s === "wave") {
       var d2 = ball.x < NETX ? 1 : -1;
@@ -489,17 +508,17 @@
       burst(ball.x, ball.y, "#2d9dd2", 16); flash(ball.x, ball.y, "#2d9dd2", 34);
       SFXLIB.tone(560, 0.18, "sine", 0.18);
     } else if (s === "rebirth") {
-      nextHitBoost = Math.ceil(1.5 * pw); flash(ap.x, ap.y - 20, "#ff6b35", 40); burst(ap.x, ap.y - 20, "#ff6b35", 20);
+      nextHitBoost = Math.ceil(1.5 * pw); flash(ap.x, ap.y - 34, "#ff6b35", 40); burst(ap.x, ap.y - 34, "#ff6b35", 20);
       SFXLIB.tone(640, 0.2, "sine", 0.2);
     } else if (s === "freeze") {
-      oppSlow = Math.floor(180 * pw); burst(W - 60, FLOOR - 60, "#7fd4e8", 30); flash(W - 60, FLOOR - 60, "#7fd4e8", 100);
+      oppSlow = Math.floor(180 * pw); burst(W - 60, FLOOR - 90, "#7fd4e8", 30); flash(W - 60, FLOOR - 90, "#7fd4e8", 100);
       SFXLIB.tone(340, 0.3, "sine", 0.2);
     } else if (s === "whirl") {
       ball.spin += (ball.x < NETX ? 1 : -1) * 2.5 * pw; ball.vx *= 1.15;
       burst(ball.x, ball.y, "#8a8a9e", 18); flash(ball.x, ball.y, "#8a8a9e", 34);
       SFXLIB.tone(720, 0.15, "triangle", 0.18);
     } else if (s === "crystal") {
-      teamShield = Math.floor(120 * pw); you.forEach(function (p) { flash(p.x, p.y - 20, "#a0e8ff", 34); });
+      teamShield = Math.floor(120 * pw); you.forEach(function (p) { flash(p.x, p.y - 34, "#a0e8ff", 34); });
       SFXLIB.tone(1500, 0.15, "sine", 0.18); SFXLIB.tone(1200, 0.15, "sine", 0.15, 0.15);
     } else if (s === "dragon") {
       var d3 = ball.x < NETX ? 1 : -1;
@@ -513,13 +532,14 @@
       }
       opp.forEach(function (o) { o.vy = -6; o.x = clamp(o.x + (Math.random() - 0.5) * 40, NETX + 20, W - 16); });
       if (ball.x > NETX) { ball.vx = 14 * pw; ball.vy = -11; }
-      burst(W - 60, FLOOR - 100, "#ffe15a", 40);
+      burst(W - 60, FLOOR - 130, "#ffe15a", 40);
       SFXLIB.tone(1200, 0.3, "sawtooth", 0.3); SFXLIB.noise(0.3, 0.3, 2000);
     }
     return true;
   }
 
   function update() {
+    tick++;
     var ap = you[active];
     if (ap && ap.skCd > 0) {
       var full = Math.floor(ap.mask.cool * upgCd(ap) * roleCd(ap) / captainAura());
@@ -539,7 +559,7 @@
     stepPlayer(ap, keys.r - keys.l, 4.6 * skillSpeed(ap), true);
     you.forEach(function (p) {
       if (p === ap) return;
-      var home = 60 + (p.idx * 30) % (NETX - 60);
+      var home = 40 + (p.idx * 40) % (NETX - 60);
       var c = Math.abs(home - p.x) > 8 ? (home > p.x ? 1 : -1) : 0;
       stepPlayer(p, c, 2.2 * skillSpeed(p), true);
     });
@@ -593,28 +613,151 @@
     if (comboT > 0) comboT--; else combo = 0;
   }
 
-  /* ---------- draw ---------- */
-  function slime(s, col, isYou) {
-    var SR = 24;
-    g.save(); g.beginPath(); g.arc(s.x, s.y, SR, Math.PI, 0); g.closePath(); g.clip();
-    var sg = g.createRadialGradient(s.x - 10, s.y - 20, 3, s.x, s.y - 6, SR + 4);
-    sg.addColorStop(0, "rgba(255,255,255,.4)"); sg.addColorStop(0.4, col); sg.addColorStop(1, "rgba(0,0,0,.4)");
-    g.fillStyle = col; g.fillRect(s.x - SR, s.y - SR, SR * 2, SR);
-    g.fillStyle = sg; g.fillRect(s.x - SR, s.y - SR, SR * 2, SR);
-    if (isYou && head.complete && head.naturalWidth) g.drawImage(head, s.x - SR, s.y - SR, SR * 2, SR * 2);
-    g.restore();
-    g.strokeStyle = "rgba(0,0,0,.4)"; g.lineWidth = 2; g.beginPath(); g.arc(s.x, s.y, SR, Math.PI, 0); g.closePath(); g.stroke();
-    if (isYou && s.super) {
-      g.strokeStyle = "#E8B923"; g.globalAlpha = .45 + .35*Math.sin(performance.now()/150); g.lineWidth = 3;
-      g.beginPath(); g.arc(s.x, s.y - 4, 30, 0, 7); g.stroke(); g.globalAlpha = 1;
-    } else if (isYou && you.some(function(p){return p.role.id==="captain";})) {
-      g.strokeStyle = "#E8B923"; g.globalAlpha = .3 + .2*Math.sin(performance.now()/200); g.lineWidth = 2;
-      g.beginPath(); g.arc(s.x, s.y - 4, 32, 0, 7); g.stroke(); g.globalAlpha = 1;
-    }
-    if (s.shield > 0 || (isYou && teamShield > 0)) { g.strokeStyle = "#a0e8ff"; g.lineWidth = 2; g.globalAlpha = .5 + .3*Math.sin(performance.now()/80); g.beginPath(); g.arc(s.x, s.y - 10, 34, 0, 7); g.stroke(); g.globalAlpha = 1; }
-    if (!isYou) { var ex = s.x - 8, ey = s.y - 16; g.fillStyle = "#fff"; g.beginPath(); g.arc(ex, ey, 5, 0, 7); g.fill(); g.fillStyle = "#111"; g.beginPath(); g.arc(ex + clamp((ball.x - ex) / 40, -2, 2) * 2, ey + clamp((ball.y - ey) / 40, -2, 2) * 2, 2.4, 0, 7); g.fill(); }
-    if (s === you[active]) { g.strokeStyle = "#E8B923"; g.lineWidth = 2; g.setLineDash([4, 4]); g.beginPath(); g.arc(s.x, s.y - 4, 34, Math.PI, 0); g.stroke(); g.setLineDash([]); }
+  /* ---------- РЕНДЕР: повноцінні 3D-гравці ---------- */
+  function depthScale(y) {
+    // гравці далі (менший y) — менші; ближче (y ~ FLOOR) — більші
+    var t = clamp((y - 100) / (FLOOR - 100), 0, 1);
+    return 0.62 + t * 0.5;
   }
+
+  function drawPlayer(p, isYou) {
+    var sc = depthScale(p.y);
+    var baseW = 30 * sc;   // ширина плечей
+    var height = 78 * sc;  // повна висота фігури
+    var headR = 11 * sc;
+    var x = p.x;
+    var feetY = p.y;
+    var headCY = feetY - height + headR;
+    var bodyTop = feetY - height + headR * 2;
+    var bodyBottom = feetY - height * 0.32;
+    var bodyH = bodyBottom - bodyTop;
+    var col = p.mask.c;
+
+    // тінь
+    g.fillStyle = "rgba(0,0,0,.32)";
+    g.beginPath(); g.ellipse(x, feetY + 3, baseW * 0.85, 4.5 * sc, 0, 0, 7); g.fill();
+
+    // аура суперсили
+    if (p.super) {
+      var tt = performance.now() / 300;
+      g.strokeStyle = "#E8B923"; g.globalAlpha = 0.45 + 0.3 * Math.sin(tt);
+      g.lineWidth = 2.5;
+      g.beginPath(); g.ellipse(x, feetY - height * 0.5, baseW * 1.2, height * 0.62, 0, 0, 7); g.stroke();
+      g.globalAlpha = 1;
+    }
+
+    // ноги (анімація кроку)
+    var stride = Math.sin(p.anim) * 6 * sc;
+    var jumpOff = clamp((FLOOR - p.y) * 0.4, 0, 20);
+    g.lineCap = "round";
+    g.strokeStyle = "#1f2a3a"; g.lineWidth = Math.max(3, 5 * sc);
+    g.beginPath();
+    g.moveTo(x - 4 * sc, bodyBottom);
+    g.lineTo(x - 6 * sc + stride * 0.5, feetY - jumpOff * 0.2);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x + 4 * sc, bodyBottom);
+    g.lineTo(x + 6 * sc - stride * 0.5, feetY - jumpOff * 0.2);
+    g.stroke();
+
+    // тулуб (футболка)
+    var grad = g.createLinearGradient(x - baseW/2, bodyTop, x + baseW/2, bodyBottom);
+    grad.addColorStop(0, col);
+    grad.addColorStop(1, shade(col, -35));
+    g.fillStyle = grad;
+    roundRect(x - baseW/2, bodyTop, baseW, bodyH, 6 * sc);
+    g.fill();
+
+    // номер на футболці
+    g.fillStyle = "rgba(0,0,0,.55)";
+    g.font = "bold " + Math.round(11 * sc) + "px system-ui,sans-serif";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(String(p.idx + 1), x, bodyTop + bodyH * 0.55);
+
+    // руки
+    var armSwing = Math.sin(p.anim + 1) * 4 * sc;
+    g.strokeStyle = shade(col, -50); g.lineWidth = Math.max(3, 4.5 * sc);
+    g.beginPath();
+    g.moveTo(x - baseW/2 + 1, bodyTop + 4 * sc);
+    g.lineTo(x - baseW/2 - 3 * sc + armSwing, bodyBottom - 2 * sc);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x + baseW/2 - 1, bodyTop + 4 * sc);
+    g.lineTo(x + baseW/2 + 3 * sc - armSwing, bodyBottom - 2 * sc);
+    g.stroke();
+
+    // шия
+    g.fillStyle = shade(col, -60);
+    g.fillRect(x - 3 * sc, bodyTop - 4 * sc, 6 * sc, 5 * sc);
+
+    // голова
+    g.fillStyle = "#f1c9a0";
+    g.beginPath(); g.arc(x, headCY, headR, 0, 7); g.fill();
+    // волосся
+    g.fillStyle = p.player.team === "girls" ? "#4a2c1a" : "#2a1d12";
+    if (p.player.team === "girls") {
+      g.beginPath();
+      g.arc(x, headCY - 2 * sc, headR + 1.5 * sc, Math.PI * 1.02, Math.PI * 2.02);
+      g.fill();
+      // хвіст
+      g.beginPath();
+      g.ellipse(x + headR * 0.9, headCY + headR * 0.4, 3 * sc, 7 * sc, 0.4, 0, 7); g.fill();
+    } else {
+      g.beginPath();
+      g.arc(x, headCY - 2 * sc, headR + 1 * sc, Math.PI, Math.PI * 2);
+      g.fill();
+    }
+    // обличчя
+    g.fillStyle = "#1a1a1a";
+    g.beginPath(); g.arc(x - headR * 0.35, headCY - headR * 0.1, 1.4 * sc, 0, 7); g.fill();
+    g.beginPath(); g.arc(x + headR * 0.35, headCY - headR * 0.1, 1.4 * sc, 0, 7); g.fill();
+    g.strokeStyle = "#1a1a1a"; g.lineWidth = 1 * sc; g.beginPath();
+    g.arc(x, headCY + headR * 0.15, headR * 0.4, 0.15, Math.PI - 0.15); g.stroke();
+
+    // щит
+    if (p.shield > 0 || (isYou && teamShield > 0)) {
+      g.strokeStyle = "#a0e8ff"; g.globalAlpha = .5 + .3*Math.sin(performance.now()/80);
+      g.lineWidth = 2;
+      g.beginPath(); g.ellipse(x, feetY - height * 0.5, baseW * 1.25, height * 0.62, 0, 0, 7); g.stroke();
+      g.globalAlpha = 1;
+    }
+    // активний гравець
+    if (p === you[active]) {
+      g.strokeStyle = "#E8B923"; g.lineWidth = 2;
+      g.setLineDash([4, 4]);
+      g.beginPath(); g.ellipse(x, feetY, baseW, 5 * sc, 0, 0, 7); g.stroke();
+      g.setLineDash([]);
+      // стрілка вгорі
+      g.fillStyle = "#E8B923";
+      g.beginPath();
+      var ay = headCY - headR - 8 * sc;
+      g.moveTo(x, ay - 5 * sc);
+      g.lineTo(x - 5 * sc, ay);
+      g.lineTo(x + 5 * sc, ay);
+      g.closePath(); g.fill();
+    }
+  }
+  function roundRect(x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.lineTo(x + w - r, y);
+    g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r);
+    g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    g.lineTo(x + r, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - r);
+    g.lineTo(x, y + r);
+    g.quadraticCurveTo(x, y, x + r, y);
+    g.closePath();
+  }
+  function shade(hex, amt) {
+    var c = hex.replace("#", "");
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var r = parseInt(c.substr(0,2),16), gg = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+    r = clamp(r + amt, 0, 255); gg = clamp(gg + amt, 0, 255); b = clamp(b + amt, 0, 255);
+    return "rgb(" + r + "," + gg + "," + b + ")";
+  }
+
   function drawBall() {
     var bg = g.createRadialGradient(ball.x - 4, ball.y - 4, 2, ball.x, ball.y, 11); bg.addColorStop(0, "#fff"); bg.addColorStop(1, "#c9d3dc");
     g.fillStyle = bg; g.beginPath(); g.arc(ball.x, ball.y, 11, 0, 7); g.fill();
@@ -625,6 +768,7 @@
     g.textAlign = "center"; g.font = "bold 28px system-ui,sans-serif";
     g.fillStyle = "#E8B923"; g.fillText(sy, 140, 46); g.fillStyle = "#fff"; g.fillText(":", 180, 45); g.fillStyle = OPP[lvl].color; g.fillText(so, 220, 46);
     g.font = "bold 10px system-ui,sans-serif"; g.fillStyle = "#E8B923"; g.fillText("КУНИЦІ", 90, 20); g.fillStyle = OPP[lvl].color; g.fillText("СУПЕРНИКИ", 270, 20);
+    g.font = "bold 9px system-ui,sans-serif"; g.fillStyle = "#9ab"; g.fillText(modeLabel(), 30, 20);
     if (combo > 1) { g.fillStyle = "#E8B923"; g.font = "bold 14px system-ui,sans-serif"; g.fillText("КОМБО ×" + combo, W / 2, 70); }
     if (oppSlow > 0) { g.fillStyle = "#7fd4e8"; g.font = "bold 11px system-ui,sans-serif"; g.fillText("❄ ЗАМОРОЗКА", 300, 88); }
     if (nextHitBoost > 0) { g.fillStyle = "#ff6b35"; g.font = "bold 11px system-ui,sans-serif"; g.fillText("🔥 БОНУС", 60, 88); }
@@ -637,20 +781,7 @@
     g.globalAlpha = 1;
   }
 
-  function draw2d() {
-    var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14304d"); gr.addColorStop(1, "#0b1a2c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    g.fillStyle = "rgba(232,185,35,.08)"; for (var i = 0; i < 6; i++) g.fillRect(i * 64 + 10, 0, 28, FLOOR);
-    g.fillStyle = "#b9722e"; g.fillRect(0, FLOOR + 4, W, H - FLOOR - 4);
-    g.fillStyle = "#e8e8e8"; g.fillRect(0, FLOOR + 4, W, 3);
-    g.fillStyle = "#ddd"; g.fillRect(NETX - 3, NETTOP, 6, FLOOR - NETTOP + 4);
-    g.fillStyle = "rgba(255,255,255,.22)"; for (var y = NETTOP + 4; y < FLOOR; y += 10) g.fillRect(NETX - 3, y, 6, 1);
-    g.fillStyle = "#fff"; g.fillRect(NETX - 4, NETTOP - 2, 8, 6);
-    you.forEach(function (p) { slime(p, p.mask.c, true); });
-    opp.forEach(function (p) { slime(p, p.mask.c, false); });
-    drawBall(); drawFx(); drawHud();
-  }
-
-  function draw3d() {
+  function drawBackground3d() {
     var FY = 250, i, k;
     var wg = g.createLinearGradient(0, 0, 0, FY); wg.addColorStop(0, "#0a1b30"); wg.addColorStop(1, "#1f4470"); g.fillStyle = wg; g.fillRect(0, 0, W, FY);
     for (var r = 0; r < 4; r++) {
@@ -681,31 +812,31 @@
     for (k = 1; k < 6; k++) { g.moveTo(NETX - 8, NETTOP - 4 + k * 10); g.lineTo(NETX + 8, NETTOP + 8 + k * 10); }
     g.stroke();
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(NETX - 8, NETTOP - 7); g.lineTo(NETX + 8, NETTOP + 5); g.lineTo(NETX + 8, NETTOP + 9); g.lineTo(NETX - 8, NETTOP - 3); g.closePath(); g.fill();
-
-    function sh(x, rx, a) { g.fillStyle = "rgba(0,0,0," + a + ")"; g.beginPath(); g.ellipse(x, FLOOR + 6, rx, rx * 0.28, 0, 0, 7); g.fill(); }
-    var hgt = clamp((FLOOR - ball.y) / 300, 0, 1);
-    you.forEach(function (p) { sh(p.x, 22 * (1.05 - (FLOOR - p.y) / 400), 0.35); });
-    opp.forEach(function (p) { sh(p.x, 22 * (1.05 - (FLOOR - p.y) / 400), 0.35); });
-    sh(ball.x, 9 + hgt * 6, 0.32 - hgt * 0.17);
-
-    function draw3dPlayer(p, isYou) {
-      var s = p;
-      g.fillStyle = "rgba(0,0,0,.28)"; g.beginPath(); g.ellipse(s.x, s.y, 24, 8, 0, 0, Math.PI); g.fill();
-      slime(s, p.mask.c, isYou);
-      if (p.hitFlash > 0) { g.globalAlpha = p.hitFlash / 8; g.strokeStyle = p.mask.c; g.lineWidth = 3; g.beginPath(); g.arc(s.x, s.y - 6, 28, 0, 7); g.stroke(); g.globalAlpha = 1; }
-      g.fillStyle = "rgba(255,255,255,.35)"; g.beginPath(); g.ellipse(s.x - 10, s.y - 20, 6, 3, -0.6, 0, 7); g.fill();
-    }
-    you.forEach(function (p) { draw3dPlayer(p, true); });
-    opp.forEach(function (p) { draw3dPlayer(p, false); });
-
-    var bg = g.createRadialGradient(ball.x - 4, ball.y - 5, 1, ball.x, ball.y, 12); bg.addColorStop(0, "#ffffff"); bg.addColorStop(0.6, "#e3e9ef"); bg.addColorStop(1, "#98a6b5"); g.fillStyle = bg; g.beginPath(); g.arc(ball.x, ball.y, 11, 0, 7); g.fill();
-    g.strokeStyle = "#E8B923"; g.lineWidth = 2; g.beginPath(); g.arc(ball.x, ball.y, 10, 0.3 + ball.x / 40, 2.3 + ball.x / 40); g.stroke();
-    g.strokeStyle = "#2d7dd2"; g.beginPath(); g.arc(ball.x, ball.y, 10, 3.4 + ball.x / 40, 5.3 + ball.x / 40); g.stroke();
-
+  }
+  function drawForeground() {
     var pg = g.createLinearGradient(NETX - 12, 0, NETX - 5, 0); pg.addColorStop(0, "#c9d3dc"); pg.addColorStop(1, "#7d8996"); g.fillStyle = pg; g.fillRect(NETX - 12, NETTOP - 6, 6, FLOOR + 30 - NETTOP + 6);
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(NETX - 9, FLOOR + 30, 12, 4, 0, 0, 7); g.fill();
-
     var vg = g.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 290); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.45)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  }
+
+  function draw2d() {
+    var gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14304d"); gr.addColorStop(1, "#0b1a2c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#b9722e"; g.fillRect(0, FLOOR + 4, W, H - FLOOR - 4);
+    g.fillStyle = "#e8e8e8"; g.fillRect(0, FLOOR + 4, W, 3);
+    g.fillStyle = "#ddd"; g.fillRect(NETX - 3, NETTOP, 6, FLOOR - NETTOP + 4);
+    you.forEach(function (p) { drawPlayer(p, true); });
+    opp.forEach(function (p) { drawPlayer(p, false); });
+    drawBall(); drawFx(); drawHud();
+  }
+
+  function draw3d() {
+    drawBackground3d();
+    // сортуємо за глибиною: далі (менший y) малюються раніше
+    var all = you.concat(opp);
+    all.sort(function (a, b) { return a.y - b.y; });
+    all.forEach(function (p) { drawPlayer(p, p.side === "you"); });
+    drawBall();
+    drawForeground();
     drawFx(); drawHud();
   }
 
@@ -826,7 +957,6 @@
   var teamTab = "girls";
   var editingPlayer = null;
 
-  function countInLineup(pid) { return lineup.filter(function(e){return e.playerId === pid;}).length; }
   function findEntry(pid) { return lineup.filter(function(e){return e.playerId === pid;})[0]; }
   function eligiblePlayers() {
     if (tournament === "girls") return PLAYERS.filter(function(p){return p.team==="girls";});
@@ -865,8 +995,13 @@
 
   function showTournamentSelect(nextAction) {
     pendingGo = nextAction;
-    var html = '<h1>Обери турнір</h1><p>Кожен турнір має свій прогрес і склад.</p><div class="tourgrid" id="tourgrid"></div>';
+    var html = '<h1>Обери турнір</h1><div class="modebar">' +
+      '<button id="m6" class="' + (teamSize===6?"on":"") + '" type="button">6×6</button>' +
+      '<button id="m3" class="' + (teamSize===3?"on":"") + '" type="button">3×3</button>' +
+      '</div><p>Кожен турнір має свій прогрес і склад.</p><div class="tourgrid" id="tourgrid"></div>';
     modal("Турнір", html, '<button class="go" id="go2" type="button">Далі</button>');
+    $("m6").onclick = function () { teamSize = 6; save("bus.volley.teamsize", 6); applyDiff(); showTournamentSelect(nextAction); };
+    $("m3").onclick = function () { teamSize = 3; save("bus.volley.teamsize", 3); applyDiff(); showTournamentSelect(nextAction); };
     var grid = $("tourgrid");
     [
       { id:"girls", label:"👧 Дівчата", sub:"Турнір серед дівчат" },
@@ -893,7 +1028,7 @@
 
   function showTeamSelect(nextAction) {
     pendingGo = nextAction;
-    $("ovContent").innerHTML = '<div class="lvl">Своя команда · ' + tourLabel() + '</div><h1>Обери 6 гравців</h1>' +
+    $("ovContent").innerHTML = '<div class="lvl">Своя команда · ' + tourLabel() + ' · ' + modeLabel() + '</div><h1>Обери 6 гравців</h1><p style="font-size:11px;opacity:.8">У режимі 3×3 на поле вийдуть перші 3.</p>' +
       '<div class="tabs">' +
         (tournament !== "boys" ? '<button id="tg" class="' + (teamTab==="girls"?"on":"") + '" type="button">Дівчата</button>' : '') +
         (tournament !== "girls" ? '<button id="tb" class="' + (teamTab==="boys"?"on":"") + '" type="button">Хлопці</button>' : '') +
@@ -915,12 +1050,14 @@
       var inTeam = !!findEntry(p.id);
       var entry = findEntry(p.id);
       var mask = entry ? maskById(entry.maskId) : null;
+      var orderIdx = entry ? lineup.indexOf(entry) : -1;
       var d = document.createElement("div");
       d.className = "card" + (inTeam ? " sel" : "") + (p.super ? " super" : "");
       var teamTag = p.team === "girls" ? "👧" : "👦";
       d.innerHTML = "<b>" + (p.super ? "⚡ " : "") + p.n + "</b>" +
         "<small>" + teamTag + (inTeam ? " · у складі" : "") + "</small>" +
-        (mask ? "<span class='masktag' style='background:" + mask.c + "22;color:" + mask.c + "'>" + mask.n + "</span>" : "");
+        (mask ? "<span class='masktag' style='background:" + mask.c + "22;color:" + mask.c + "'>" + mask.n + "</span>" : "") +
+        (orderIdx >= 0 ? "<span class='ord'>" + (orderIdx + 1) + "</span>" : "");
       d.onclick = function () {
         if (inTeam) {
           lineup = lineup.filter(function(e){return e.playerId !== p.id;});
@@ -937,13 +1074,19 @@
     else if (teamTab === "boys") pool.filter(function(p){return p.team==="boys";}).forEach(renderPlayer);
     else {
       if (!lineup.length) { pick.innerHTML = "<p>Склад порожній. Додай гравців.</p>"; }
-      else lineup.forEach(function (entry) {
+      else lineup.forEach(function (entry, i) {
         var p = playerById(entry.playerId); var m = maskById(entry.maskId);
         if (!p) return;
         var d = document.createElement("div"); d.className = "card sel" + (p.super ? " super" : "");
-        d.innerHTML = "<b>" + (p.super ? "⚡ " : "") + p.n + "</b><small>" + (p.team==="girls"?"👧":"👦") + " · " + m.n + "</small>";
+        d.innerHTML = "<b>" + (p.super ? "⚡ " : "") + p.n + "</b><small>" + (p.team==="girls"?"👧":"👦") + " · " + m.n + "</small><span class='ord'>" + (i + 1) + "</span>";
         d.onclick = function () {
-          lineup = lineup.filter(function(e){return e.playerId !== p.id;});
+          // у 3×3 можна міняти порядок: тап по картці підвищує в пріоритеті
+          if (teamSize === 3 && lineup.length > 3) {
+            var moved = lineup.splice(i, 1)[0];
+            lineup.splice(teamSize, 0, moved); // перемістити після перших 3 (щоб не впливати) — насправді підняти
+            lineup.splice(i, 1);
+            lineup.unshift(moved);
+          }
           save("bus.volley.lineup2", lineup); showTeamSelect(pendingGo);
         };
         pick.appendChild(d);
@@ -1018,7 +1161,7 @@
   function nextActive() {
     active = (active + 1) % you.length; teamBar();
     SFXLIB.tone(880, 0.06, "sine", 0.08);
-    flash(you[active].x, you[active].y - 20, you[active].mask.c, 22);
+    flash(you[active].x, you[active].y - 34, you[active].mask.c, 22);
     speakName(you[active].player.n);
   }
 
@@ -1055,8 +1198,8 @@
   var l0 = saved > 0 && saved < OPP.length ? saved : 0;
   trophyHud(); tourHud();
   newMatch(l0);
-  show("Турнір · " + tourLabel(), "Кунівські куниці: 6×6", "Обери турнір і збери команду з дівчат та/або хлопців. ⚡ Завальнюк Дарина та Завальнюк Вікторія мають суперсилу. Перемог: " + totalWins, "Обрати турнір");
-  window.__v = { s: function () { return { sy:sy, so:so, run:run, ball:ball, active:active, you:you, lineup:lineup, wins:totalWins, tournament:tournament, tours:tourData, mvp:mvpScores, rating:stats.rating }; }, skill: useSkill };
+  show("Турнір · " + tourLabel() + " · " + modeLabel(), "Кунівські куниці", "Обери турнір і режим (6×6 або 3×3), збери команду. ⚡ Завальнюк Дарина та Завальнюк Вікторія мають суперсилу. Перемог: " + totalWins, "Обрати турнір");
+  window.__v = { s: function () { return { sy:sy, so:so, run:run, ball:ball, active:active, you:you, lineup:lineup, wins:totalWins, tournament:tournament, teamSize:teamSize, tours:tourData, mvp:mvpScores, rating:stats.rating }; }, skill: useSkill };
 })();
 </script>
 </body>
