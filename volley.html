@@ -14,7 +14,7 @@
   header a { color:var(--gold); text-decoration:none; }
   .wrap { position:relative; width:min(100%, 460px, calc((100vh - 210px) * 360 / 440)); aspect-ratio:360/440; min-width:260px; }
   @supports (height:100dvh) { .wrap { width:min(100%, 460px, calc((100dvh - 210px) * 360 / 440)); } }
-  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; }
   .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:10px; text-align:center; padding:14px; background:rgba(5,12,22,.92); border-radius:14px; overflow:auto; }
   .ov[hidden] { display:none; }
   .ov > img { width:64px; height:64px; border-radius:50%; object-fit:cover; }
@@ -35,7 +35,7 @@
   .trophy { font-size:12px; color:var(--gold); white-space:nowrap; }
   .tourbadge { font-size:11px; padding:3px 7px; border-radius:6px; background:#14304d; border:1px solid #2c4a6b; color:#fff; white-space:nowrap; }
   .team { width:100%; max-width:460px; display:flex; justify-content:space-between; gap:4px; font-size:10.5px; }
-  .chip { flex:1; padding:4px 3px; border-radius:8px; background:#12283f; border:1px solid #23405e; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chip { flex:1; padding:4px 3px; border-radius:8px; background:#12283f; border:1px solid #23405e; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; touch-action:manipulation; }
   .chip.act { outline:2px solid var(--gold); }
   .chip b { display:block; font-size:11px; }
   .chip small { opacity:.75; font-size:9.5px; }
@@ -74,6 +74,7 @@
   .modebar { display:flex; gap:6px; justify-content:center; margin-bottom:6px; }
   .modebar button { font:inherit; font-size:12px; font-weight:700; padding:6px 14px; border-radius:8px; border:1px solid #2c4a6b; background:#14304d; color:#fff; cursor:pointer; }
   .modebar button.on { background:var(--gold); color:#241a00; border-color:var(--gold); }
+  .hint { font-size:11px; opacity:.75; line-height:1.35; max-width:300px; }
 </style>
 </head>
 <body>
@@ -117,7 +118,6 @@
   function save(k, v) { try { localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); } catch (e) {} }
   function load(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 
-  /* ---------- ГРАВЦІ ---------- */
   var PLAYERS = [
     { id:"shyshkina", n:"Шишкіна Віталіна", team:"girls" },
     { id:"zav_d", n:"Завальнюк Дарина", team:"girls", super:true, superSkill:"lightning" },
@@ -366,8 +366,16 @@
     you.forEach(function (p, i) {
       var d = document.createElement("div"); d.className = "chip" + (i === active ? " act" : "");
       d.innerHTML = "<b style='color:" + p.mask.c + "'>" + p.player.n.split(" ")[0] + "</b><small>" + p.player.n.split(" ").slice(1).join(" ") + "</small>";
+      d.onclick = (function (idx) { return function () { setActive(idx); }; })(i);
       bar.appendChild(d);
     });
+  }
+  function setActive(i) {
+    if (i === active || !you[i]) return;
+    active = i; teamBar();
+    SFXLIB.tone(880, 0.06, "sine", 0.08);
+    flash(you[active].x, you[active].y - 34, you[active].mask.c, 22);
+    speakName(you[active].player.n);
   }
   function burst(x, y, col, n) { for (var i = 0; i < n; i++) particles.push({ x:x, y:y, vx:rand(-3,3), vy:rand(-4,1), life:rand(18,34), col:col }); }
   function flash(x, y, col, r) { flashes.push({ x:x, y:y, r:r||18, life:12, col:col }); }
@@ -613,17 +621,16 @@
     if (comboT > 0) comboT--; else combo = 0;
   }
 
-  /* ---------- РЕНДЕР: повноцінні 3D-гравці ---------- */
+  /* ---------- РЕНДЕР ---------- */
   function depthScale(y) {
-    // гравці далі (менший y) — менші; ближче (y ~ FLOOR) — більші
     var t = clamp((y - 100) / (FLOOR - 100), 0, 1);
     return 0.62 + t * 0.5;
   }
 
   function drawPlayer(p, isYou) {
     var sc = depthScale(p.y);
-    var baseW = 30 * sc;   // ширина плечей
-    var height = 78 * sc;  // повна висота фігури
+    var baseW = 30 * sc;
+    var height = 78 * sc;
     var headR = 11 * sc;
     var x = p.x;
     var feetY = p.y;
@@ -633,11 +640,9 @@
     var bodyH = bodyBottom - bodyTop;
     var col = p.mask.c;
 
-    // тінь
     g.fillStyle = "rgba(0,0,0,.32)";
     g.beginPath(); g.ellipse(x, feetY + 3, baseW * 0.85, 4.5 * sc, 0, 0, 7); g.fill();
 
-    // аура суперсили
     if (p.super) {
       var tt = performance.now() / 300;
       g.strokeStyle = "#E8B923"; g.globalAlpha = 0.45 + 0.3 * Math.sin(tt);
@@ -646,7 +651,6 @@
       g.globalAlpha = 1;
     }
 
-    // ноги (анімація кроку)
     var stride = Math.sin(p.anim) * 6 * sc;
     var jumpOff = clamp((FLOOR - p.y) * 0.4, 0, 20);
     g.lineCap = "round";
@@ -660,7 +664,6 @@
     g.lineTo(x + 6 * sc - stride * 0.5, feetY - jumpOff * 0.2);
     g.stroke();
 
-    // тулуб (футболка)
     var grad = g.createLinearGradient(x - baseW/2, bodyTop, x + baseW/2, bodyBottom);
     grad.addColorStop(0, col);
     grad.addColorStop(1, shade(col, -35));
@@ -668,13 +671,11 @@
     roundRect(x - baseW/2, bodyTop, baseW, bodyH, 6 * sc);
     g.fill();
 
-    // номер на футболці
     g.fillStyle = "rgba(0,0,0,.55)";
     g.font = "bold " + Math.round(11 * sc) + "px system-ui,sans-serif";
     g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(p.idx + 1), x, bodyTop + bodyH * 0.55);
 
-    // руки
     var armSwing = Math.sin(p.anim + 1) * 4 * sc;
     g.strokeStyle = shade(col, -50); g.lineWidth = Math.max(3, 4.5 * sc);
     g.beginPath();
@@ -686,20 +687,16 @@
     g.lineTo(x + baseW/2 + 3 * sc - armSwing, bodyBottom - 2 * sc);
     g.stroke();
 
-    // шия
     g.fillStyle = shade(col, -60);
     g.fillRect(x - 3 * sc, bodyTop - 4 * sc, 6 * sc, 5 * sc);
 
-    // голова
     g.fillStyle = "#f1c9a0";
     g.beginPath(); g.arc(x, headCY, headR, 0, 7); g.fill();
-    // волосся
     g.fillStyle = p.player.team === "girls" ? "#4a2c1a" : "#2a1d12";
     if (p.player.team === "girls") {
       g.beginPath();
       g.arc(x, headCY - 2 * sc, headR + 1.5 * sc, Math.PI * 1.02, Math.PI * 2.02);
       g.fill();
-      // хвіст
       g.beginPath();
       g.ellipse(x + headR * 0.9, headCY + headR * 0.4, 3 * sc, 7 * sc, 0.4, 0, 7); g.fill();
     } else {
@@ -707,27 +704,23 @@
       g.arc(x, headCY - 2 * sc, headR + 1 * sc, Math.PI, Math.PI * 2);
       g.fill();
     }
-    // обличчя
     g.fillStyle = "#1a1a1a";
     g.beginPath(); g.arc(x - headR * 0.35, headCY - headR * 0.1, 1.4 * sc, 0, 7); g.fill();
     g.beginPath(); g.arc(x + headR * 0.35, headCY - headR * 0.1, 1.4 * sc, 0, 7); g.fill();
     g.strokeStyle = "#1a1a1a"; g.lineWidth = 1 * sc; g.beginPath();
     g.arc(x, headCY + headR * 0.15, headR * 0.4, 0.15, Math.PI - 0.15); g.stroke();
 
-    // щит
     if (p.shield > 0 || (isYou && teamShield > 0)) {
       g.strokeStyle = "#a0e8ff"; g.globalAlpha = .5 + .3*Math.sin(performance.now()/80);
       g.lineWidth = 2;
       g.beginPath(); g.ellipse(x, feetY - height * 0.5, baseW * 1.25, height * 0.62, 0, 0, 7); g.stroke();
       g.globalAlpha = 1;
     }
-    // активний гравець
     if (p === you[active]) {
       g.strokeStyle = "#E8B923"; g.lineWidth = 2;
       g.setLineDash([4, 4]);
       g.beginPath(); g.ellipse(x, feetY, baseW, 5 * sc, 0, 0, 7); g.stroke();
       g.setLineDash([]);
-      // стрілка вгорі
       g.fillStyle = "#E8B923";
       g.beginPath();
       var ay = headCY - headR - 8 * sc;
@@ -781,12 +774,15 @@
     g.globalAlpha = 1;
   }
 
-  function drawBackground3d() {
-    var FY = 250, i, k;
+  /* ---------- СІТКА (прив'язана до перспективи) ---------- */
+  // Точки перспективи: далека частина підлоги (FY) і ближня (H)
+  function drawCourt() {
+    var FY = 250;
+    // стіна/трибуни
     var wg = g.createLinearGradient(0, 0, 0, FY); wg.addColorStop(0, "#0a1b30"); wg.addColorStop(1, "#1f4470"); g.fillStyle = wg; g.fillRect(0, 0, W, FY);
     for (var r = 0; r < 4; r++) {
       var yy = 120 + r * 30; g.fillStyle = "rgba(10,20,40," + (0.25 + r * 0.08) + ")"; g.fillRect(0, yy, W, 30);
-      for (i = 0; i < 25; i++) {
+      for (var i = 0; i < 25; i++) {
         var hx = i * 15 + (r % 2) * 7 + 4, hue = (i * 47 + r * 83) % 360;
         g.fillStyle = "hsl(" + hue + ",35%," + (40 + r * 4) + "%)"; g.fillRect(hx - 5, yy + 15, 10, 14);
         g.fillStyle = "#e6c7a6"; g.beginPath(); g.arc(hx, yy + 11 + ((i + Math.floor(performance.now() / 500)) % 3 === 0 ? -1 : 0), 4.5, 0, 7); g.fill();
@@ -796,27 +792,75 @@
     var lg = g.createRadialGradient(90, -10, 5, 90, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
     lg = g.createRadialGradient(270, -10, 5, 270, -10, 160); lg.addColorStop(0, "rgba(255,240,200,.35)"); lg.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = lg; g.fillRect(0, 0, W, FY);
 
+    // підлога
     var fg = g.createLinearGradient(0, FY, 0, H); fg.addColorStop(0, "#8a5424"); fg.addColorStop(1, "#c98340"); g.fillStyle = fg;
     g.beginPath(); g.moveTo(0, FY); g.lineTo(W, FY); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
     g.strokeStyle = "rgba(60,30,10,.35)"; g.lineWidth = 1; g.beginPath();
-    for (k = -9; k <= 9; k++) { g.moveTo(180 + k * 18, FY); g.lineTo(180 + k * 52, H); }
+    for (var k = -9; k <= 9; k++) { g.moveTo(180 + k * 18, FY); g.lineTo(180 + k * 52, H); }
     for (k = 1; k < 9; k++) { var py = FY + (H - FY) * Math.pow(k / 9, 1.7); g.moveTo(0, py); g.lineTo(W, py); }
     g.stroke();
-    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 3; g.beginPath(); g.moveTo(70, FY + 14); g.lineTo(290, FY + 14); g.lineTo(400, H - 4); g.lineTo(-40, H - 4); g.closePath(); g.stroke();
+    // лінії поля
+    g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 3; g.beginPath();
+    g.moveTo(70, FY + 14); g.lineTo(290, FY + 14); g.lineTo(400, H - 4); g.lineTo(-40, H - 4); g.closePath(); g.stroke();
     g.beginPath(); g.moveTo(180, FY + 14); g.lineTo(180, H - 4); g.stroke();
-
-    g.fillStyle = "#9aa7b4"; g.fillRect(NETX + 7, NETTOP + 8, 3, FLOOR - 26 - NETTOP - 8);
-    g.fillStyle = "rgba(255,255,255,.14)"; g.beginPath(); g.moveTo(NETX - 8, NETTOP - 4); g.lineTo(NETX + 8, NETTOP + 8); g.lineTo(NETX + 8, NETTOP + 70); g.lineTo(NETX - 8, NETTOP + 58); g.closePath(); g.fill();
-    g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 1; g.beginPath();
-    for (k = 0; k <= 4; k++) { var nx = NETX - 8 + k * 4; g.moveTo(nx, NETTOP - 4 + k * 3); g.lineTo(nx, NETTOP + 58 + k * 3); }
-    for (k = 1; k < 6; k++) { g.moveTo(NETX - 8, NETTOP - 4 + k * 10); g.lineTo(NETX + 8, NETTOP + 8 + k * 10); }
-    g.stroke();
-    g.fillStyle = "#fff"; g.beginPath(); g.moveTo(NETX - 8, NETTOP - 7); g.lineTo(NETX + 8, NETTOP + 5); g.lineTo(NETX + 8, NETTOP + 9); g.lineTo(NETX - 8, NETTOP - 3); g.closePath(); g.fill();
   }
-  function drawForeground() {
-    var pg = g.createLinearGradient(NETX - 12, 0, NETX - 5, 0); pg.addColorStop(0, "#c9d3dc"); pg.addColorStop(1, "#7d8996"); g.fillStyle = pg; g.fillRect(NETX - 12, NETTOP - 6, 6, FLOOR + 30 - NETTOP + 6);
-    g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(NETX - 9, FLOOR + 30, 12, 4, 0, 0, 7); g.fill();
-    var vg = g.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 290); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.45)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+
+  // Сітка між двома точками перспективи: назад (далека) і вперед (ближня)
+  function drawNet() {
+    var FY = 250;
+    var topBackY = NETTOP + 2, topFrontY = NETTOP + 6;
+    var botBackY = FY + 16, botFrontY = H - 20;
+    var backHalfW = 9, frontHalfW = 22; // сітка ширшає до глядача
+    var backTopX = NETX, frontTopX = NETX;
+    // далека стійка
+    g.fillStyle = "#9aa7b4";
+    g.fillRect(backTopX + 4, topBackY + 4, 3, botBackY - topBackY - 2);
+    // ближня стійка (товща, з градієнтом)
+    var pg = g.createLinearGradient(frontTopX - 10, 0, frontTopX + 10, 0);
+    pg.addColorStop(0, "#c9d3dc"); pg.addColorStop(1, "#6b7783");
+    g.fillStyle = pg;
+    g.fillRect(frontTopX - 5, topFrontY - 4, 10, botFrontY - topFrontY + 6);
+    // тінь ближньої стійки
+    g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(frontTopX, botFrontY + 4, 14, 4, 0, 0, 7); g.fill();
+
+    // полотно сітки (трапеція)
+    g.fillStyle = "rgba(255,255,255,.10)";
+    g.beginPath();
+    g.moveTo(backTopX - backHalfW, topBackY);
+    g.lineTo(backTopX + backHalfW, topBackY);
+    g.lineTo(frontTopX + frontHalfW, topFrontY);
+    g.lineTo(frontTopX - frontHalfW, topFrontY);
+    g.closePath(); g.fill();
+
+    // горизонтальні нитки
+    g.strokeStyle = "rgba(255,255,255,.45)"; g.lineWidth = 1;
+    for (var i = 0; i <= 6; i++) {
+      var t = i / 6;
+      var y = topBackY + (botBackY - topBackY) * t;
+      var half = backHalfW + (frontHalfW - backHalfW) * t;
+      g.beginPath();
+      g.moveTo(backTopX - half, y);
+      g.lineTo(backTopX + half, y);
+      g.stroke();
+    }
+    // вертикальні нитки
+    for (var v = 0; v <= 6; v++) {
+      var tt = v / 6;
+      var x1 = (backTopX - backHalfW) + (frontTopX - frontHalfW - (backTopX - backHalfW)) * tt;
+      var x2 = (backTopX + backHalfW) + (frontTopX + frontHalfW - (backTopX + backHalfW)) * tt;
+      g.beginPath();
+      g.moveTo(x1, topBackY);
+      g.lineTo(x1, botBackY);
+      g.stroke();
+    }
+    // верхня біла стрічка
+    g.fillStyle = "#fff";
+    g.beginPath();
+    g.moveTo(backTopX - backHalfW - 1, topBackY - 3);
+    g.lineTo(backTopX + backHalfW + 1, topBackY - 3);
+    g.lineTo(frontTopX + frontHalfW + 1, topFrontY - 3);
+    g.lineTo(frontTopX - frontHalfW - 1, topFrontY - 3);
+    g.closePath(); g.fill();
   }
 
   function draw2d() {
@@ -830,13 +874,22 @@
   }
 
   function draw3d() {
-    drawBackground3d();
-    // сортуємо за глибиною: далі (менший y) малюються раніше
+    drawCourt();
+    // Сортуємо гравців за глибиною: далі (менший y) — раніше
     var all = you.concat(opp);
     all.sort(function (a, b) { return a.y - b.y; });
-    all.forEach(function (p) { drawPlayer(p, p.side === "you"); });
+    // Сітка малюється після гравців, що ЗА нею, і перед тими, що ПЕРЕД нею.
+    var FY = 250;
+    all.forEach(function (p) {
+      if (p.y <= FY) drawPlayer(p, p.side === "you");
+    });
+    drawNet();
+    all.forEach(function (p) {
+      if (p.y > FY) drawPlayer(p, p.side === "you");
+    });
     drawBall();
-    drawForeground();
+    // віньєтка
+    var vg = g.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 290); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.45)"); g.fillStyle = vg; g.fillRect(0, 0, W, H);
     drawFx(); drawHud();
   }
 
@@ -936,9 +989,7 @@
     var entries = Object.keys(mvpScores).map(function (pid) {
       var p = playerById(pid); return { pid:pid, p:p, pts:mvpScores[pid] };
     }).filter(function (e) { return e.p && e.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; });
-    entries.forEach(function (e) {
-      stats.rating[e.pid] = (stats.rating[e.pid] || 0) + e.pts;
-    });
+    entries.forEach(function (e) { stats.rating[e.pid] = (stats.rating[e.pid] || 0) + e.pts; });
     save("bus.volley.stats2", stats);
     var html = '<h1>🏆 MVP матчу</h1><p>Найкращі гравці за очками цього матчу:</p><div class="panel" id="mvpPanel"></div>';
     modal("Підсумок матчу", html, '<button class="go" id="go">Далі</button>');
@@ -955,7 +1006,6 @@
   /* ---------- Team selection ---------- */
   var pendingGo = null;
   var teamTab = "girls";
-  var editingPlayer = null;
 
   function findEntry(pid) { return lineup.filter(function(e){return e.playerId === pid;})[0]; }
   function eligiblePlayers() {
@@ -968,7 +1018,6 @@
     var player = playerById(pid);
     var entry = findEntry(pid);
     if (!entry) { entry = { playerId:pid, maskId:player.super ? "lightning" : "wind" }; lineup.push(entry); }
-    editingPlayer = pid;
     var html = '<h1>' + player.n + '</h1><p>Обери маску для гравця:</p><div class="maskpick" id="maskpick"></div>';
     modal("Вибір маски", html, '<button class="go" id="save" type="button">Зберегти</button><button class="go sec" id="cancel" type="button">Скасувати</button>');
     var pick = $("maskpick");
@@ -1080,11 +1129,8 @@
         var d = document.createElement("div"); d.className = "card sel" + (p.super ? " super" : "");
         d.innerHTML = "<b>" + (p.super ? "⚡ " : "") + p.n + "</b><small>" + (p.team==="girls"?"👧":"👦") + " · " + m.n + "</small><span class='ord'>" + (i + 1) + "</span>";
         d.onclick = function () {
-          // у 3×3 можна міняти порядок: тап по картці підвищує в пріоритеті
           if (teamSize === 3 && lineup.length > 3) {
             var moved = lineup.splice(i, 1)[0];
-            lineup.splice(teamSize, 0, moved); // перемістити після перших 3 (щоб не впливати) — насправді підняти
-            lineup.splice(i, 1);
             lineup.unshift(moved);
           }
           save("bus.volley.lineup2", lineup); showTeamSelect(pendingGo);
@@ -1107,7 +1153,7 @@
     draw(); requestAnimationFrame(loop);
   }
   function show(l, h, txt, btn) {
-    $("ovContent").innerHTML = '<img src="kunytsi-logo.jpg" alt=""><div class="lvl">' + l + '</div><h1>' + h + '</h1><p>' + txt + '</p>';
+    $("ovContent").innerHTML = '<img src="kunytsi-logo.jpg" alt=""><div class="lvl">' + l + '</div><h1>' + h + '</h1><p>' + txt + '</p><p class="hint">Керування: свайп по полю — рух, свайп вгору — стрибок, свайп вниз — удар, свайп вліво/вправо — зміна гравця. Або кнопки нижче.</p>';
     $("ovBtns").innerHTML = '<button class="go" id="go" type="button">' + btn + '</button>';
     $("ov").hidden = false;
     $("go").onclick = onGo;
@@ -1164,7 +1210,14 @@
     flash(you[active].x, you[active].y - 34, you[active].mask.c, 22);
     speakName(you[active].player.n);
   }
+  function prevActive() {
+    active = (active - 1 + you.length) % you.length; teamBar();
+    SFXLIB.tone(880, 0.06, "sine", 0.08);
+    flash(you[active].x, you[active].y - 34, you[active].mask.c, 22);
+    speakName(you[active].player.n);
+  }
 
+  /* ---------- Керування ---------- */
   var vwLabel = function () { $("vw").textContent = view3d ? "3D" : "2D"; };
   var voiceLabel = function () { $("voice").textContent = voiceOn ? "🔊" : "🔇"; };
   try { var vv = localStorage.getItem("bus.game.view"); if (vv) view3d = vv === "3d"; } catch (e) {}
@@ -1180,11 +1233,57 @@
   $("bj").addEventListener("pointerdown", function (e) { jumpReq = 1; e.preventDefault(); });
   $("bh").addEventListener("pointerdown", function (e) { hitReq = 1; e.preventDefault(); });
   $("bs").addEventListener("pointerdown", function (e) { skillReq = 1; e.preventDefault(); });
+
+  /* --- Сенсорне керування на canvas: свайпи + тапи --- */
+  var ptr = { active: false, sx: 0, sy: 0, lx: 0, moved: false, startTime: 0 };
+  function toCanvas(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H, cx: e.clientX, cy: e.clientY };
+  }
   cv.addEventListener("pointerdown", function (e) {
     if (!run) return;
-    var r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
-    if (Math.abs(x - you[active].x) < 40 || x > W / 2) nextActive();
+    var p = toCanvas(e);
+    ptr.active = true; ptr.sx = p.cx; ptr.sy = p.cy; ptr.lx = p.x; ptr.moved = false; ptr.startTime = performance.now();
+    cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+    e.preventDefault();
   });
+  cv.addEventListener("pointermove", function (e) {
+    if (!ptr.active) return;
+    var p = toCanvas(e);
+    var dxScreen = p.cx - ptr.sx;
+    var dyScreen = p.cy - ptr.sy;
+    if (Math.abs(dxScreen) > 8 || Math.abs(dyScreen) > 8) ptr.moved = true;
+    // плавний рух активного гравця по горизонталі
+    var dField = (p.x - ptr.lx);
+    if (you[active]) {
+      var speed = 3.4 * skillSpeed(you[active]);
+      you[active].x = clamp(you[active].x + dField * 0.9, 12, NETX - 14);
+      you[active].vx = dField * 0.4;
+    }
+    ptr.lx = p.x;
+    e.preventDefault();
+  });
+  cv.addEventListener("pointerup", function (e) {
+    if (!ptr.active) return;
+    ptr.active = false;
+    var p = toCanvas(e);
+    var dx = p.cx - ptr.sx;
+    var dy = p.cy - ptr.sy;
+    var dt = performance.now() - ptr.startTime;
+    var ADX = Math.abs(dx), ADY = Math.abs(dy);
+    if (!ptr.moved || (ADX < 12 && ADY < 12)) {
+      // короткий тап: подвійний — наступний, потрійний — попередній; одиночний — наступний
+      if (dt < 250) nextActive();
+    } else if (ADX > ADY && ADX > 40 && dt < 500) {
+      // горизонтальний свайп: перемикання
+      if (dx > 0) nextActive(); else prevActive();
+    } else if (ADY > ADX && ADY > 40 && dt < 400) {
+      if (dy < 0) jumpReq = 1; else hitReq = 1;
+    }
+    e.preventDefault();
+  });
+  cv.addEventListener("pointercancel", function () { ptr.active = false; });
+
   document.addEventListener("keydown", function (e) {
     if (e.key === "ArrowLeft" || e.key === "a") keys.l = 1;
     else if (e.key === "ArrowRight" || e.key === "d") keys.r = 1;
@@ -1192,6 +1291,7 @@
     else if (e.key === "e" || e.key === "Enter") { hitReq = 1; e.preventDefault(); }
     else if (e.key === "f" || e.key === "Shift") { skillReq = 1; e.preventDefault(); }
     else if (e.key === "Tab" || e.key === "q") { e.preventDefault(); nextActive(); }
+    else if (e.key === "Q") { e.preventDefault(); prevActive(); }
   });
   document.addEventListener("keyup", function (e) { if (e.key === "ArrowLeft" || e.key === "a") keys.l = 0; else if (e.key === "ArrowRight" || e.key === "d") keys.r = 0; });
 
