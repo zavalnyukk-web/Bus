@@ -1,0 +1,12 @@
+РЕЙТИНГ ГРАВЦІВ: що додати в правила Firebase (один раз)
+
+Firebase → Realtime Database → Rules. НЕ видаляйте те, що там уже є.
+Знайдіть блок "lost": { ... } усередині "$k": { ... } і ПІСЛЯ нього (через кому) вставте:
+
+        "rating": {
+          "$id": {
+            ".validate": "newData.hasChildren(['n','p','ts']) && newData.child('n').isString() && newData.child('n').val().length <= 16 && newData.child('p').isNumber() && newData.child('p').val() >= 0 && newData.child('p').val() <= 200000"
+          }
+        }
+
+Потім натисніть Publish. Без цього рейтинг працюватиме тільки на самому пристрої, решта гри не постраждає.

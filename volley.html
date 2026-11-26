@@ -46,6 +46,7 @@
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>
 (function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 440, FLOOR = 390, NETX = 180, NETTOP = 290, SR = 36, BR = 11;
@@ -53,7 +54,10 @@
   var OPP0 = [
     { name: "Сусіди-новачки", speed: 2.3, err: 34, jump: 0.55, color: "#4a90d9", txt: "Розминка! Перші суперники ще вчаться грати. Забийте 5 очок." },
     { name: "Збірна району", speed: 3.0, err: 20, jump: 0.8, color: "#d94a4a", txt: "Серйозніші суперники швидше біжать до м’яча. Забийте 5 очок." },
-    { name: "Чемпіони області", speed: 3.7, err: 9, jump: 1, color: "#8a4ad9", txt: "Фінал! Суперник майже не помиляється. Покажіть, на що здатні куниці." }
+    { name: "Чемпіони області", speed: 3.7, err: 9, jump: 1, color: "#8a4ad9", txt: "Суперник майже не помиляється. Забийте 5 очок. Покажіть, на що здатні куниці." },
+    { name: "Збірна України U-18", speed: 4.0, err: 7, jump: 1, color: "#e0b400", txt: "Нова серія! Молодіжна збірна грає швидко й точно. Забийте 5 очок." },
+    { name: "Легіонери-професіонали", speed: 4.3, err: 5, jump: 1, color: "#1fa37a", txt: "Професіонали з-за кордону: майже без помилок. Забийте 5 очок." },
+    { name: "Супербоси з Кунева", speed: 4.7, err: 3, jump: 1, color: "#d62839", txt: "Фінал фіналів! Це найсильніша команда. Забийте 5 очок і станьте легендою." }
   ];
   var OPP = [], TARGET = 5;
   function applyDiff() {
@@ -232,14 +236,16 @@
     while (acc >= 1000 / 60) { acc -= 1000 / 60; update(); if (!run) return; }
     draw(); requestAnimationFrame(loop);
   }
-  function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; DIFF.coachFor($("ov"), /Чемпіони/.test(h) ? "final" : /Перемога/.test(h) ? "win" : /програно/.test(h) ? "lose" : "start"); }
+  function show(l, h, txt, btn) { if (lastR) { META.gain(lastR, $("ov")); lastR = null; } else META.clear($("ov")); $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; DIFF.coachFor($("ov"), /Чемпіони/.test(h) ? "final" : /Перемога/.test(h) ? "win" : /програно/.test(h) ? "lose" : "start"); }
+  var lastR = null, perk = { life: 0 }, perkOn = false;
+  function pay(won) { var r = META.end("volley", { pts: Math.round(Math.max(0, (won ? 120 + lvl * 70 : 0) + (sy - so) * 12 + sy * 4) * DIFF.pick(0.7, 1, 1.4)), coins: (won ? 8 + lvl * 3 : 1 + sy) + (won && so === 0 ? 4 : 0) }); perkOn = false; lastR = r; return r; }
   function win() {
-    run = false; draw(); SFXLIB.seq(lvl + 1 < OPP.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
+    run = false; draw(); pay(true); SFXLIB.seq(lvl + 1 < OPP.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
     if (lvl + 1 < OPP.length) { saved = Math.max(saved, lvl + 1); try { localStorage.setItem("bus.volley.level", String(saved)); } catch (e) {} show("Рахунок " + sy + ":" + so, "Перемога!", "Куниці виграли матч! Далі: " + OPP[lvl + 1].name + ".", "Наступний матч"); $("go").dataset.n = "next"; }
     else { saved = 0; try { localStorage.setItem("bus.volley.level", "0"); } catch (e) {} show("Рахунок " + sy + ":" + so, "Чемпіони!", "Кунівські куниці виграли турнір! Вітаємо з перемогою!", "Грати ще раз"); $("go").dataset.n = "again"; }
   }
-  function lose() { run = false; draw(); SFXLIB.seq([392, 330, 262, 196], 0.2); show("Рахунок " + sy + ":" + so, "Матч програно", "Нічого, куниці не здаються! Спробуйте ще раз.", "Реванш"); $("go").dataset.n = "retry"; }
-  function start() { if (window.trackPlay) trackPlay("volley"); SFXLIB.tone(1400, 0.25, "sine", 0.1); SFXLIB.tone(1400, 0.2, "sine", 0.1, 0.3); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
+  function lose() { run = false; draw(); pay(false); SFXLIB.seq([392, 330, 262, 196], 0.2); show("Рахунок " + sy + ":" + so, "Матч програно", "Нічого, куниці не здаються! Спробуйте ще раз.", "Реванш"); $("go").dataset.n = "retry"; }
+  function start() { if (window.trackPlay) trackPlay("volley"); if (!perkOn) { perkOn = true; perk = META.begin("volley"); if (perk.life) { sy = Math.min(TARGET - 2, sy + 2); hud(); } } SFXLIB.tone(1400, 0.25, "sine", 0.1); SFXLIB.tone(1400, 0.2, "sine", 0.1, 0.3); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
   $("go").onclick = function () {
     var n = $("go").dataset.n; $("go").dataset.n = "";
     if (n === "next") newMatch(lvl + 1); else if (n === "again") newMatch(0); else newMatch(lvl);

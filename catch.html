@@ -52,6 +52,7 @@
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>
 (function () {
   var $ = function (i) { return document.getElementById(i); };
@@ -60,7 +61,11 @@
     { n: "Розминка", d: "повільно", tr: 3.4, iv: 1.6 },
     { n: "Урок", d: "середньо", tr: 2.7, iv: 1.25 },
     { n: "Змагання", d: "швидко", tr: 2.1, iv: 0.98 },
-    { n: "Олімпіада", d: "дуже швидко", tr: 1.6, iv: 0.78 }
+    { n: "Олімпіада", d: "дуже швидко", tr: 1.6, iv: 0.78 },
+    { n: "Золоті м’ячі", d: "золотий = +3 очки", tr: 2.4, iv: 1.05, gold: 0.18 },
+    { n: "Обережно, бомби!", d: "бомбу ловити не можна", tr: 2.3, iv: 1.0, bad: 0.2 },
+    { n: "Гарячий день", d: "швидко, золото й бомби", tr: 1.9, iv: 0.85, gold: 0.15, bad: 0.2 },
+    { n: "Марафон Артуровича", d: "найшвидший, усе разом", tr: 1.5, iv: 0.72, gold: 0.14, bad: 0.25 }
   ];
   var BALLS = ["⚽", "🏀", "🏐", "🎾", "🏈", "🥎"];
   // жолоби: початок -> кінець; потім падіння до кошика
@@ -71,18 +76,18 @@
     { x0: 374, y0: 232, x1: 248, y1: 300, bx: 248, by: 378 }
   ];
   var DROP = 0.5;
-  function maxMiss() { return DIFF.pick(5, 3, 2); }
+  function maxMiss() { return DIFF.pick(5, 3, 2) + (perk.life ? 1 : 0); }
   function ivK() { return DIFF.pick(1.25, 1, 0.85); }
   function trK() { return DIFF.pick(1.15, 1, 0.88); }
   
-  var lvl = 0, st = "menu", pos = 0, balls = [], score = 0, miss = 0, tm = 0, spawn = 0, fx = [], flash = 0, speedK = 1, best = [0, 0, 0, 0], shock = 0, joy = 0;
-  try { best = JSON.parse(localStorage.getItem("bus.egg.best") || "[0,0,0,0]"); } catch (e) {}
+  var lvl = 0, st = "menu", pos = 0, balls = [], score = 0, miss = 0, tm = 0, spawn = 0, fx = [], flash = 0, speedK = 1, best = [0, 0, 0, 0, 0, 0, 0, 0], shock = 0, joy = 0, perk = { life: 0 }, coinsRun = 0, lastR = null;
+  try { best = JSON.parse(localStorage.getItem("bus.egg.best") || "[]"); } catch (e) {} while (best.length < 8) best.push(0);
   var started = false;
 
   DIFF.mount($("ov"), $("lv"));
   DIFF.on(function () { if (st === "menu") menu(); });
   function menu() {
-    st = "menu"; var lv = $("lv"); lv.innerHTML = "";
+    st = "menu"; META.clear($("ov")); var lv = $("lv"); lv.innerHTML = "";
     LEVELS.forEach(function (L, i) {
       var b = document.createElement("button"); b.type = "button"; b.innerHTML = (i + 1) + ". " + L.n + "<small>" + L.d + " · рекорд " + (best[i] || 0) + "</small>";
       b.onclick = function () { SFXLIB.ac(); start(i); }; lv.appendChild(b);
@@ -90,7 +95,7 @@
     $("ov").hidden = false;
   }
   function start(i) {
-    lvl = i; score = 0; miss = 0; balls = []; fx = []; spawn = 1; tm = 0; speedK = DIFF.pick(0.9, 1, 1.12); pos = 0; flash = 0; shock = 0; joy = 0; st = "play"; $("ov").hidden = true;
+    perk = META.begin("egg"); coinsRun = 0; lvl = i; score = 0; miss = 0; balls = []; fx = []; spawn = 1; tm = 0; speedK = DIFF.pick(0.9, 1, 1.12); pos = 0; flash = 0; shock = 0; joy = 0; st = "play"; $("ov").hidden = true;
     $("lvlname").textContent = LEVELS[i].n;
     if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("egg"); } catch (e) {} }
   }
@@ -99,7 +104,8 @@
     var L = LEVELS[lvl], tr = L.tr * trK() / speedK, c = Math.floor(Math.random() * 4), land = tm + tr + DROP, ok = true, gap = Math.max(0.45, 0.8 / speedK);
     landings().forEach(function (l) { if (Math.abs(l.t - land) < (l.c === c ? 0.35 : gap)) ok = false; });
     if (!ok) return false;
-    balls.push({ c: c, k: Math.floor(Math.random() * 5), t0: tm, tr: tr, rot: 0, done: false, ph: "roll", fy: 0, vx: 0, vy: 0, x: 0, y: 0 });
+    var bad = Math.random() < (L.bad || 0), gold = !bad && Math.random() < (L.gold || 0);
+    balls.push({ bad: bad, gold: gold, c: c, k: Math.floor(Math.random() * 5), t0: tm, tr: tr, rot: 0, done: false, ph: "roll", fy: 0, vx: 0, vy: 0, x: 0, y: 0 });
     return true;
   }
   function update(dt) {
@@ -115,7 +121,9 @@
       } else if (b.ph === "drop") {
         b.dt += dt; var q = Math.min(1, b.dt / DROP); b.x = C.x1; b.y = C.y1 - 10 + (C.by - 16 - (C.y1 - 10)) * q * q; b.rot += dt * 4;
         if (b.dt >= DROP) {
-          if (pos === b.c) { b.ph = "done"; b.done = true; score++; joy = 0.35; SFXLIB.seq([740, 988], 0.05, "triangle", 0.2); fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "+1", c: "#ffd23f" });
+          if (pos === b.c && b.bad) { b.ph = "done"; b.done = true; miss++; flash = 0.4; shock = 0.6; SFXLIB.noise(0.4, 0.4, 300); SFXLIB.tone(120, 0.4, "sawtooth", 0.25, 0, 40); fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "БУМ!", c: "#ff5060" }); if (miss >= maxMiss()) over(); }
+          else if (b.bad) { b.ph = "done"; b.done = true; fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "ухилився", c: "#9ad0ff" }); }
+          else if (pos === b.c) { b.ph = "done"; b.done = true; var gp = b.gold ? 3 : 1; score += gp; if (b.gold) coinsRun += 2; joy = 0.35; SFXLIB.seq(b.gold ? [988, 1319, 1760] : [740, 988], 0.05, "triangle", 0.2); fx.push({ x: C.bx, y: C.by - 30, t: 0, s: "+" + gp, c: b.gold ? "#ffec6a" : "#ffd23f" });
             if (score % 10 === 0) { speedK = Math.min(2.4, speedK + 0.08); SFXLIB.seq([523, 659, 784], 0.07, "square", 0.12); fx.push({ x: 180, y: 120, t: 0, s: "Швидше!", c: "#5fb08f" }); } }
           else { b.ph = "fall"; b.vx = (C.x1 < 180 ? -1 : 1) * 60; b.vy = -140; }
         }
@@ -130,11 +138,12 @@
   }
   function over() {
     st = "over"; SFXLIB.seq([400, 330, 260, 200], 0.14, "sawtooth", 0.15);
+    var rEnd = META.end("egg", { pts: Math.round(score * 5 * (1 + lvl * 0.3) * DIFF.pick(0.7, 1, 1.4)), coins: Math.floor(score / 4) + coinsRun }); lastR = rEnd;
     var nb = score > (best[lvl] || 0); if (nb) { best[lvl] = score; try { localStorage.setItem("bus.egg.best", JSON.stringify(best)); } catch (e) {} }
     setTimeout(function () {
       $("h").textContent = "Урок закінчено!";
       $("txt").textContent = "Піймано м’ячів: " + score + (nb ? ". Новий рекорд! 🎉" : ". Рекорд рівня: " + best[lvl] + ".") + " Обери швидкість для нової гри:";
-      menu();
+      menu(); META.gain(lastR, $("ov"));
     }, 900);
   }
 
@@ -182,6 +191,15 @@
   }
   makeBg();
 
+  function drawBomb(x, y, rot) {
+    g.save(); g.translate(x, y); g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(2, 3, 12, 12, 0, 0, 7); g.fill();
+    g.beginPath(); g.arc(0, 0, 12, 0, 7); g.fillStyle = rg(-4, -4, 1, 14, [[0, "#6b6f78"], [1, "#14161a"]]); g.fill(); g.strokeStyle = "#e63946"; g.lineWidth = 2.2; g.lineCap = "round"; g.beginPath(); g.moveTo(-4, -4); g.lineTo(4, 4); g.moveTo(4, -4); g.lineTo(-4, 4); g.stroke();
+    g.strokeStyle = "#c8a96a"; g.lineWidth = 2; g.beginPath(); g.moveTo(5, -10); g.quadraticCurveTo(10, -16, 14, -13); g.stroke(); g.fillStyle = (Math.floor(tm * 12) % 2) ? "#ffd23f" : "#ff7a1a"; g.beginPath(); g.arc(14.5, -13.5, 3, 0, 7); g.fill(); g.restore();
+  }
+  function drawGold(x, y, rot) {
+    g.save(); g.translate(x, y); g.fillStyle = "rgba(255,225,90,.35)"; g.beginPath(); g.arc(0, 0, 18, 0, 7); g.fill(); g.beginPath(); g.arc(0, 0, 12, 0, 7); g.fillStyle = rg(-4, -4, 1, 14, [[0, "#fff8b0"], [0.55, "#ffd700"], [1, "#a8780a"]]); g.fill(); g.strokeStyle = "#8b6914"; g.lineWidth = 1.2; g.stroke();
+    g.rotate(rot); g.fillStyle = "#8b6914"; g.font = "bold 13px system-ui"; g.textAlign = "center"; g.fillText("★", 0, 4.5); g.restore();
+  }
   function drawBall(k, x, y, rot, r) {
     r = r || 12; g.save(); g.translate(x, y); g.scale(r / 12, r / 12);
     g.fillStyle = "rgba(0,0,0,.22)"; g.beginPath(); g.ellipse(2, 3, 12, 12, 0, 0, 7); g.fill();
@@ -213,21 +231,88 @@
     g.save(); g.clip(); g.strokeStyle = "rgba(80,42,8,.45)"; g.lineWidth = 1; for (var i = 0; i < 5; i++) { g.beginPath(); g.moveTo(x - 26, y - 8 + i * 6); g.quadraticCurveTo(x, y - 4 + i * 6 + 5, x + 26, y - 8 + i * 6); g.stroke(); } for (var j = -20; j <= 20; j += 8) { g.beginPath(); g.moveTo(x + j, y - 14); g.lineTo(x + j * 0.7, y + 20); g.stroke(); } g.restore();
     g.beginPath(); g.ellipse(x, y - 14, 24, 6, 0, 0, 7); g.fillStyle = "#3a220c"; g.fill(); g.strokeStyle = "#e0b06a"; g.lineWidth = 3; g.stroke();
   }
-  var ART = {}; ["thumb", "win", "wave"].forEach(function (n) { var im = new Image(); im.src = "art-" + n + ".png"; ART[n] = im; });
-  function artReady() { return ART.thumb.complete && ART.thumb.naturalWidth && ART.win.complete && ART.win.naturalWidth && ART.wave.complete && ART.wave.naturalWidth; }
+  var ART = {}; ["legs", "head-thumb", "head-win", "head-wave"].forEach(function (n) { var im = new Image(); im.src = "art-" + n + (n === "legs" ? ".png" : ".png"); ART[n] = im; });
+  function artReady() { for (var k in ART) if (!(ART[k].complete && ART[k].naturalWidth)) return false; return true; }
+  var SK = ["#ffd9b8", "#f0b48c", "#c98a62"];
+  function limb(x0, y0, x1, y1, w0, w1, c0, c1) { // конічна кінцівка з тінню
+    var dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    g.beginPath(); g.moveTo(x0 + nx * w0 / 2, y0 + ny * w0 / 2); g.lineTo(x1 + nx * w1 / 2, y1 + ny * w1 / 2); g.arc(x1, y1, w1 / 2, Math.atan2(ny, nx), Math.atan2(ny, nx) + Math.PI, true); g.lineTo(x0 - nx * w0 / 2, y0 - ny * w0 / 2); g.arc(x0, y0, w0 / 2, Math.atan2(-ny, -nx), Math.atan2(-ny, -nx) + Math.PI, true); g.closePath();
+    g.fillStyle = lg(x0 + nx * w0 / 2, y0 + ny * w0 / 2, x0 - nx * w0 / 2, y0 - ny * w0 / 2, [[0, c0[0]], [0.5, c0[1]], [1, c0[2]]]); g.fill();
+  }
+  function hand(x, y, ang, open) { // кисть: долоня + пальці + великий палець
+    g.save(); g.translate(x, y); g.rotate(ang); g.scale(1.3, 1.3);
+    if (open) {
+      el(0, 0, 6.2, 5.6, lg(0, -6, 0, 6, [[0, SK[0]], [1, SK[1]]]));
+      for (var i = -2; i <= 1; i++) { var fx = i * 3.1 + 1.5; limb(fx, -3, fx + i * 0.25, -10.5 + Math.abs(i + 0.5) * 1.2, 3, 2.7, SK, SK); }
+      limb(-5, 0.5, -9, -4.5, 3.3, 2.8, SK, SK);
+      g.strokeStyle = "rgba(120,60,30,.35)"; g.lineWidth = 0.6; for (var j = -1; j <= 1; j++) { g.beginPath(); g.moveTo(j * 3.1 + 1.5 + 1.5, -3); g.lineTo(j * 3.1 + 1.5 + 1.5, -9); g.stroke(); }
+    } else {
+      el(0, 0, 5.4, 5.2, lg(0, -5, 0, 6, [[0, SK[0]], [1, SK[1]]]));
+      for (var k = -1; k <= 2; k++) el(k * 2.6 - 1.3, 3.8, 1.9, 2.3, SK[1]);
+      el(-4.3, -1.3, 2, 3.2, SK[0], 0.5);
+    }
+    g.restore();
+  }
+  function sleeveArm(Sx, Sy, Ex, Ey, Hx, Hy, handAng, open) {
+    var ang = Math.atan2(Hy - Ey, Hx - Ex);
+    // тінь на формі
+    g.strokeStyle = "rgba(0,0,0,.22)"; g.lineCap = "round"; g.lineWidth = 20; g.beginPath(); g.moveTo(Sx + 1.5, Sy + 2); g.lineTo(Ex + 1.5, Ey + 2); g.lineTo(Hx + 1.5, Hy + 2); g.stroke();
+    limb(Ex, Ey, Hx, Hy, 15, 11, SK, SK); // передпліччя
+    var wx = Hx - Math.cos(ang) * 4, wy = Hy - Math.sin(ang) * 4; // фіолетовий браслет
+    g.strokeStyle = "#8a4fc9"; g.lineWidth = 3; g.beginPath(); g.moveTo(wx - Math.sin(ang) * 5.5, wy + Math.cos(ang) * 5.5); g.lineTo(wx + Math.sin(ang) * 5.5, wy - Math.cos(ang) * 5.5); g.stroke();
+    var ux = Ex - Sx, uy = Ey - Sy, ul = Math.hypot(ux, uy) || 1, sx2 = Sx + ux * 0.62, sy2 = Sy + uy * 0.62;
+    seg(Sx + ux * 0.62, Sy + uy * 0.62, Ex, Ey, 14, SK[1]); // нижня частина плеча (шкіра)
+    limb(Sx, Sy, sx2, sy2, 23, 20, ["#8a8f96", "#b9bdc2", "#80858c"], ["#8a8f96", "#b9bdc2", "#80858c"]); // рукав
+    g.strokeStyle = "rgba(0,0,0,.28)"; g.lineWidth = 1.1; g.beginPath(); g.arc(sx2, sy2, 10, Math.atan2(uy, ux) - 1.55, Math.atan2(uy, ux) + 1.55); g.stroke(); // манжета рукава
+    el(Ex, Ey, 7, 7, SK[1]); // лікоть
+    hand(Hx, Hy, handAng, open);
+  }
   function fizruk() {
     if (!artReady()) return fizrukOld();
-    var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, ub = Math.sin(tm * 6) * 1.1, big = shock > 0, happy = joy > 0;
-    el(X, FY + 1, 46, 8, "rgba(0,0,0,.35)");
-    // рука, що тягнеться до кошика (позаду фігури)
-    var Sx = X + side * 26, Sy = 318 + ub, Bx = C.bx - side * 14, By = C.by + 4, Ex = (Sx + Bx) / 2 + side * 3, Ey = (Sy + By) / 2 + 6;
-    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 19; g.lineCap = "round"; g.beginPath(); g.moveTo(Sx, Sy); g.lineTo(Ex, Ey); g.stroke(); g.lineWidth = 15; g.beginPath(); g.moveTo(Ex, Ey); g.lineTo(Bx, By); g.stroke();
-    seg(Sx, Sy, Ex, Ey, 16, "#a9a9a9"); seg(Ex, Ey, Bx, By, 13, "#f0b896");
+    var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, s = 0.5, ub = Math.sin(tm * 6) * 0.9, big = shock > 0, happy = joy > 0;
+    var HD = big ? ART["head-wave"] : happy ? ART["head-win"] : ART["head-thumb"];
+    var lean = side * 0.045 + Math.sin(tm * 3) * 0.008, pvx = X, pvy = FY + (262 - 480) * s;
+    function W(lx, ly) { var dx = lx * s, dy = (ly - 262) * s, c = Math.cos(lean), sn = Math.sin(lean); return [pvx + dx * c - dy * sn, pvy + ub + dx * sn + dy * c]; }
+    el(X, FY + 1, 44, 7, "rgba(0,0,0,.38)");
+    // ноги (фото)
+    g.save(); g.translate(X, FY); g.scale(s, s); g.drawImage(ART.legs, -98, 264 - 480); g.restore();
+    // вільна рука (за тулубом, якщо опущена)
+    var f = -side, S2 = W(f * 61, 132), E2, H2, ha = 0;
+    if (big) { E2 = [S2[0] + f * 22, S2[1] + 6]; H2 = [S2[0] + f * 42, S2[1] - 12]; ha = f * 1.2; }
+    else if (happy) { E2 = [S2[0] + f * 17, S2[1] + 2]; H2 = [S2[0] + f * 24, S2[1] - 32]; ha = f * 0.25; }
+    else { var sw = Math.sin(tm * 3) * 1.2; E2 = [S2[0] + f * 8 + sw, S2[1] + 31]; H2 = [S2[0] + f * 6 + sw * 1.6, S2[1] + 63 + ub]; ha = Math.PI; }
+    var drawFree = function () { sleeveArm(S2[0], S2[1], E2[0], E2[1], H2[0], H2[1], ha + (big || happy ? 0 : 0), false); };
+    // тулуб
+    g.save(); g.translate(pvx, pvy + ub); g.scale(s, s); g.rotate(lean); g.translate(0, 0);
+    var T = function (y) { return y - 262; };
+    g.beginPath(); g.moveTo(-50, T(276)); g.quadraticCurveTo(-56, T(215), -59, T(160)); g.quadraticCurveTo(-64, T(128), -42, T(116)); g.quadraticCurveTo(0, T(106), 42, T(116)); g.quadraticCurveTo(64, T(128), 59, T(160)); g.quadraticCurveTo(56, T(215), 50, T(276)); g.quadraticCurveTo(0, T(284), -50, T(276)); g.closePath();
+    g.fillStyle = lg(-60, 0, 60, 0, [[0, "#7f848c"], [0.3, "#b3b7bd"], [0.62, "#a5a9b0"], [1, "#767b83"]]); g.fill(); g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 2; g.stroke();
+    g.save(); g.clip(); g.fillStyle = "rgba(0,0,0,.16)"; g.fillRect(-60, T(262), 120, 30); // низ у тіні
+    g.strokeStyle = "rgba(0,0,0,.13)"; g.lineWidth = 3; g.beginPath(); g.moveTo(-34, T(170)); g.quadraticCurveTo(-18, T(200), -30, T(250)); g.moveTo(36, T(168)); g.quadraticCurveTo(22, T(205), 34, T(252)); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 4; g.beginPath(); g.moveTo(-8, T(140)); g.quadraticCurveTo(-14, T(190), -10, T(240)); g.stroke(); g.restore();
+    // шия
+    g.fillStyle = lg(0, T(96), 0, T(126), [[0, "#c98a62"], [1, "#e6a57c"]]); rr(g, -17, T(94), 34, 34, 10); g.fill();
+    // комір і планка
+    g.fillStyle = lg(0, T(110), 0, T(140), [[0, "#d7dadf"], [1, "#a9adb3"]]);
+    g.beginPath(); g.moveTo(-30, T(112)); g.lineTo(-9, T(106)); g.lineTo(-2, T(138)); g.lineTo(-18, T(128)); g.closePath(); g.fill(); g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.4; g.stroke();
+    g.beginPath(); g.moveTo(30, T(112)); g.lineTo(9, T(106)); g.lineTo(2, T(138)); g.lineTo(18, T(128)); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, T(134)); g.lineTo(0, T(170)); g.stroke();
+    el(0, T(147), 2.4, 2.4, "#6c7078"); el(0, T(160), 2.4, 2.4, "#6c7078");
+    // шнурок з медаллю (як на фото)
+    g.strokeStyle = "#d9dde2"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(-14, T(112)); g.quadraticCurveTo(-6, T(150), 20, T(176)); g.moveTo(14, T(112)); g.quadraticCurveTo(14, T(150), 20, T(176)); g.stroke();
+    el(21, T(188), 13, 13, rg(18, T(184), 1, 14, [[0, "#fff4b0"], [0.6, "#f2c230"], [1, "#b0841a"]])); g.strokeStyle = "#8a6612"; g.lineWidth = 1.4; g.beginPath(); g.arc(21, T(188), 13, 0, 7); g.stroke();
+    // голова (фото)
+    var hw = HD.naturalWidth, hh = HD.naturalHeight, hx = HD === ART["head-win"] ? -53 : HD === ART["head-wave"] ? -42 : -45;
+    g.save(); g.translate(0, T(104)); g.rotate(-lean * 1.5 + side * 0.07 + (big ? 0 : Math.sin(tm * 2.2) * 0.012)); g.drawImage(HD, hx, -hh + 6); g.restore();
+    g.restore();
+    drawFree();
+    // рука, що ловить кошик
+    var S1 = W(side * 61, 132), Bx = C.bx - side * 9, By = C.by + 5, dx = Bx - S1[0], dy = By - S1[1], d = Math.hypot(dx, dy), L = Math.max(36, d * 0.56), hgt = Math.sqrt(Math.max(0, L * L - d * d / 4)), nx = -dy / d, ny = dx / d;
+    if (ny < 0) { nx = -nx; ny = -ny; }
+    var E1 = [S1[0] + dx / 2 + nx * hgt, S1[1] + dy / 2 + ny * hgt];
+    var rest = Math.atan2(By - E1[1], Bx - E1[0]) + Math.PI / 2;
     basket(C.bx, C.by);
-    el(Bx - side * 2, By + 1, 7.5, 8, lg(0, By - 7, 0, By + 9, [[0, "#ffd0ac"], [1, "#d68f66"]]));
-    // сам Артурович
-    var im = big ? ART.wave : happy ? ART.win : ART.thumb, h = 206, w = h * im.naturalWidth / im.naturalHeight;
-    g.save(); g.translate(X, FY + 1 + ub * 0.5); if (side > 0) g.scale(-1, 1); g.drawImage(im, -w / 2 - 2, -h, w, h); g.restore();
+    sleeveArm(S1[0], S1[1], E1[0], E1[1], Bx, By, rest * 0.35, true);
   }
   function fizrukOld() {
     var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, ub = Math.sin(tm * 6) * 1.1, big = shock > 0, happy = joy > 0;
@@ -297,7 +382,7 @@
     if (bgc) g.drawImage(bgc, 0, 0, W, H); else { g.fillStyle = "#3a2a18"; g.fillRect(0, 0, W, H); }
     CH.forEach(ramp);
     fizruk();
-    balls.forEach(function (b) { drawBall(b.k, b.x, b.y, b.rot); });
+    balls.forEach(function (b) { if (b.bad) drawBomb(b.x, b.y, b.rot); else if (b.gold) drawGold(b.x, b.y, b.rot); else drawBall(b.k, b.x, b.y, b.rot); });
     g.textAlign = "center"; g.font = "bold 22px system-ui,sans-serif"; g.lineJoin = "round";
     fx.forEach(function (f) { g.globalAlpha = 1 - f.t / 0.9; g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.7)"; g.strokeText(f.s, f.x, f.y - f.t * 40); g.fillStyle = f.c; g.fillText(f.s, f.x, f.y - f.t * 40); g.globalAlpha = 1; });
     g.textAlign = "left";

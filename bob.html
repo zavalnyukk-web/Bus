@@ -54,6 +54,7 @@
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>
 (function () {
   var $ = function (i) { return document.getElementById(i); };
@@ -72,7 +73,7 @@
     pe: { n: "Фізрук Артурович", e: "🏀", c: "#d62839", head: 1, al: "whistle" }
   };
   var head = new Image(); head.src = "art-face.jpg";
-  var lvl = 0, saved = 0, maxU = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null, lastDoor = "", bellT = 40, blT = 0, flip = 0;
+  var lastR = null, perkOn = false, perk = { life: 0 }, lvl = 0, saved = 0, maxU = 0, st = "intro", P, gs, loot, got, exitOpen, grace, tm = 0, msg = "", msgT = 0, started = false, keys = {}, sneakBtn = false, joy = null, lastStep = 0, hbT = 0, alertCd = 0, caughtBy = null, lastDoor = "", bellT = 40, blT = 0, flip = 0;
   try { saved = +localStorage.getItem("bus.bob.level") || 0; maxU = +localStorage.getItem("bus.bob.max") || 0; } catch (e) {}
   if (saved >= LV.length) saved = 0; if (maxU < saved) maxU = saved;
 
@@ -199,20 +200,20 @@
     if (dd > 0.02) { var vx = (gx - e.x) / dd, vy = (gy - e.y) / dd, ta = Math.atan2(vy, vx), df = ((ta - e.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; e.a += df * Math.min(1, dt * 8); move(e, vx * sp * dt, vy * sp * dt, 0.3); }
   }
   function lose() {
-    st = "over"; S.caught();
+    st = "over"; S.caught(); lastR = META.end("bob", { pts: 0, coins: 1 }); perkOn = false;
     var e = caughtBy, im = $("oimg"), em = $("oemo");
     if (e.k.head) { im.src = "art-win.png"; im.className = "hero"; im.hidden = false; em.hidden = true; } else { im.hidden = true; em.hidden = false; em.textContent = e.k.e; }
     $("h").textContent = "Боба впіймали!"; $("lvl").textContent = "Рівень " + (lvl + 1);
-    $("txt").textContent = e.k.n + " знайшов(ла) сторожа й дав(ла) йому купу доручень: замінити лампочки, полагодити парти й помити коридор. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("lvs").innerHTML = ""; $("ov").hidden = false;
+    $("txt").textContent = e.k.n + " знайшов(ла) сторожа й дав(ла) йому купу доручень: замінити лампочки, полагодити парти й помити коридор. Спробуєш ще раз?"; $("go").textContent = "Ще раз"; META.clear($("ov")); META.gain(lastR, $("ov")); lastR = null; $("lvs").innerHTML = ""; $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; S.start(); };
   }
   function win() {
     st = "win"; S.win();
-    var last = lvl === LV.length - 1; try { localStorage.setItem("bus.bob.level", String(last ? 0 : lvl + 1)); if (!last && lvl + 1 > maxU) { maxU = lvl + 1; localStorage.setItem("bus.bob.max", String(maxU)); } } catch (e) {}
+    var last = lvl === LV.length - 1; lastR = META.end("bob", { pts: Math.round((lvl + 1) * 55 * DIFF.pick(0.7, 1, 1.4)), coins: 5 + lvl * 2 + (last ? 15 : 0), keep: !last }); if (last) perkOn = false; try { localStorage.setItem("bus.bob.level", String(last ? 0 : lvl + 1)); if (!last && lvl + 1 > maxU) { maxU = lvl + 1; localStorage.setItem("bus.bob.max", String(maxU)); } } catch (e) {}
     var im = $("oimg"); im.src = "stepanovych.jpg"; im.className = "circ"; im.hidden = false; $("oemo").hidden = true;
     $("h").textContent = last ? "Нічна зміна закінчена!" : "Рівень пройдено!"; $("lvl").textContent = last ? "Фінал" : "Рівень " + (lvl + 1);
     $("txt").textContent = last ? "Степанович: Бобе, ти найкращий сторож у районі! Усі речі знайдено, учні отримають їх зранку, а вчителі так і не здогадались, що ти був тут." : "Степанович: Чудово, Бобе! Далі буде складніше.";
-    $("go").textContent = last ? "Зіграти ще" : "Далі"; $("lvs").innerHTML = ""; $("ov").hidden = false;
+    $("go").textContent = last ? "Зіграти ще" : "Далі"; $("lvs").innerHTML = ""; META.clear($("ov")); if (lastR) { META.gain(lastR, $("ov")); lastR = null; } $("ov").hidden = false;
     $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(last ? 0 : lvl + 1); intro(); };
   }
   DIFF.mount($("ov"), $("go"));
@@ -223,7 +224,7 @@
     var box = $("lvs"); box.innerHTML = "";
     LV.forEach(function (x, i) { var b = document.createElement("button"); b.type = "button"; b.textContent = i + 1; b.disabled = i > maxU; if (i === lvl) b.className = "cur"; b.onclick = function () { SFXLIB.ac(); load(i); intro(); }; box.appendChild(b); });
     $("ov").hidden = false;
-    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; S.start(); if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("bob"); } catch (e) {} } };
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; if (!perkOn) { perkOn = true; perk = META.begin("bob"); if (perk.life) grace += 4; } S.start(); if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("bob"); } catch (e) {} } };
   }
 
   /* ---------- малювання ---------- */

@@ -50,6 +50,7 @@
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>(function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 560, LANES = 3, LW = W / LANES;
   var $ = function (i) { return document.getElementById(i); };
@@ -74,7 +75,18 @@
     { stop: "Нічна заметіль", goal: 24, speed: 4.9, kinds: ["cone", "snow", "car", "cow"], gap: 145, heart: true, th: "blizzard", who: "S",
       say: "Заметіль і темрява. Тут потрібна найбільша уважність. Ви вже майже професійний водій!" },
     { stop: "Ліцей", goal: 26, speed: 5.1, kinds: ["cone", "rock", "car", "cow", "puddle"], gap: 140, heart: true, th: "feast", who: "A",
-      say: "Фінальний відрізок до ліцею! Нас там чекають. Збирайте останніх учнів і їдемо на свято!" }
+      say: "Фінальний відрізок до ліцею! Нас там чекають. Збирайте останніх учнів і їдемо на свято!" },
+    /* ===== нова серія: «Маршрут майстра» ===== */
+    { stop: "Траса Хмельницький", goal: 24, speed: 5.0, kinds: ["cone", "car", "moto", "pothole"], gap: 150, gate: 0.18, th: "day", who: "S",
+      say: "Нова серія! Траса жвава: мотоцикли обганяють набагато швидше за авто, а ями не загрожують життю, але гальмують. Збирайте монети 🪙!" },
+    { stop: "Ожеледиця", goal: 24, speed: 4.8, kinds: ["snow", "ice", "car", "cone"], gap: 150, gate: 0.2, th: "snow", who: "A",
+      say: "Ожеледиця! Потрапите на лід, і автобус занесе в сусідню смугу. Підберіть ⭐ щит: він захистить від одного удару." },
+    { stop: "Тракторний день", goal: 26, speed: 5.0, kinds: ["tractor", "cow", "pothole", "cone", "tractor"], gap: 160, gate: 0.2, th: "autumn", who: "S",
+      say: "Збирають урожай: трактори займають одразу дві смуги, тож шукайте вільну. Корови теж не поступляться." },
+    { stop: "Нічна гроза", goal: 28, speed: 5.3, kinds: ["cone", "rock", "car", "moto", "ice", "cow"], gap: 140, gate: 0.25, th: "storm", who: "A",
+      say: "Гроза! Блискавки засліплюють, дощ заливає дорогу. Тримайте кермо міцно, я рахую дітей." },
+    { stop: "Свято в ліцеї", goal: 32, speed: 5.5, kinds: ["cone", "rock", "car", "cow", "tractor", "moto", "ice", "pothole"], gap: 130, gate: 0.3, th: "feast", who: "S",
+      say: "Фінал серії: усі перешкоди разом і ворота з двох смуг. Збирайте дітей, монети й вигравайте звання «Водій року»!" }
   ];
   var LEVELS = [];
   function applyDiff() {
@@ -85,7 +97,7 @@
   }
   applyDiff();
   function startLives() { return DIFF.pick(5, 3, 2); }
-  var M3 = [0.6, 0.68, 0.76, 0.84, 0.9, 0.95, 1, 1, 1, 1];
+  var M3 = [0.6, 0.68, 0.76, 0.84, 0.9, 0.95, 1, 1, 1, 1, 1, 1, 1, 1, 1];
   var THEMES = {
     day:      { sky: ["#6fb7ea", "#d9f0fb"], hill: "#8fbf84", ground: "#58a04a", ta: "#2f7a3a", tb: "#3a9246" },
     cloudy:   { sky: ["#8fa7b8", "#d5dde3"], hill: "#7fa077", ground: "#5c8f4f", ta: "#2f6a3a", tb: "#3a8246", cloud: 1 },
@@ -96,6 +108,7 @@
     night:    { sky: ["#0a1230", "#1e2a52"], hill: "#16223a", ground: "#173a24", ta: "#0f3a1c", tb: "#14502a", night: 0.55, stars: 1, road: "#2b3333" },
     snow:     { sky: ["#aac4de", "#eef4fa"], hill: "#dfe9f2", ground: "#f1f5f8", ta: "#2b6a52", tb: "#3f8a6e", snow: 1, cap: 1, road: "#4a5456" },
     blizzard: { sky: ["#1b2640", "#47557a"], hill: "#6f7d98", ground: "#cfd9e6", ta: "#1f5646", tb: "#2c6e5a", snow: 1, cap: 1, night: 0.4, road: "#3a4244", fog: 0.35 },
+    storm:    { sky: ["#232a3a", "#4a5568"], hill: "#2d3646", ground: "#1d3a2a", ta: "#123a22", tb: "#18502e", rain: 1, night: 0.35, road: "#262d2f", lightning: 1, fog: 0.25 },
     feast:    { sky: ["#6fb7ea", "#fff2c9"], hill: "#8fbf84", ground: "#58a04a", ta: "#2f7a3a", tb: "#3a9246", confetti: 1 }
   };
 
@@ -142,16 +155,16 @@
   function engineOff() { if (!eng) return; try { eng.o.stop(); } catch (e) {} eng = null; }
   function engineSpeed(sp) { if (eng && AC) eng.o.frequency.setTargetAtTime(48 + sp * 13, AC.currentTime, 0.1); }
   document.addEventListener("visibilitychange", function () { if (document.hidden) engineOff(); else if (run) engineOn(); });
-  var slow = 0, lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
+  var shield = false, dbl = 0, coinsLv = 0, perk = { life: 0 }, perkOn = false, lastR = null, slow = 0, lvl, lane, x, lives, kids, total, speed, objs, spawn, t, run, off, hit, bubble, bubT, saved = 0, best = 0, flash;
   try { best = +localStorage.getItem("bus.game.best") || 0; saved = +localStorage.getItem("bus.game.level") || 0; } catch (e) {}
-  function hud() { $("hud").textContent = "Рівень " + (lvl + 1) + " · " + kids + "/" + LEVELS[lvl].goal + " · ♥ " + lives; $("best").textContent = "Усього: " + total; }
+  function hud() { $("hud").textContent = "Рівень " + (lvl + 1) + " · " + kids + "/" + LEVELS[lvl].goal + " · ♥ " + lives + (shield ? " · ⭐" : "") + (dbl > 0 ? " · ×2" : "") + " · 🪙 " + coinsLv; $("best").textContent = "Усього: " + total; }
   function save() { try { localStorage.setItem("bus.game.best", String(best)); localStorage.setItem("bus.game.level", String(saved)); } catch (e) {} }
   function say(w, txt) { bubble = { w: w, t: txt }; bubT = 150; }
   function say2(w, txt, head, btn) {
     $("avbox").innerHTML = AVC[w]; $("who").textContent = NAME[w]; $("ovtxt").textContent = txt; $("ovh").textContent = head;
-    $("go").textContent = btn; $("ov").hidden = false;
+    $("go").textContent = btn; if (lastR) { META.gain(lastR, $("ov")); lastR = null; } else META.clear($("ov")); $("ov").hidden = false;
   }
-  function begin(l) { slow = 0; lvl = l; lane = 1; x = lane * LW + LW / 2; kids = 0; objs = []; spawn = 40; t = 0; off = 0; hit = 0; bubble = null; bubT = 0; speed = LEVELS[l].speed; hud(); draw(); }
+  function begin(l) { slow = 0; shield = false; dbl = 0; coinsLv = 0; lvl = l; lane = 1; x = lane * LW + LW / 2; kids = 0; objs = []; spawn = 40; t = 0; off = 0; hit = 0; bubble = null; bubT = 0; speed = LEVELS[l].speed; hud(); draw(); }
   function intro(l, keep) {
     if (!keep) { lives = startLives(); if (l === 0) total = 0; }
     begin(l); run = false;
@@ -173,8 +186,15 @@
     g.restore();
   }
   function drawObj(o) {
-    var cx = o.l * LW + LW / 2, y = o.y;
-    if (o.k === "kid") {
+    var cx = (o.l + (o.l2 !== undefined ? 0.5 : 0)) * LW + LW / 2, y = o.y;
+    if (o.k === "coin") { g.fillStyle = "#f5c400"; g.beginPath(); g.arc(cx, y, 13, 0, 7); g.fill(); g.strokeStyle = "#a07800"; g.lineWidth = 2; g.stroke(); g.fillStyle = "#a07800"; g.font = "bold 14px system-ui"; g.textAlign = "center"; g.fillText("₴", cx, y + 5); }
+    else if (o.k === "shield") { g.fillStyle = "#2d7dd2"; g.beginPath(); g.arc(cx, y, 15, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 18px system-ui"; g.textAlign = "center"; g.fillText("★", cx, y + 6); }
+    else if (o.k === "dbl") { g.fillStyle = "#1B7F5C"; g.beginPath(); g.arc(cx, y, 15, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 13px system-ui"; g.textAlign = "center"; g.fillText("×2", cx, y + 5); }
+    else if (o.k === "pothole") { g.fillStyle = "#1c1f1f"; g.beginPath(); g.ellipse(cx, y, 26, 11, 0, 0, 7); g.fill(); }
+    else if (o.k === "ice") { g.fillStyle = "rgba(190,230,255,.85)"; g.beginPath(); g.ellipse(cx, y, 34, 14, 0, 0, 7); g.fill(); g.strokeStyle = "#fff"; g.beginPath(); g.moveTo(cx - 16, y); g.lineTo(cx + 12, y - 4); g.stroke(); }
+    else if (o.k === "moto") { g.fillStyle = "#222"; g.fillRect(cx - 4, y - 24, 8, 48); g.fillStyle = "#e23d3d"; g.fillRect(cx - 9, y - 4, 18, 18); g.fillStyle = "#ffd9b3"; g.beginPath(); g.arc(cx, y - 10, 7, 0, 7); g.fill(); }
+    else if (o.k === "tractor") { g.fillStyle = "#2e8b3d"; rr(cx - 38, y - 30, 76, 56, 8); g.fill(); g.fillStyle = "#1c5a27"; g.fillRect(cx - 18, y - 22, 36, 22); g.fillStyle = "#222"; g.fillRect(cx - 44, y - 22, 9, 26); g.fillRect(cx + 35, y - 22, 9, 26); }
+    else if (o.k === "kid") {
       g.fillStyle = "#1B7F5C"; g.beginPath(); g.arc(cx, y, 16, 0, 7); g.fill();
       g.fillStyle = "#ffd9b3"; g.beginPath(); g.arc(cx, y - 3, 8, 0, 7); g.fill();
       g.fillStyle = "#222"; g.fillRect(cx - 4, y - 5, 2, 2); g.fillRect(cx + 2, y - 5, 2, 2);
@@ -203,25 +223,40 @@
   function frame() {
     if (!run) return;
     var L = LEVELS[lvl]; t++;
-    speed = (L.speed + Math.min(1.2, t / 3000)) * (view3d ? M3[lvl] : 1) * (slow > 0 ? 0.55 : 1); if (slow > 0) slow--;
+    if (dbl > 0) dbl--; speed = (L.speed + Math.min(1.2, t / 3000)) * (view3d ? M3[lvl] : 1) * (slow > 0 ? 0.55 : 1); if (slow > 0) slow--;
     x += (lane * LW + LW / 2 - x) * 0.25;
     off = (off + speed) % 56; treeOff = (treeOff + speed) % 140; spawn -= speed; engineSpeed(speed);
     if (spawn <= 0) {
-      var r = Math.random(), k;
-      if (r < 0.42) k = "kid"; else if (L.heart && r < 0.46 && lives < 5) k = "heart"; else k = L.kinds[Math.floor(Math.random() * L.kinds.length)];
-      var l = Math.floor(Math.random() * LANES);
-      objs.push({ k: k, l: l, y: -50, c: ["#c0392b", "#2d7dd2", "#7b4fb0", "#e8e8e8"][Math.floor(Math.random() * 4)] });
-      if (Math.random() < 0.3) objs.push({ k: "kid", l: (l + 1 + Math.floor(Math.random() * 2)) % LANES, y: -50 });
-      spawn = L.gap + Math.random() * 90;
+      var r = Math.random(), k, l = Math.floor(Math.random() * LANES), col = ["#c0392b", "#2d7dd2", "#7b4fb0", "#e8e8e8"][Math.floor(Math.random() * 4)];
+      var haz = L.kinds.filter(function (q) { return q !== "tractor" && q !== "moto"; }); if (!haz.length) haz = ["cone"];
+      if (L.gate && Math.random() < L.gate) {
+        for (var q = 0; q < LANES; q++) if (q !== l) objs.push({ k: haz[Math.floor(Math.random() * haz.length)], l: q, y: -50, c: col });
+        objs.push({ k: "kid", l: l, y: -50 }); objs.push({ k: "coin", l: l, y: -120 }); objs.push({ k: "coin", l: l, y: -190 });
+        spawn = L.gap * 1.35;
+      } else {
+        if (r < 0.40) k = "kid"; else if (L.heart && r < 0.44 && lives < 5) k = "heart"; else if (r < 0.58) k = "coin"; else if (r < 0.605 && !shield) k = "shield"; else if (r < 0.625 && dbl <= 0) k = "dbl"; else k = L.kinds[Math.floor(Math.random() * L.kinds.length)];
+        var ob = { k: k, l: l, y: -50, c: col };
+        if (k === "tractor") { ob.l = Math.min(l, LANES - 2); ob.l2 = ob.l + 1; } else if (k === "moto") ob.v = 2.6;
+        objs.push(ob);
+        if (k === "coin") { objs.push({ k: "coin", l: l, y: -110 }); objs.push({ k: "coin", l: l, y: -170 }); }
+        if (Math.random() < 0.3) objs.push({ k: "kid", l: (l + 1 + Math.floor(Math.random() * 2)) % LANES, y: -50 });
+        spawn = L.gap + Math.random() * 90;
+      }
     }
     var by = H - 80;
     for (var i = objs.length - 1; i >= 0; i--) {
-      var o = objs[i]; o.y += speed;
-      if (o.l === lane && Math.abs(o.y - by) < (o.k === "car" ? 58 : 40)) {
+      var o = objs[i]; o.y += speed + (o.v || 0);
+      if ((o.l === lane || o.l2 === lane) && Math.abs(o.y - by) < (o.k === "car" || o.k === "tractor" ? 58 : 40)) {
         objs.splice(i, 1);
-        if (o.k === "kid") { SFX.kid(); kids++; total++; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
+        if (o.k === "coin") { SFX.kid(); coinsLv++; hud(); }
+        else if (o.k === "shield") { SFX.heart(); shield = true; say("A", "Щит! Один удар не страшний."); hud(); }
+        else if (o.k === "dbl") { SFX.heart(); dbl = 600; say("S", "Подвійна посадка! Діти рахуються за двох."); hud(); }
+        else if (o.k === "pothole") { slow = 45; hit = 10; SFX.hit(); say("S", "Яма! Пригальмуємо."); }
+        else if (o.k === "ice") { slow = 30; lane = Math.max(0, Math.min(LANES - 1, lane + (Math.random() < 0.5 ? -1 : 1))); SFXnoiseSplash(); say("A", "Лід! Автобус занесло."); }
+        else if (o.k === "kid") { SFX.kid(); var kg = dbl > 0 ? 2 : 1; kids += kg; total += kg; if (total % 6 === 0) { var q = TIPS_OK[Math.floor(Math.random() * TIPS_OK.length)]; say(q[0], q[1]); } hud(); if (kids >= L.goal) { done(); return; } }
         else if (o.k === "heart") { SFX.heart(); lives = Math.min(5, lives + 1); say("A", "Тримайте! Додаю життя."); hud(); }
         else if (o.k === "puddle") { slow = 55; SFXnoiseSplash(); say("S", "Калюжа! Трохи пригальмуємо."); }
+        else if (shield) { shield = false; SFX.heart(); say("A", "Щит врятував!"); hud(); }
         else { SFX.hit(); lives--; hit = 20; var h = TIPS_HIT[Math.floor(Math.random() * TIPS_HIT.length)]; say(h[0], h[1]); hud(); if (lives <= 0) { over(); return; } }
       } else if (o.y > H + 60) objs.splice(i, 1);
     }
@@ -233,7 +268,7 @@
     g.fillStyle = "#e9e9e9"; for (var i = 1; i < LANES; i++) for (var y = -56 + off; y < H; y += 56) g.fillRect(i * LW - 2, y, 4, 30);
     (objs || []).forEach(drawObj);
     if (hit > 0) hit--;
-    drawBus(x, H - 80, hit > 0 && hit % 6 < 3);
+    drawBus(x, H - 80, hit > 0 && hit % 6 < 3); if (shield) { g.strokeStyle = "rgba(120,190,255,.9)"; g.lineWidth = 3; g.beginPath(); g.arc(x, H - 80, 52, 0, 7); g.stroke(); }
     if (th2.night) { g.fillStyle = "rgba(4,8,28," + th2.night * 0.8 + ")"; g.fillRect(0, 0, W, H); }
     if (th2.fog) { g.fillStyle = "rgba(225,232,236," + th2.fog * 0.35 + ")"; g.fillRect(0, 0, W, H); }
     var kk; if (th2.rain) { g.strokeStyle = "rgba(220,235,250,.5)"; g.beginPath(); for (kk = 0; kk < 50; kk++) { var rx = (kk * 53) % W, ry = (kk * 37 + t * 12) % H; g.moveTo(rx, ry); g.lineTo(rx - 3, ry + 12); } g.stroke(); }
@@ -262,6 +297,18 @@
       g.fillStyle = "#17231F"; rr(-25, -58, 50, 22, 3); g.fill(); g.fillStyle = "#3b5870"; rr(-22, -55, 44, 16, 2); g.fill();
       g.fillStyle = "#fff"; g.fillRect(-14, -30, 28, 9); g.fillStyle = "#17231F"; g.font = "bold 7px system-ui,sans-serif"; g.textAlign = "center"; g.fillText("ШКІЛЬНИЙ", 0, -23);
       g.fillStyle = "#e23d3d"; g.fillRect(-29, -20, 8, 7); g.fillRect(21, -20, 8, 7);
+    } else if (k === "coin") {
+      shadow(10); var cy = -24 + Math.sin(t / 7) * 3, sw = Math.abs(Math.cos(t / 14)) * 0.7 + 0.3; g.save(); g.translate(0, cy); g.scale(sw, 1); g.fillStyle = "#f5c400"; g.beginPath(); g.arc(0, 0, 14, 0, 7); g.fill(); g.strokeStyle = "#a07800"; g.lineWidth = 2.5; g.stroke(); g.fillStyle = "#a07800"; g.font = "bold 15px system-ui"; g.textAlign = "center"; g.fillText("₴", 0, 5); g.restore();
+    } else if (k === "shield" || k === "dbl") {
+      var sy2 = -28 + Math.sin(t / 8) * 4; g.fillStyle = "rgba(255,255,255,.3)"; g.beginPath(); g.arc(0, sy2, 24, 0, 7); g.fill(); shadow(12); g.fillStyle = k === "shield" ? "#2d7dd2" : "#1B7F5C"; g.beginPath(); g.arc(0, sy2, 16, 0, 7); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.fillStyle = "#fff"; g.font = "bold 16px system-ui"; g.textAlign = "center"; g.fillText(k === "shield" ? "★" : "×2", 0, sy2 + 6);
+    } else if (k === "pothole") {
+      g.fillStyle = "#14171a"; g.beginPath(); g.ellipse(0, -2, 38, 10, 0, 0, 7); g.fill(); g.fillStyle = "rgba(255,255,255,.12)"; g.beginPath(); g.ellipse(-6, -6, 26, 3, 0, 0, 7); g.fill();
+    } else if (k === "ice") {
+      g.fillStyle = "rgba(200,235,255,.9)"; g.beginPath(); g.ellipse(0, -2, 44, 12, 0, 0, 7); g.fill(); g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 2; g.beginPath(); g.moveTo(-22, -2); g.lineTo(10, -6); g.moveTo(-6, 2); g.lineTo(26, -1); g.stroke();
+    } else if (k === "moto") {
+      shadow(16); g.fillStyle = "#111"; g.fillRect(-4, -34, 8, 34); g.fillStyle = "#e23d3d"; rr(-12, -34, 24, 20, 6); g.fill(); g.fillStyle = "#2a2a2a"; rr(-9, -50, 18, 18, 5); g.fill(); g.fillStyle = "#ffd9b3"; g.beginPath(); g.arc(0, -58, 8, 0, 7); g.fill(); g.fillStyle = "#f5b800"; g.beginPath(); g.arc(0, -60, 8.5, Math.PI, 0); g.fill(); g.fillStyle = "#ffe08a"; g.fillRect(-3, -18, 6, 4);
+    } else if (k === "tractor") {
+      shadow(46); g.fillStyle = "#111"; rr(-54, -34, 16, 34, 5); g.fill(); rr(38, -34, 16, 34, 5); g.fill(); g.fillStyle = "#2e8b3d"; rr(-38, -44, 76, 34, 8); g.fill(); g.fillStyle = "#256f31"; rr(-22, -74, 44, 36, 6); g.fill(); g.fillStyle = "#9ec9e8"; rr(-17, -69, 34, 18, 3); g.fill(); g.fillStyle = "#ffd23f"; g.fillRect(-34, -34, 10, 6); g.fillRect(24, -34, 10, 6);
     } else if (k === "kid") {
       shadow(14); var bob = Math.sin(t / 5) * 2;
       g.fillStyle = "#2d4a6a"; g.fillRect(-7, -12, 5, 12); g.fillRect(2, -12, 5, 12);
@@ -333,7 +380,7 @@
         g.fillStyle = th.tb; g.beginPath(); g.moveTo(0, -84); g.lineTo(32, -20); g.lineTo(-32, -20); g.closePath(); g.fill();
         if (th.cap) { g.fillStyle = "#fff"; g.beginPath(); g.moveTo(0, -110); g.lineTo(14, -80); g.lineTo(-14, -80); g.closePath(); g.fill(); g.beginPath(); g.moveTo(0, -84); g.lineTo(18, -52); g.lineTo(-18, -52); g.closePath(); g.fill(); }
       } else {
-        var o = it.o; g.translate(W / 2 + (o.l * LW + LW / 2 - W / 2) * q.s, q.sy); g.scale(q.s * 1.15, q.s * 1.15); sprite(o.k, o.c, false);
+        var o = it.o; g.translate(W / 2 + ((o.l + (o.l2 !== undefined ? 0.5 : 0)) * LW + LW / 2 - W / 2) * q.s, q.sy); g.scale(q.s * 1.15, q.s * 1.15); sprite(o.k, o.c, false);
       }
       g.restore();
     });
@@ -347,8 +394,9 @@
     }
     // автобус (вигляд ззаду)
     if (hit > 0) hit--;
-    var bq = pr(H - 80); g.save(); g.translate(W / 2 + (x - W / 2) * bq.s, bq.sy + 10); g.scale(bq.s * 1.35, bq.s * 1.35); sprite("bus", null, hit > 0 && hit % 6 < 3); g.restore();
+    var bq = pr(H - 80); g.save(); g.translate(W / 2 + (x - W / 2) * bq.s, bq.sy + 10); g.scale(bq.s * 1.35, bq.s * 1.35); sprite("bus", null, hit > 0 && hit % 6 < 3); if (shield) { g.strokeStyle = "rgba(120,190,255,.9)"; g.fillStyle = "rgba(120,190,255,.18)"; g.lineWidth = 3; g.beginPath(); g.arc(0, -30, 56, 0, 7); g.fill(); g.stroke(); } g.restore();
     g.restore();
+    if (th.lightning && t % 420 < 7) { g.fillStyle = "rgba(255,255,255," + (0.65 - (t % 420) * 0.09).toFixed(2) + ")"; g.fillRect(0, 0, W, H); if (t % 420 === 2) { noise(0.6, 0.35); tone(70, 0.5, "sawtooth", 0.15, 0, 40); } }
     var k2;
     if (th.rain) { g.strokeStyle = "rgba(220,235,250,.55)"; g.lineWidth = 1.2; g.beginPath(); for (k2 = 0; k2 < 70; k2++) { var rx = (k2 * 53) % W, ry = (k2 * 37 + t * 14) % H; g.moveTo(rx, ry); g.lineTo(rx - 4, ry + 14); } g.stroke(); }
     if (th.snow) { g.fillStyle = "rgba(255,255,255,.9)"; for (k2 = 0; k2 < 60; k2++) { var sx = ((k2 * 61) + Math.sin(t / 30 + k2) * 14 + W) % W, sy = (k2 * 41 + t * 2.2) % H; g.beginPath(); g.arc(sx, sy, 1.4 + (k2 % 3) * 0.6, 0, 7); g.fill(); } }
@@ -357,8 +405,9 @@
     if (hit > 0) { g.fillStyle = "rgba(220,40,30," + (hit / 60) + ")"; g.fillRect(0, 0, W, H); }
   }
   function draw() { if (view3d) { if (hit > 0 && run === false) hit = 0; draw3d(); } else draw2d(); drawBubble(); }
+  function pay(final) { var r = META.end("bus", { pts: Math.round((total * 10 + lvl * 40 + (final ? 300 : 0)) * DIFF.pick(0.7, 1, 1.4)), coins: coinsLv + 4 + Math.floor(lvl / 2) + (final ? 20 : 0), keep: !final }); lastR = r; coinsLv = 0; if (final) perkOn = false; return r; }
   function done() {
-    run = false; engineOff(); if (lvl + 1 < LEVELS.length) SFX.level(); else SFX.win(); draw();
+    run = false; engineOff(); pay(lvl + 1 >= LEVELS.length); if (lvl + 1 < LEVELS.length) SFX.level(); else SFX.win(); draw();
     if (total > best) best = total;
     if (lvl + 1 < LEVELS.length) {
       saved = Math.max(saved, lvl + 1); save();
@@ -374,12 +423,12 @@
     }
   }
   function over() {
-    run = false; engineOff(); SFX.over(); draw(); if (total > best) best = total; save();
+    run = false; engineOff(); pay(true); SFX.over(); draw(); if (total > best) best = total; save();
     $("lvl").textContent = "Рівень " + (lvl + 1) + " · зупинка " + LEVELS[lvl].stop;
     say2("A", "Цього разу не вийшло. Зібрано учнів: " + total + ", рекорд " + best + ". Спробуйте ще раз цей рівень!", "Кінець поїздки", "Ще раз");
     $("go").dataset.next = "retry"; $("go2").hidden = !(lvl > 0);
   }
-  function start() { if (window.trackPlay) trackPlay("bus"); engineOn(); SFX.horn(); $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
+  function start() { if (window.trackPlay) trackPlay("bus"); if (!perkOn) { perkOn = true; perk = META.begin("bus"); if (perk.life) { lives++; hud(); } } engineOn(); SFX.horn(); $("ov").hidden = true; run = true; requestAnimationFrame(frame); }
   $("go").onclick = function () {
     var n = $("go").dataset.next; $("go").dataset.next = "";
     if (n === "1") { intro(lvl + 1, true); start(); }

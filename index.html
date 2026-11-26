@@ -278,6 +278,7 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
       <a class="gamelink" href="bob.html">🔦 «Сторож Боб»: нічна зміна в ліцеї (2 поверхи)</a>
       <a class="gamelink" href="catch.html">🧺 «Фізрук ловить м’ячі»</a>
       <a class="gamelink" href="goal.html">⚽ «Забий гол Артуровичу» (пенальті 3D)</a>
+      <a class="gamelink" href="#" id="leagueBtn">🏆 Кунівська ліга: рейтинг гравців, монети й магазин</a>
     </section>
     <section class="card lostcard" id="lost" aria-label="Бюро знахідок">
       <h2>Бюро знахідок</h2>
@@ -314,6 +315,9 @@ body.playing .ibtn.main { animation:rpulse 1.6s ease-in-out infinite; }
 <script src="tracks.js"></script>
 <script src="facts.js"></script>
 <script src="track.js"></script>
+<script>window.META_NOPILL = 1;</script>
+<script src="meta.js"></script>
+<script>(function(){var b=document.getElementById("leagueBtn");if(b)b.onclick=function(e){e.preventDefault();META.open("rating");};})();</script>
 <script>
 (function () {
   var STOPS = {

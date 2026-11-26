@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#12261b">
+<title>Тиха перерва: місія в ліцеї</title>
+<style>
+  :root { --y:#ffd23f; --g:#5fb08f; --ink:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; background:#0b130f; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overscroll-behavior:none; touch-action:none; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px 12px 10px; gap:8px; }
+  header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  header a { color:var(--y); text-decoration:none; white-space:nowrap; }
+  header span { font-size:13px; text-align:center; }
+  .hb { display:flex; gap:6px; }
+  .wrap { position:relative; width:min(100%, 440px, calc((100vh - 120px) * 360 / 480)); aspect-ratio:360/480; min-width:240px; }
+  @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 120px) * 360 / 480)); } }
+  canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#12261b; }
+  .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:16px; border-radius:14px; background:rgba(8,16,11,.92); }
+  .ov[hidden] { display:none; }
+  .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
+  .ov .em { font-size:64px; line-height:1; }
+  .ov h1 { margin:0; font-size:22px; color:var(--y); } .ov p { margin:0; font-size:14.5px; line-height:1.4; max-width:300px; }
+  .lvl { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--g); font-weight:700; }
+  .go { font:inherit; font-size:18px; font-weight:700; padding:12px 28px; border:0; border-radius:12px; background:var(--y); color:#2a2200; cursor:pointer; }
+  .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; white-space:nowrap; }
+  .snd.on { background:var(--y); color:#222; }
+</style>
+</head>
+<body>
+<header><a href="./">← На сайт</a><span id="lvlname"></span><span class="hb"><button class="snd" id="sn" type="button" aria-label="Крастися тихо">🤫 Тихо</button><button class="snd" id="snd" type="button" aria-label="Звук"></button></span></header>
+<div class="wrap">
+  <canvas id="c" width="360" height="480" aria-label="Гра-стелс у плані першого поверху ліцею: проведи палець по екрану, щоб іти"></canvas>
+  <div class="ov" id="ov">
+    <img id="oimg" src="fizruk-full.jpg" alt="" hidden>
+    <div class="em" id="oem">🕵️</div>
+    <div class="lvl" id="lvl"></div>
+    <h1 id="h">Тиха перерва</h1>
+    <p id="txt"></p>
+    <button class="go" id="go" type="button">Грати</button>
+  </div>
+</div>
+<script src="sfx.js"></script>
+<script src="config.js"></script>
+<script src="track.js"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var cv = $("c"), g = cv.getContext("2d"), W = 360, H = 480;
+  /* ---------- карта (координати з плану евакуації, у пікселях плану) ---------- */
+  var FLOORS = [
+    [105, 220, 230, 90, "cls", "4"], [340, 220, 295, 90, "cls", "3"], [640, 220, 295, 90, "cls", "2"],
+    [230, 310, 710, 40, "cor", ""], [230, 350, 95, 385, "cor", ""],
+    [105, 310, 125, 110, "cls", "5"], [105, 425, 125, 110, "cls", "6"], [105, 540, 125, 95, "wc", "7"], [105, 640, 125, 95, "wc", "8"],
+    [105, 735, 125, 225, "din", "9 їдальня"], [230, 735, 290, 225, "hall", "10 кухня"],
+    [325, 465, 190, 105, "lab", "13"], [325, 570, 105, 165, "lab", "12"], [435, 570, 80, 165, "lab", "11"],
+    [940, 185, 230, 165, "foy", "1 фойє"], [835, 350, 155, 95, "cor", ""], [835, 350, 75, 240, "cor", ""],
+    [995, 350, 175, 95, "cls", "14"],
+    [910, 450, 137, 135, "lab", ""], [1047, 450, 123, 135, "lab", "18"],
+    [735, 585, 435, 375, "gym", "19 спортзал"], [690, 890, 50, 70, "gym", ""]
+  ];
+  var WALLS = [];
+  function Hh(y, a, b) { WALLS.push([a - 4, y - 4, b - a + 8, 8]); }
+  function Vv(x, a, b) { WALLS.push([x - 4, a - 4, 8, b - a + 8]); }
+  Hh(310, 105, 265); Hh(310, 305, 545); Hh(310, 585, 845); Hh(310, 885, 937);
+  Vv(335, 220, 310); Vv(635, 220, 310); Vv(937, 220, 310);
+  Vv(230, 310, 345); Vv(230, 385, 460); Vv(230, 500, 580); Vv(230, 620, 675); Vv(230, 715, 735);
+  Hh(422, 105, 230); Hh(537, 105, 230); Hh(637, 105, 230); Hh(735, 105, 230);
+  Vv(325, 350, 480); Vv(325, 520, 735); Hh(570, 325, 515); Vv(430, 570, 735);
+  Hh(735, 325, 375); Hh(735, 405, 455); Hh(735, 485, 520); Vv(355, 735, 855);
+  Vv(910, 445, 462); Vv(910, 482, 508); Vv(910, 528, 553); Vv(910, 573, 585);
+  Hh(445, 910, 1170); Vv(992, 352, 445); Hh(352, 995, 1060); Hh(352, 1095, 1170);
+  Hh(492, 910, 1047); Hh(538, 910, 1047); Vv(1047, 445, 585); Hh(585, 910, 1085); Hh(585, 1120, 1170);
+  var OBST = [[1005, 228, 110, 10], [880, 740, 90, 50], [950, 690, 120, 14], [840, 800, 40, 40], [185, 840, 50, 40]];
+  WALLS = WALLS.concat(OBST);
+  var EXITS = { bl: [300, 925, 50, 35], gym: [722, 930, 48, 30] };
+  var BOUNDS = [100, 180, 1075, 785];
+
+  var COLORS = { cls: "#e9dfc3", cor: "#d3d8cf", wc: "#cfe0e6", din: "#ecd9b8", hall: "#d9ddd2", lab: "#e0dccb", foy: "#cbd9cf", gym: "#d9a95f" };
+  var G = {
+    teacher: { n: "Вчителька початкових класів", e: "👩‍🏫", col: "#3b82c4", sp: 52, fov: 1.05, rng: 150, say: "А ти чого не на уроці? Іди-но сюди!", wp: [[285, 330, 1], [285, 265, 1.5], [285, 330, 0], [565, 330, 1], [565, 265, 1.5], [565, 330, 0], [865, 330, 1], [865, 265, 1.5], [865, 330, 0], [565, 330, 0]] },
+    director: { n: "Директорка", e: "👩‍💼", col: "#8e44ad", sp: 50, fov: 1.0, rng: 170, say: "Ходи-но до мене, поговоримо спокійно…", wp: [[1000, 262, 1], [1120, 262, 1], [1110, 310, 0.5], [960, 330, 0.5], [872, 330, 1], [872, 420, 0.5], [872, 540, 1.5], [872, 420, 0.5], [872, 330, 0.5], [960, 330, 0]] },
+    chief: { n: "Завгосп", e: "🧰", col: "#a0662b", sp: 55, fov: 0.95, rng: 160, say: "Ану не бігай коридором! Що це ти несеш?", wp: [[275, 380, 1], [275, 720, 0.5], [275, 880, 1], [430, 880, 1.2], [275, 880, 0.3], [275, 720, 0.5]] },
+    pe: { n: "Фізрук Артурович", e: "🏅", col: "#c0392b", sp: 70, fov: 1.15, rng: 210, img: 1, say: "Двадцять віджимань, і щоб без розмов!", wp: [[790, 650, 0.5], [1120, 650, 0.5], [1120, 920, 1], [790, 920, 0.5], [790, 650, 0]] },
+    cook: { n: "Кухарка", e: "🧑‍🍳", col: "#d98ab0", sp: 48, fov: 1.0, rng: 150, say: "Хто тягне мої пиріжки?!", wp: [[140, 790, 1], [280, 790, 0.5], [280, 930, 1], [140, 930, 0.5]] }
+  };
+  var LV = [
+    { name: "Ранкова розвідка", guards: ["teacher", "director"], exit: "bl", intro: "Ти готуєш сюрприз для шкільного капусника, і все має лишитися таємницею! Зайди з фойє, непомітно збери реквізит і вийди через бічні двері внизу ліворуч. Вчителі на перерві, тож тримайся подалі від їхнього погляду.", items: [[480, 265, "📔", "Сценарій"], [420, 515, "🗝️", "Ключ від актової зали"], [470, 900, "🥐", "Пиріжки на репетицію"]] },
+    { name: "Спортзал і фойє", guards: ["teacher", "director", "pe"], exit: "gym", intro: "Для капусника потрібні колонка, костюм, мегафон і м’яч зі спортзалу. А там чатує Артурович! Вихід цього разу в спортзалі, внизу ліворуч.", items: [[1085, 400, "🔊", "Колонка"], [980, 517, "🎒", "Костюм"], [1110, 520, "📣", "Мегафон"], [1100, 890, "🏀", "М’яч"]] },
+    { name: "Увесь ліцей", guards: ["teacher", "director", "chief", "pe", "cook"], exit: "bl", intro: "Фінальна місія: афіша, фарби, ключ, м’яч і пиріжки. Тепер охороняють усі: вчителька, директорка, завгосп, фізрук і кухарка. Вистачить спритності?", items: [[800, 265, "🖼️", "Афіша"], [165, 370, "🎨", "Фарби"], [420, 515, "🗝️", "Ключ"], [1100, 890, "🏀", "М’яч"], [470, 900, "🥐", "Пиріжки"]] }
+  ];
+  var head = new Image(); head.src = "fizruk-head.jpg";
+
+  /* ---------- геометрія ---------- */
+  function inFloor(x, y) { for (var i = 0; i < FLOORS.length; i++) { var f = FLOORS[i]; if (x >= f[0] && x <= f[0] + f[2] && y >= f[1] && y <= f[1] + f[3]) return true; } return false; }
+  function hitWall(x, y, r) { for (var i = 0; i < WALLS.length; i++) { var w = WALLS[i], cx = Math.max(w[0], Math.min(x, w[0] + w[2])), cy = Math.max(w[1], Math.min(y, w[1] + w[3])); if ((x - cx) * (x - cx) + (y - cy) * (y - cy) < r * r) return true; } return false; }
+  function okPos(x, y, r) { return inFloor(x - r, y - r) && inFloor(x + r, y - r) && inFloor(x - r, y + r) && inFloor(x + r, y + r) && !hitWall(x, y, r); }
+  function cast(ox, oy, ang, rng) {
+    var dx = Math.cos(ang), dy = Math.sin(ang), t = rng;
+    for (var i = 0; i < WALLS.length; i++) {
+      var w = WALLS[i], t0 = 0, t1 = t, ok = true;
+      var b = [[w[0], w[0] + w[2], ox, dx], [w[1], w[1] + w[3], oy, dy]];
+      for (var k = 0; k < 2; k++) {
+        var lo = b[k][0], hi = b[k][1], o = b[k][2], d = b[k][3];
+        if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { ok = false; break; } }
+        else { var a = (lo - o) / d, c = (hi - o) / d; if (a > c) { var s = a; a = c; c = s; } if (a > t0) t0 = a; if (c < t1) t1 = c; if (t0 > t1) { ok = false; break; } }
+      }
+      if (ok && t0 < t && t0 > 0) t = t0; else if (ok && t0 <= 0 && t1 > 0 && ox >= w[0] && ox <= w[0] + w[2] && oy >= w[1] && oy <= w[1] + w[3]) t = 0;
+    }
+    for (var s2 = 6; s2 < t; s2 += 6) if (!inFloor(ox + dx * s2, oy + dy * s2)) { t = s2; break; }
+    return t;
+  }
+  function clearLine(x0, y0, x1, y1) { var d = Math.hypot(x1 - x0, y1 - y0); return cast(x0, y0, Math.atan2(y1 - y0, x1 - x0), d) >= d - 1; }
+
+  /* ---------- стан ---------- */
+  var lvl = 0, saved = 0, st = "intro", P, guards, items, got, sneak = false, meter = 0, tm = 0, msg = "", msgT = 0, keys = {}, joy = null, started = false, warned = false, stepT = 0, cam = { x: 0, y: 0 };
+  try { saved = +localStorage.getItem("bus.stealth.level") || 0; } catch (e) {}
+  if (saved >= LV.length) saved = 0;
+  function say(t, s) { msg = t; msgT = s || 2.6; }
+  function load(l) {
+    lvl = l; var L = LV[l];
+    P = { x: 1062, y: 204, a: Math.PI / 2 };
+    guards = L.guards.map(function (k) { var d = G[k], w = d.wp[0]; return { k: k, d: d, x: w[0], y: w[1], a: 0, wi: 1, pause: w[2] || 0, al: 0, t: Math.random() * 6 }; });
+    items = L.items.map(function (i) { return { x: i[0], y: i[1], e: i[2], n: i[3], got: false }; });
+    got = 0; meter = 0; warned = false; msg = ""; msgT = 0;
+    $("lvlname").textContent = "Рівень " + (l + 1) + ": " + L.name;
+    say("Знайди " + items.length + " предмети і вибирайся! Свайп = рух.", 3);
+  }
+  function exitRect() { return EXITS[LV[lvl].exit]; }
+
+  function update(dt) {
+    if (st !== "play") return;
+    tm += dt;
+    var vx = 0, vy = 0;
+    if (keys.L) vx -= 1; if (keys.R) vx += 1; if (keys.U) vy -= 1; if (keys.D) vy += 1;
+    if (joy && joy.m > 6) { vx = joy.dx / 40; vy = joy.dy / 40; var m = Math.hypot(vx, vy); if (m > 1) { vx /= m; vy /= m; } }
+    var mm = Math.hypot(vx, vy);
+    if (mm > 0) {
+      if (mm > 1) { vx /= mm; vy /= mm; }
+      var sp = sneak ? 55 : 105, nx = P.x + vx * sp * dt, ny = P.y + vy * sp * dt;
+      if (okPos(nx, P.y, 8)) P.x = nx; if (okPos(P.x, ny, 8)) P.y = ny;
+      P.a = Math.atan2(vy, vx);
+      stepT -= dt; if (stepT <= 0 && !sneak) { stepT = 0.3; SFXLIB.noise(0.04, 0.04, 500); }
+    }
+    items.forEach(function (it) {
+      if (it.got || Math.hypot(it.x - P.x, it.y - P.y) > 18) return;
+      it.got = true; got++; say("Є: " + it.n + " (" + got + "/" + items.length + ")" + (got === items.length ? " Тепер до виходу!" : ""), 2.8);
+      SFXLIB.seq(got === items.length ? [784, 988, 1175, 1568] : [660, 880, 1320], 0.07, "triangle", 0.2);
+    });
+    var top = 0, by = null;
+    guards.forEach(function (gd) {
+      moveGuard(gd, dt);
+      var dx = P.x - gd.x, dy = P.y - gd.y, d = Math.hypot(dx, dy), vis = false;
+      if (d < gd.d.rng) {
+        var da = Math.atan2(dy, dx) - gd.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (Math.abs(da) < gd.d.fov / 2 && clearLine(gd.x, gd.y, P.x, P.y)) vis = true;
+      }
+      if (vis) { var rate = (1.7 - 0.9 * d / gd.d.rng) * (sneak ? 0.5 : 1); gd.al = Math.min(1, gd.al + rate * dt); }
+      else gd.al = Math.max(0, gd.al - 0.7 * dt);
+      if (gd.al > top) { top = gd.al; by = gd; }
+    });
+    meter = top;
+    if (meter > 0.4 && !warned) { warned = true; SFXLIB.tone(1900, 0.22, "square", 0.08, 0, 1500); }
+    if (meter < 0.1) warned = false;
+    if (meter >= 1) return lose(by);
+    if (msgT > 0) msgT -= dt;
+    var e = exitRect();
+    if (P.x > e[0] && P.x < e[0] + e[2] && P.y > e[1] && P.y < e[1] + e[3]) {
+      if (got === items.length) win(); else if (msgT <= 0) say("Спочатку збери ще " + (items.length - got) + "!", 2);
+    }
+  }
+  function moveGuard(gd, dt) {
+    gd.t += dt;
+    if (gd.pause > 0) { gd.pause -= dt; gd.a += Math.sin(gd.t * 1.6) * 0.012; return; }
+    var w = gd.d.wp[gd.wi], dx = w[0] - gd.x, dy = w[1] - gd.y, d = Math.hypot(dx, dy), step = gd.d.sp * dt;
+    var ta = Math.atan2(dy, dx), da = Math.atan2(Math.sin(ta - gd.a), Math.cos(ta - gd.a));
+    gd.a += da * Math.min(1, dt * 7);
+    if (d <= step) { gd.x = w[0]; gd.y = w[1]; gd.pause = w[2] || 0; gd.wi = (gd.wi + 1) % gd.d.wp.length; }
+    else { gd.x += dx / d * step; gd.y += dy / d * step; }
+  }
+  function lose(gd) {
+    st = "over"; SFXLIB.tone(240, 0.6, "sawtooth", 0.2, 0, 70);
+    var img = $("oimg"), em = $("oem");
+    if (gd.d.img) { img.hidden = false; img.src = "fizruk-full.jpg"; em.hidden = true; } else { img.hidden = true; em.hidden = false; em.textContent = gd.d.e; }
+    $("lvl").textContent = "Тебе помітили"; $("h").textContent = "Піймали!"; $("txt").textContent = gd.d.n + ": «" + gd.d.say + "» Спробуєш ще раз?"; $("go").textContent = "Ще раз"; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; load(lvl); st = "play"; };
+  }
+  function win() {
+    st = "win"; SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22);
+    try { localStorage.setItem("bus.stealth.level", String(lvl + 1 >= LV.length ? 0 : lvl + 1)); } catch (e) {}
+    $("oimg").hidden = true; $("oem").hidden = false; $("oem").textContent = lvl < LV.length - 1 ? "🎉" : "🏆";
+    $("lvl").textContent = "Місія виконано"; $("h").textContent = lvl < LV.length - 1 ? "Непомітно!" : "Капусник врятовано!";
+    $("txt").textContent = lvl < LV.length - 1 ? "Жоден учитель нічого не помітив. Наступна місія складніша." : "Ти пройшов усі рівні, і сюрприз до капусника вдався. Ти справжній майстер непомітності!";
+    $("go").textContent = lvl < LV.length - 1 ? "Далі" : "Зіграти ще"; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; var n = lvl < LV.length - 1 ? lvl + 1 : 0; load(n); intro(); };
+  }
+  function intro() {
+    st = "intro"; var L = LV[lvl]; $("oimg").hidden = true; $("oem").hidden = false; $("oem").textContent = "🕵️";
+    $("lvl").textContent = "Рівень " + (lvl + 1) + " з " + LV.length; $("h").textContent = L.name; $("txt").textContent = L.intro; $("go").textContent = "Почати місію"; $("ov").hidden = false;
+    $("go").onclick = function () { SFXLIB.ac(); $("ov").hidden = true; st = "play"; if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("stealth"); } catch (e) {} } };
+  }
+
+  /* ---------- малювання ---------- */
+  function render() {
+    g.fillStyle = "#12261b"; g.fillRect(0, 0, W, H);
+    var tx = Math.max(BOUNDS[0] + W / 2 - 30, Math.min(P.x, BOUNDS[0] + BOUNDS[2] - W / 2 + 30)), ty = Math.max(BOUNDS[1] + H / 2 - 30, Math.min(P.y, BOUNDS[1] + BOUNDS[3] - H / 2 + 30));
+    cam.x += (tx - cam.x) * 0.2; cam.y += (ty - cam.y) * 0.2; if (st === "intro") { cam.x = tx; cam.y = ty; }
+    g.save(); g.translate(W / 2 - cam.x, H / 2 - cam.y);
+    g.fillStyle = "#1b3a28"; g.fillRect(325, 350, 510, 240); g.fillRect(515, 590, 220, 370);
+    g.fillStyle = "rgba(255,255,255,.18)"; g.font = "bold 20px system-ui"; g.textAlign = "center"; g.fillText("Внутрішній двір", 580, 560); g.textAlign = "left";
+    FLOORS.forEach(function (f) { g.fillStyle = COLORS[f[4]]; g.fillRect(f[0], f[1], f[2], f[3]); });
+    g.strokeStyle = "rgba(120,80,30,.35)"; g.lineWidth = 2; g.strokeRect(745, 595, 415, 355); g.beginPath(); g.moveTo(952, 595); g.lineTo(952, 950); g.stroke(); g.beginPath(); g.arc(952, 772, 46, 0, 7); g.stroke();
+    g.fillStyle = "rgba(0,0,0,.4)"; g.font = "bold 14px system-ui"; g.textAlign = "center";
+    FLOORS.forEach(function (f) { if (f[5]) g.fillText(f[5], f[0] + f[2] / 2, f[1] + 18); }); g.textAlign = "left";
+    var e = exitRect(), open = got === items.length;
+    g.fillStyle = open ? "#2fb36b" : "#7a8088"; g.fillRect(e[0], e[1], e[2], e[3]); g.fillStyle = "#fff"; g.font = "bold 11px system-ui"; g.fillText("ВИХІД", e[0] + 4, e[1] + 20);
+    if (open) { g.strokeStyle = "rgba(47,179,107," + (0.5 + 0.4 * Math.sin(tm * 6)) + ")"; g.lineWidth = 3; g.strokeRect(e[0] - 4, e[1] - 4, e[2] + 8, e[3] + 8); }
+    g.fillStyle = "#c0a265"; OBST.forEach(function (o) { g.fillRect(o[0], o[1], o[2], o[3]); });
+    g.fillStyle = "#2a3b44"; WALLS.forEach(function (w) { if (OBST.indexOf(w) < 0) g.fillRect(w[0], w[1], w[2], w[3]); });
+    items.forEach(function (it) { if (it.got) return; g.fillStyle = "rgba(255,230,120,.35)"; g.beginPath(); g.arc(it.x, it.y, 15 + Math.sin(tm * 4) * 2, 0, 7); g.fill(); g.font = "18px system-ui"; g.textAlign = "center"; g.fillText(it.e, it.x, it.y + 6); g.textAlign = "left"; });
+    guards.forEach(function (gd) {
+      var rays = 26, half = gd.d.fov / 2, pts = [];
+      for (var i = 0; i <= rays; i++) { var a = gd.a - half + gd.d.fov * i / rays, t = cast(gd.x, gd.y, a, gd.d.rng); pts.push([gd.x + Math.cos(a) * t, gd.y + Math.sin(a) * t]); }
+      g.fillStyle = gd.al > 0.3 ? "rgba(255,60,50," + (0.18 + gd.al * 0.25) + ")" : "rgba(255,235,90,.22)";
+      g.beginPath(); g.moveTo(gd.x, gd.y); pts.forEach(function (p) { g.lineTo(p[0], p[1]); }); g.closePath(); g.fill();
+    });
+    guards.forEach(function (gd) {
+      g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.arc(gd.x + 2, gd.y + 3, 10, 0, 7); g.fill();
+      g.fillStyle = gd.d.col; g.beginPath(); g.arc(gd.x, gd.y, 10, 0, 7); g.fill();
+      if (gd.d.img && head.complete && head.naturalWidth) { g.save(); g.beginPath(); g.arc(gd.x, gd.y, 8, 0, 7); g.clip(); g.drawImage(head, gd.x - 9, gd.y - 10, 18, 22); g.restore(); }
+      g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.moveTo(gd.x, gd.y); g.lineTo(gd.x + Math.cos(gd.a) * 14, gd.y + Math.sin(gd.a) * 14); g.stroke();
+      g.font = "14px system-ui"; g.textAlign = "center"; g.fillText(gd.d.e, gd.x, gd.y - 14);
+      if (gd.al > 0.35) { g.fillStyle = "#ff3030"; g.font = "bold 20px system-ui"; g.fillText("!", gd.x, gd.y - 28); } g.textAlign = "left";
+    });
+    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.arc(P.x + 2, P.y + 3, 8, 0, 7); g.fill();
+    g.fillStyle = "#2fa86a"; g.beginPath(); g.arc(P.x, P.y, 8, 0, 7); g.fill();
+    g.fillStyle = "#c0392b"; g.beginPath(); g.arc(P.x - Math.cos(P.a) * 6, P.y - Math.sin(P.a) * 6, 4.5, 0, 7); g.fill();
+    g.fillStyle = "#f2c9a0"; g.beginPath(); g.arc(P.x + Math.cos(P.a) * 3, P.y + Math.sin(P.a) * 3, 4, 0, 7); g.fill();
+    if (sneak) { g.fillStyle = "#fff"; g.font = "11px system-ui"; g.textAlign = "center"; g.fillText("🤫", P.x, P.y - 12); g.textAlign = "left"; }
+    g.restore();
+    hud();
+  }
+  function hud() {
+    var k = 0; g.fillStyle = "rgba(0,0,0,.5)"; g.fillRect(6, 6, items.length * 24 + 8, 28);
+    g.font = "17px system-ui"; items.forEach(function (it) { g.globalAlpha = it.got ? 1 : 0.3; g.fillText(it.e, 10 + k * 24, 27); k++; }); g.globalAlpha = 1;
+    var sc = 0.1, mw = BOUNDS[2] * sc, mh = BOUNDS[3] * sc, ox = W - mw - 6, oy = 6;
+    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(ox - 2, oy - 2, mw + 4, mh + 4);
+    FLOORS.forEach(function (f) { g.fillStyle = "#9aa8a0"; g.fillRect(ox + (f[0] - BOUNDS[0]) * sc, oy + (f[1] - BOUNDS[1]) * sc, f[2] * sc, f[3] * sc); });
+    var e = exitRect(); g.fillStyle = "#2fb36b"; g.fillRect(ox + (e[0] - BOUNDS[0]) * sc - 1, oy + (e[1] - BOUNDS[1]) * sc - 1, 5, 5);
+    items.forEach(function (it) { if (!it.got) { g.fillStyle = "#ffd23f"; g.fillRect(ox + (it.x - BOUNDS[0]) * sc - 1, oy + (it.y - BOUNDS[1]) * sc - 1, 3, 3); } });
+    guards.forEach(function (gd) { g.fillStyle = "#ff3040"; g.beginPath(); g.arc(ox + (gd.x - BOUNDS[0]) * sc, oy + (gd.y - BOUNDS[1]) * sc, 2.2, 0, 7); g.fill(); });
+    g.fillStyle = "#4fc3ff"; g.beginPath(); g.arc(ox + (P.x - BOUNDS[0]) * sc, oy + (P.y - BOUNDS[1]) * sc, 2.5, 0, 7); g.fill();
+    if (meter > 0.02) { g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(70, H - 24, W - 140, 12); g.fillStyle = meter > 0.6 ? "#ff3030" : "#ffb020"; g.fillRect(72, H - 22, (W - 144) * meter, 8); }
+    if (msgT > 0 && msg) { g.font = "bold 13px system-ui"; var tw = Math.min(W - 24, g.measureText(msg).width + 20); g.globalAlpha = Math.min(1, msgT * 2); g.fillStyle = "rgba(0,0,0,.72)"; g.fillRect((W - tw) / 2, H - 56, tw, 26); g.fillStyle = "#fff"; g.textAlign = "center"; g.fillText(msg, W / 2, H - 38, W - 30); g.textAlign = "left"; g.globalAlpha = 1; }
+    if (joy && joy.m > 6) { var r = cv.getBoundingClientRect(), s = W / r.width, jx = (joy.x - r.left) * s, jy = (joy.y - r.top) * s; g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 2; g.beginPath(); g.arc(jx, jy, 30, 0, 7); g.stroke(); g.fillStyle = "rgba(255,255,255,.4)"; var m = Math.min(30, joy.m * s); g.beginPath(); g.arc(jx + joy.dx / joy.m * m, jy + joy.dy / joy.m * m, 12, 0, 7); g.fill(); }
+  }
+
+  /* ---------- керування ---------- */
+  var KM = { ArrowLeft: "L", ArrowRight: "R", ArrowUp: "U", ArrowDown: "D", a: "L", d: "R", w: "U", s: "D", A: "L", D: "R", W: "U", S: "D" };
+  addEventListener("keydown", function (e) { var k = KM[e.key]; if (k) { keys[k] = true; e.preventDefault(); } if (e.key === "Shift" || e.key === " ") { sneak = true; $("sn").classList.add("on"); } });
+  addEventListener("keyup", function (e) { var k = KM[e.key]; if (k) keys[k] = false; if (e.key === "Shift" || e.key === " ") { sneak = false; $("sn").classList.remove("on"); } });
+  cv.addEventListener("pointerdown", function (e) { joy = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, m: 0 }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} SFXLIB.ac(); });
+  cv.addEventListener("pointermove", function (e) { if (!joy) return; var dx = e.clientX - joy.x, dy = e.clientY - joy.y, m = Math.hypot(dx, dy); if (m > 40) { joy.x = e.clientX - dx / m * 40; joy.y = e.clientY - dy / m * 40; dx = e.clientX - joy.x; dy = e.clientY - joy.y; m = 40; } joy.dx = dx; joy.dy = dy; joy.m = m; });
+  function endj() { joy = null; } cv.addEventListener("pointerup", endj); cv.addEventListener("pointercancel", endj);
+  $("sn").addEventListener("click", function () { sneak = !sneak; this.classList.toggle("on", sneak); });
+  SFXLIB.bind($("snd"));
+
+  var last = 0;
+  function frame(t0) { var dt = Math.min(0.05, (t0 - last) / 1000 || 0.016); last = t0; update(dt); render(); requestAnimationFrame(frame); }
+  load(Math.min(saved, LV.length - 1)); cam.x = P.x; cam.y = P.y; intro();
+  requestAnimationFrame(frame);
+  window.__s = {
+    tick: function (dt) { update(dt); render(); },
+    go: function (l) { load(l); st = "play"; $("ov").hidden = true; },
+    put: function (x, y) { P.x = x; P.y = y; },
+    ok: okPos, floors: FLOORS, walls: WALLS, lv: LV, exits: EXITS, bounds: BOUNDS,
+    get s() { return { st: st, P: P, got: got, meter: meter, guards: guards.map(function (q) { return { x: q.x, y: q.y, al: q.al }; }) }; },
+    keys: keys, sneak: function (v) { sneak = v; }
+  };
+})();
+</script>
+</body>
+</html>

@@ -36,42 +36,48 @@
     <h1 id="h">Бульдозер</h1>
     <p id="txt"></p>
     <button class="go" id="go" type="button">Грати</button>
+    <button class="snd" id="goT" type="button">⏱ Режим «На час» (60 с)</button>
   </div>
 </div>
 <script src="sfx.js"></script>
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>
 (function () {
   var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 360, H = 560, FLOOR = 520, R = 14, G = 0.35, BX = 60, BY = 470;
   var $ = function (i) { return document.getElementById(i); };
   var LV0 = [
-    { name: "Розминка", goal: 3, shots: 8, hx: 250, hy: 240, move: 0, rnd: 0, txt: "Тягніть м’яч назад і відпускайте: чим довше потягнули, тим сильніше кидок. Заб’йте 3 з 8." },
-    { name: "Штрафні", goal: 4, shots: 8, hx: 265, hy: 205, move: 0, rnd: 50, txt: "Кільце вище, а м’яч щоразу з іншого місця. Заб’йте 4 з 8." },
-    { name: "Рухоме кільце", goal: 5, shots: 8, hx: 235, hy: 215, move: 38, rnd: 60, txt: "Кільце їздить вліво-вправо. Заб’йте 5 з 8." },
-    { name: "Фінал", goal: 6, shots: 8, hx: 225, hy: 195, move: 60, rnd: 70, txt: "Високо, далеко й швидко. Заб’йте 6 з 8, і ліцей святкуватиме!" }
+    { name: "Розминка", goal: 3, shots: 8, hx: 250, hy: 240, move: 0, rnd: 0, wind: 0, obstacle: false, txt: "Тягніть м’яч назад і відпускайте: чим довше потягнули, тим сильніше кидок. Заб’йте 3 з 8." },
+    { name: "Штрафні", goal: 4, shots: 8, hx: 265, hy: 205, move: 0, rnd: 50, wind: 0, obstacle: false, txt: "Кільце вище, а м’яч щоразу з іншого місця. Заб’йте 4 з 8." },
+    { name: "Рухоме кільце", goal: 5, shots: 8, hx: 235, hy: 215, move: 38, rnd: 60, wind: 0, obstacle: false, txt: "Кільце їздить вліво-вправо. Заб’йте 5 з 8." },
+    { name: "Вітер", goal: 5, shots: 8, hx: 240, hy: 210, move: 25, rnd: 60, wind: 0.04, obstacle: false, txt: "Дме вітер і зносить м’яч вбік! Заб’йте 5 з 8." },
+    { name: "Перешкода", goal: 5, shots: 9, hx: 235, hy: 200, move: 30, rnd: 70, wind: 0, obstacle: true, txt: "Між вами й кільцем їздить штанга-перешкода. Заб’йте 5 з 9." },
+    { name: "Далекий кидок", goal: 5, shots: 9, hx: 285, hy: 175, move: 40, rnd: 80, wind: -0.03, obstacle: false, txt: "Кільце високо й далеко, а вітер дме назустріч. Заб’йте 5 з 9." },
+    { name: "Фінал", goal: 6, shots: 9, hx: 225, hy: 195, move: 60, rnd: 70, wind: 0.035, obstacle: true, txt: "Усе разом: вітер, перешкода й рухоме кільце. Заб’йте 6 з 9, і ліцей святкуватиме!" }
   ];
   var LV = [];
   function applyDiff() {
     LV = LV0.map(function (b) {
       var L = {}; for (var k in b) L[k] = b[k];
       L.goal = Math.max(1, b.goal + DIFF.pick(-1, 0, 1)); L.shots = b.shots + DIFF.pick(2, 0, -1);
-      L.move = b.move * DIFF.pick(0.6, 1, 1.35); L.rnd = b.rnd * DIFF.pick(0.7, 1, 1.25);
+      L.move = b.move * DIFF.pick(0.6, 1, 1.35); L.rnd = b.rnd * DIFF.pick(0.7, 1, 1.25); L.wind = b.wind * DIFF.pick(0.6, 1, 1.3);
       L.txt = b.txt.replace(/\d+ з \d+/, L.goal + " з " + L.shots); return L;
     });
   }
   applyDiff();
   var logo = new Image(); logo.src = "buldozer-logo.jpg";
   var lvl = 0, saved = 0, run = false, makes = 0, used = 0, pts = 0, ball, state, hoopX, hoopY, tm = 0, drag = null, msg = "", msgT = 0, rimTouched = false, bounces = 0, age = 0, bx0 = BX, scored = false;
+  var combo = 0, comboMax = 0, goldBall = false, perk = { life: 0, x2: 1, gold: false }, runCoins = 0, mode = "classic", timeLeft = 60, obsX = 180, obsD = 1, bonusShots = 0, started = false;
   try { saved = +localStorage.getItem("bus.basket.level") || 0; } catch (e) {}
   var RW = 54;
-  function hud() { $("lvlname").textContent = "Рів. " + (lvl + 1) + " · " + makes + "/" + LV[lvl].goal + " · кидків " + (LV[lvl].shots - used) + " · очок " + pts; }
+  function hud() { $("lvlname").textContent = mode === "time" ? "⏱ " + Math.max(0, Math.ceil(timeLeft)) + "с · влучень " + makes + " · очок " + pts + (combo >= 2 ? " · 🔥" + combo : "") : "Рів. " + (lvl + 1) + " · " + makes + "/" + LV[lvl].goal + " · кидків " + (LV[lvl].shots + bonusShots - used) + " · очок " + pts + (combo >= 2 ? " · 🔥" + combo : ""); }
   function curHX() { var L = LV[lvl]; return L.hx + (L.move ? Math.sin(tm / 60) * L.move : 0); }
   function newLevel(l) { lvl = l; makes = 0; used = 0; pts = l === 0 ? 0 : pts; tm = 0; nextShot(); }
   function nextShot() {
     var L = LV[lvl]; bx0 = BX + (L.rnd ? Math.random() * L.rnd : 0);
-    ball = { x: bx0, y: BY, vx: 0, vy: 0 }; state = "aim"; rimTouched = false; bounces = 0; age = 0; scored = false; hoopX = curHX(); hoopY = L.hy; hud();
+    goldBall = perk.gold || (lvl > 0 && Math.random() < 0.1); ball = { x: bx0, y: BY, vx: 0, vy: 0 }; state = "aim"; rimTouched = false; bounces = 0; age = 0; scored = false; hoopX = curHX(); hoopY = L.hy; hud();
   }
   function circ(px, py, r) {
     var dx = ball.x - px, dy = ball.y - py, d = Math.hypot(dx, dy);
@@ -81,12 +87,13 @@
     }
   }
   function physics(b, hx, hy) {
-    var prevY = b.y; b.vy += G; b.x += b.vx; b.y += b.vy;
+    var prevY = b.y, WL = LV[lvl]; if (WL.wind) b.vx += WL.wind; b.vy += G; b.x += b.vx; b.y += b.vy;
     var xB = hx + RW, bbx = xB + 6;
     // щит
     if (b.x + R > bbx && b.x - R < bbx + 8 && b.y > hy - 78 && b.y < hy + 12) {
       if (b.vx > 0) { SFXLIB.tone(160, 0.12, "triangle", 0.25, 0, 90); b.x = bbx - R; b.vx = -b.vx * 0.6; rimTouched = true; }
     }
+    if (WL.obstacle && b.x + R > obsX - 7 && b.x - R < obsX + 7 && b.y + R > 300 && b.y - R < 380) { if (b.vx > 0 && b.x < obsX) { b.x = obsX - 7 - R; b.vx = -Math.abs(b.vx) * 0.7; } else if (b.vx < 0 && b.x > obsX) { b.x = obsX + 7 + R; b.vx = Math.abs(b.vx) * 0.7; } else b.vy = -Math.abs(b.vy) * 0.5; SFXLIB.tone(200, 0.1, "square", 0.15); }
     circ(hx, hy, 4); circ(xB, hy, 4);
     var sc = false;
     if (prevY < hy && b.y >= hy && b.vy > 0 && b.x > hx + 6 && b.x < xB - 2) sc = true;
@@ -96,23 +103,26 @@
   function update() {
     tm++;
     var L = LV[lvl];
+    if (L.obstacle) { obsX += obsD * 1.6; if (obsX > 280 || obsX < 100) obsD = -obsD; }
+    if (mode === "time") { if (tm % 30 === 0) hud(); timeLeft -= 1 / 60; if (timeLeft <= 0) { endTime(); return; } }
     if (state === "aim") { hoopX = curHX(); return; }
     if (state === "fly") {
       hoopX = curHX(); age++;
-      if (physics(ball, hoopX, hoopY) && !scored) { scored = true; SFXLIB.noise(0.28, 0.3, 4000, "highpass"); SFXLIB.seq([784, 988, 1175], 0.07, "sine", 0.16); makes++; var p = rimTouched ? 2 : 3; pts += p; msg = rimTouched ? "Є! +2" : "Чисто! +3"; msgT = 60; hud(); }
+      if (physics(ball, hoopX, hoopY) && !scored) { scored = true; SFXLIB.noise(0.28, 0.3, 4000, "highpass"); SFXLIB.seq([784, 988, 1175], 0.07, "sine", 0.16); makes++; combo++; comboMax = Math.max(comboMax, combo); var p = rimTouched ? 2 : 3; if (goldBall) p *= 2; if (combo >= 3) p += 2; pts += p; var cn = goldBall ? 5 : 1; runCoins += cn; msg = (goldBall ? "🌟 " : "") + (combo >= 3 ? "🔥 КОМБО ×" + combo + "! " : rimTouched ? "Є! " : "Чисто! ") + "+" + p; msgT = 60; hud(); }
       if (ball.y > FLOOR - R && ball.vy > 0) { ball.y = FLOOR - R; ball.vy *= -0.55; ball.vx *= 0.8; bounces++; SFXLIB.tone(130 / bounces, 0.12, "triangle", 0.28, 0, 60); }
       if (ball.x < -30 || ball.x > W + 30 || bounces >= 2 || age > 420) endShot();
     } else if (state === "pause") { if (--wait <= 0) afterShot(); }
   }
   var wait = 0;
   function endShot() {
-    if (!scored) { msg = "Мимо"; msgT = 40; SFXLIB.tone(240, 0.22, "triangle", 0.14, 0, 120); }
+    if (!scored) { msg = "Мимо"; msgT = 40; combo = 0; SFXLIB.tone(240, 0.22, "triangle", 0.14, 0, 120); }
     state = "pause"; wait = 36;
   }
   function afterShot() {
+    if (mode === "time") { var nl = Math.min(LV.length - 1, Math.floor(makes / 4)); if (nl !== lvl) { lvl = nl; msg = "Рівень " + (lvl + 1) + ": " + LV[lvl].name; msgT = 70; } used = 0; nextShot(); return; }
     var L = LV[lvl];
     if (makes >= L.goal) return win();
-    if (used >= L.shots) return lose();
+    if (used >= L.shots + bonusShots) return lose();
     nextShot();
   }
   function draw2d() {
@@ -143,13 +153,14 @@
       rimTouched = saveRim;
     }
     // тінь, м'яч
+    if (LV[lvl].obstacle) { g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(obsX, 386, 18, 5, 0, 0, 7); g.fill(); g.fillStyle = "#c0392b"; g.fillRect(obsX - 7, 300, 14, 80); g.fillStyle = "#e74c3c"; g.fillRect(obsX - 7, 300, 6, 80); g.fillStyle = "#fff"; for (var oi = 0; oi < 4; oi++) g.fillRect(obsX - 7, 308 + oi * 20, 14, 5); g.fillStyle = "#f39c12"; g.beginPath(); g.arc(obsX, 300, 8, 0, 7); g.fill(); }
     g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(ball.x, FLOOR + 8, 12, 4, 0, 0, 7); g.fill();
-    var bgr = g.createRadialGradient(ball.x - 5, ball.y - 5, 2, ball.x, ball.y, R); bgr.addColorStop(0, "#ffc27a"); bgr.addColorStop(0.5, "#ff8a1f"); bgr.addColorStop(1, "#b84e00"); g.fillStyle = bgr; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
+    var bgr = g.createRadialGradient(ball.x - 5, ball.y - 5, 2, ball.x, ball.y, R); if (goldBall) { bgr.addColorStop(0, "#fff8b0"); bgr.addColorStop(0.5, "#ffd700"); bgr.addColorStop(1, "#b8860b"); } else { bgr.addColorStop(0, "#ffc27a"); bgr.addColorStop(0.5, "#ff8a1f"); bgr.addColorStop(1, "#b84e00"); } g.fillStyle = bgr; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
     g.strokeStyle = "#3a1c05"; g.lineWidth = 1.5; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.moveTo(ball.x - R, ball.y); g.lineTo(ball.x + R, ball.y); g.moveTo(ball.x, ball.y - R); g.lineTo(ball.x, ball.y + R); g.stroke();
     if (msgT > 0) { msgT--; g.textAlign = "center"; g.font = "bold 28px system-ui,sans-serif"; g.fillStyle = "#FF9F1C"; g.fillText(msg, W / 2, 120); }
   }
 
-  function draw() { if (view3d) draw3d(); else draw2d(); }
+  function draw() { if (view3d) draw3d(); else draw2d(); var w = LV[lvl].wind; if (w) { g.textAlign = "center"; g.font = "bold 14px system-ui,sans-serif"; g.fillStyle = "#9fd8ff"; g.fillText("💨 вітер " + (w > 0 ? "→" : "←") + " " + Math.round(Math.abs(w) * 100), W / 2, 96); } if (mode === "time") { g.font = "bold 22px system-ui,sans-serif"; g.fillStyle = timeLeft < 10 ? "#ff5060" : "#fff"; g.fillText("⏱ " + Math.max(0, Math.ceil(timeLeft)), W / 2, 30); } }
   function draw3d() {
     var L = LV[lvl], FY = 330, i, k;
     // стіна і трибуни
@@ -184,6 +195,7 @@
     g.strokeStyle = "#e23d3d"; g.lineWidth = 2; g.beginPath(); g.moveTo(xB + 10, hy - 36); g.lineTo(xB + 24, hy - 44); g.lineTo(xB + 24, hy - 14); g.lineTo(xB + 10, hy - 6); g.closePath(); g.stroke();
     // заднє півколо кільця
     g.lineWidth = 5; g.strokeStyle = "#9a3a12"; g.beginPath(); g.ellipse(cx, hy, RW / 2, 8, 0, Math.PI, 0); g.stroke();
+    if (LV[lvl].obstacle) { g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(obsX, 386, 18, 5, 0, 0, 7); g.fill(); g.fillStyle = "#c0392b"; g.fillRect(obsX - 7, 300, 14, 80); g.fillStyle = "#e74c3c"; g.fillRect(obsX - 7, 300, 6, 80); g.fillStyle = "#fff"; for (var oi = 0; oi < 4; oi++) g.fillRect(obsX - 7, 308 + oi * 20, 14, 5); g.fillStyle = "#f39c12"; g.beginPath(); g.arc(obsX, 300, 8, 0, 7); g.fill(); }
     // траєкторія
     if (state === "aim" && drag) {
       var v = dragV(); var b = { x: ball.x, y: ball.y, vx: v.x, vy: v.y }; g.fillStyle = "rgba(255,255,255,.75)";
@@ -194,7 +206,7 @@
     g.fillStyle = "rgba(0,0,0," + (0.35 - hgt * 0.2) + ")"; g.beginPath(); g.ellipse(ball.x, FLOOR + 14, 12 + hgt * 8, 4 + hgt * 2, 0, 0, 7); g.fill();
     // м'яч
     var rot = ball.x / 25 + ball.y / 30;
-    var bgr = g.createRadialGradient(ball.x - 5, ball.y - 6, 1, ball.x, ball.y, R + 1); bgr.addColorStop(0, "#ffd09a"); bgr.addColorStop(0.45, "#ff8a1f"); bgr.addColorStop(1, "#8f3d00"); g.fillStyle = bgr; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
+    var bgr = g.createRadialGradient(ball.x - 5, ball.y - 6, 1, ball.x, ball.y, R + 1); if (goldBall) { bgr.addColorStop(0, "#fff8b0"); bgr.addColorStop(0.45, "#ffd700"); bgr.addColorStop(1, "#8b6914"); } else { bgr.addColorStop(0, "#ffd09a"); bgr.addColorStop(0.45, "#ff8a1f"); bgr.addColorStop(1, "#8f3d00"); } g.fillStyle = bgr; g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.fill();
     g.save(); g.beginPath(); g.arc(ball.x, ball.y, R, 0, 7); g.clip(); g.strokeStyle = "#3a1c05"; g.lineWidth = 1.4; g.translate(ball.x, ball.y); g.rotate(rot);
     g.beginPath(); g.moveTo(-R, 0); g.lineTo(R, 0); g.moveTo(0, -R); g.lineTo(0, R); g.moveTo(-R * 0.7, -R); g.quadraticCurveTo(-R * 0.2, 0, -R * 0.7, R); g.moveTo(R * 0.7, -R); g.quadraticCurveTo(R * 0.2, 0, R * 0.7, R); g.stroke(); g.restore();
     // сітка і передня половина кільця
@@ -225,15 +237,20 @@
   cv.addEventListener("pointermove", function (e) { if (!drag) return; var p = pt(e); drag.x = p.x; drag.y = p.y; });
   function release() { if (!drag) return; var d = Math.hypot(drag.sx - drag.x, drag.sy - drag.y); var v = dragV(); drag = null; if (d > 18) shoot(v.x, v.y); }
   cv.addEventListener("pointerup", release); cv.addEventListener("pointercancel", function () { drag = null; });
-  function show(l, h, txt, btn) { $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; DIFF.coachFor($("ov"), /усі рів|переміг!/i.test(txt + h) && /Бульдозер переміг/.test(h) ? "final" : /пройдено/.test(h) ? "win" : /закінчилися/.test(h) ? "lose" : "start"); }
+  function show(l, h, txt, btn) { if (lastR) { META.gain(lastR, $("ov")); lastR = null; } else META.clear($("ov")); $("lvl").textContent = l; $("h").textContent = h; $("txt").textContent = txt; $("go").textContent = btn; $("ov").hidden = false; DIFF.coachFor($("ov"), /усі рів|переміг!/i.test(txt + h) && /Бульдозер переміг/.test(h) ? "final" : /пройдено/.test(h) ? "win" : /закінчилися/.test(h) ? "lose" : "start"); }
   function win() {
-    run = false; draw(); SFXLIB.seq(lvl + 1 < LV.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
+    run = false; draw(); pay(); SFXLIB.seq(lvl + 1 < LV.length ? [523, 659, 784, 1047] : [523, 523, 523, 659, 784, 659, 784, 1047], 0.13);
     if (lvl + 1 < LV.length) { saved = Math.max(saved, lvl + 1); try { localStorage.setItem("bus.basket.level", String(saved)); } catch (e) {} show("Очок: " + pts, "Рівень пройдено!", "Далі: " + LV[lvl + 1].name + ". " + LV[lvl + 1].txt, "Наступний рівень"); $("go").dataset.n = "next"; }
     else { saved = 0; try { localStorage.setItem("bus.basket.level", "0"); } catch (e) {} show("Усього очок: " + pts, "Бульдозер переміг!", "Ви пройшли всі рівні. Кунівський ліцей пишається вами!", "Грати ще раз"); $("go").dataset.n = "again"; }
   }
-  function lose() { run = false; draw(); SFXLIB.seq([392, 330, 262, 196], 0.2); show("Закинуто " + makes + " з " + LV[lvl].goal, "Кидки закінчилися", "Трохи не вистачило. Спробуйте ще раз цей рівень.", "Ще раз"); $("go").dataset.n = "retry"; }
-  function start() { if (window.trackPlay) trackPlay("basket"); SFXLIB.tone(1400, 0.25, "sine", 0.1); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
-  $("go").onclick = function () { var n = $("go").dataset.n; $("go").dataset.n = ""; if (n === "next") newLevel(lvl + 1); else if (n === "again") { pts = 0; newLevel(0); } else newLevel(lvl); start(); };
+  function pay() { var r = META.end("basket", { pts: Math.round(pts * DIFF.pick(0.7, 1, 1.4)), coins: runCoins + (makes >= LV[lvl].goal ? 3 : 0) }); runCoins = 0; perkOn = false; lastR = r; return r; }
+  var lastR = null;
+  function endTime() { run = false; draw(); SFXLIB.seq([392, 330, 262], 0.2); var r = pay(); mode = "classic"; show("Час вийшов!", "Влучень: " + makes, "Очок: " + pts + ", найкраще комбо ×" + comboMax + ". Зароблено 🪙 " + r.coins + ".", "Грати рівні"); $("go").dataset.n = "retry"; }
+  function lose() { run = false; draw(); SFXLIB.seq([392, 330, 262, 196], 0.2); pay(); show("Закинуто " + makes + " з " + LV[lvl].goal, "Кидки закінчилися", "Трохи не вистачило. Спробуйте ще раз цей рівень.", "Ще раз"); $("go").dataset.n = "retry"; }
+  var perkOn = false;
+  function start() { if (window.trackPlay) trackPlay("basket"); if (!perkOn) { perkOn = true; perk = META.begin("basket"); bonusShots = perk.life ? 2 : 0; if (mode === "time" && perk.life) timeLeft += 10; } SFXLIB.tone(1400, 0.25, "sine", 0.1); $("ov").hidden = true; run = true; acc = 0; last = performance.now(); requestAnimationFrame(loop); }
+  $("go").onclick = function () { var n = $("go").dataset.n; $("go").dataset.n = ""; if (n === "next") newLevel(lvl + 1); else if (n === "again") { pts = 0; newLevel(0); } else if (n === "time") { mode = "time"; pts = 0; makes = 0; combo = 0; comboMax = 0; timeLeft = 60; newLevel(0); mode = "time"; } else { mode = "classic"; newLevel(lvl); } start(); };
+  $("goT").onclick = function () { $("go").dataset.n = "time"; $("go").onclick(); };
 
   var view3d = true;
   try { var vv = localStorage.getItem("bus.game.view"); if (vv) view3d = vv === "3d"; } catch (e) {}

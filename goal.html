@@ -17,6 +17,7 @@
   @supports (height:100dvh) { .wrap { width:min(100%, 440px, calc((100dvh - 110px) * 360 / 480)); } }
   canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:14px; display:block; touch-action:none; background:#000; }
   .ov { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:9px; text-align:center; padding:14px; border-radius:14px; background:linear-gradient(rgba(8,20,12,.82),rgba(8,20,12,.92)), url(gym.jpg) center/cover; }
+  .ov{z-index:5}
   .ov[hidden] { display:none; }
   .ov img.hero { width:auto; height:118px; border:0; border-radius:0; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
   .ov img { width:120px; height:120px; border-radius:16px; object-fit:cover; object-position:top; border:2px solid var(--y); }
@@ -26,6 +27,10 @@
   .lv button { padding:10px 6px; font-size:14px; background:var(--y); color:#2a2200; line-height:1.25; }
   .lv button small { display:block; font-weight:600; font-size:11px; opacity:.75; }
   .go { font-size:18px; padding:12px 28px; background:var(--y); color:#2a2200; }
+  .lv{max-height:52vh;overflow:auto}
+  .cb{position:absolute;left:8px;bottom:8px;display:flex;gap:6px;z-index:3}
+  .cb button{font:700 12px inherit;padding:8px 10px;border-radius:10px;border:1.5px solid rgba(255,255,255,.5);background:rgba(10,20,15,.7);color:#fff;cursor:pointer;min-height:36px}
+  .cb button.on{background:var(--y);color:#2a2200;border-color:transparent}
   .snd { font:inherit; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; cursor:pointer; }
 </style>
 </head>
@@ -33,6 +38,7 @@
 <header><a href="./">← На сайт</a><span id="lvlname">Забий гол Артуровичу</span><button class="snd" id="snd" type="button" aria-label="Звук"></button></header>
 <div class="wrap">
   <canvas id="c" width="720" height="960" aria-label="Пенальті: веди пальцем, щоб прицілитись у ворота, і відпусти, щоб вдарити. У воротах Артурович."></canvas>
+  <div class="cb" id="cb" aria-label="Крутка удару"><button data-c="-1" type="button">↰ Крутка</button><button data-c="0" type="button" class="on">⬆ Прямо</button><button data-c="1" type="button">Крутка ↱</button></div>
   <div class="ov" id="ov">
     <img id="oimg" class="hero" src="art-win.png" alt="Артурович">
     <h1 id="h">Забий гол Артуровичу</h1>
@@ -44,6 +50,7 @@
 <script src="diff.js"></script>
 <script src="config.js"></script>
 <script src="track.js"></script>
+<script src="meta.js"></script>
 <script>
 (function () {
   var $ = function (i) { return document.getElementById(i); };
@@ -53,7 +60,11 @@
     { n: "Розминка", d: "Артурович зі сну", skill: 0.1, dive: 0.85, reach: 30, need: 2 },
     { n: "Тренування", d: "уже прокинувся", skill: 0.3, dive: 0.68, reach: 34, need: 3 },
     { n: "Матч", d: "читає твої удари", skill: 0.5, dive: 0.55, reach: 37, need: 3 },
-    { n: "Фінал", d: "залізний воротар", skill: 0.65, dive: 0.45, reach: 40, need: 4 }
+    { n: "Фінал", d: "залізний воротар", skill: 0.65, dive: 0.45, reach: 40, need: 4 },
+    { n: "Штрафний", d: "стінка з трьох гравців", skill: 0.4, dive: 0.6, reach: 36, need: 3, wall: 1 },
+    { n: "Вітер", d: "дме збоку, зроби поправку", skill: 0.45, dive: 0.55, reach: 37, need: 3, wind: 9 },
+    { n: "Дощ", d: "слизько: м’яч менш точний", skill: 0.5, dive: 0.5, reach: 38, need: 3, slip: 1.7, rain: 1 },
+    { n: "Фінал ліги", d: "стінка, вітер і тренер Артурович", skill: 0.68, dive: 0.42, reach: 41, need: 4, wall: 1, wind: 7 }
   ];
   var LV = [];
   function applyDiff() {
@@ -64,8 +75,8 @@
     });
   }
   applyDiff();
-  var lvl = 0, st = "menu", shot = 0, goals = 0, score = 0, res = [], aim = { x: 180, y: 200 }, aiming = false, tm = 0, pm = 0, ball = null, kp = { x: 180, y: 198, rot: 0 }, kd = null, rt = 0, rtype = "", fx = [], conf = [], mood = "n", first = true, started = false, best = [0, 0, 0, 0], shake = 0;
-  try { best = JSON.parse(localStorage.getItem("bus.goal.best") || "[0,0,0,0]"); } catch (e) {}
+  var lvl = 0, st = "menu", shot = 0, goals = 0, score = 0, res = [], aim = { x: 180, y: 200 }, aiming = false, tm = 0, pm = 0, ball = null, kp = { x: 180, y: 198, rot: 0 }, kd = null, rt = 0, rtype = "", fx = [], conf = [], mood = "n", first = true, started = false, best = [0, 0, 0, 0, 0, 0, 0, 0], shake = 0, curve = 0, wnd = 0, wallX = 180, streak = 0, perk = { life: 0 }, perkOn = false, shotsN = 5, lastR = null, coinsRun = 0;
+  try { best = JSON.parse(localStorage.getItem("bus.goal.best") || "[]"); } catch (e) {} while (best.length < 8) best.push(0);
 
   function makeKeeper(mood) {
     var cvv = document.createElement("canvas"); cvv.width = 240; cvv.height = 428; var g = cvv.getContext("2d"); g.scale(2, 2); g.translate(-120, -228);
@@ -205,8 +216,25 @@
   }
   function ballPos() {
     if (!ball) return { x: BX, y: BY - 10, r: 15, rot: 0, u: 0 };
-    var u = Math.min(1, ball.t / ball.T), e = u, x = BX + (ball.tx - BX) * e, y0 = BY - 10 + (ball.ty - (BY - 10)) * e, lift = Math.sin(Math.PI * u) * Math.min(70, (BY - ball.ty) * 0.25), r = 15 - 8 * e;
-    return { x: x, y: y0 - lift, r: r, rot: ball.t * 14, u: u, gy: BY + (GB + 4 - BY) * e };
+    if (ball.pk) return { x: ball.pk.x, y: ball.pk.y, r: ball.pk.r, rot: ball.pk.rot, u: 1, gy: ball.pk.gy };
+    var u = Math.min(1, ball.t / ball.T), e = u, x = BX + (ball.tx - BX) * e + ball.cv * 44 * Math.sin(Math.PI * u) + ball.wd * u * u, y0 = BY - 10 + (ball.ty - (BY - 10)) * e, lift = Math.sin(Math.PI * u) * ball.lf, r = 15 - 8 * e;
+    return { x: x, y: y0 - lift, r: r, rot: ball.t * 14 * (1 + Math.abs(ball.cv)), u: u, gy: BY + (GB + 4 - BY) * e };
+  }
+  // м’яч відскакує (сейв, штанга, стінка)
+  function parry(kind) {
+    var bp = ballPos(), dir = kind === "wall" ? (Math.random() < 0.5 ? -1 : 1) : (bp.x < kp.x ? -1 : 1);
+    ball.pk = { x: bp.x, y: bp.y, r: bp.r, rot: bp.rot, gy: bp.y + 14, vx: dir * (kind === "post" ? 70 : 90) * (0.7 + Math.random() * 0.6), vy: kind === "wall" ? 40 : -90, kind: kind };
+  }
+  function wallDraw() {
+    var cols = [["#1b3f8f", "#ffd23f"], ["#d62839", "#fff"], ["#1b3f8f", "#ffd23f"]];
+    for (var i = 0; i < 3; i++) {
+      var x = wallX + (i - 1) * 25, y = 300, h = 58; g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(x, y + 1, 13, 3.5, 0, 0, 7); g.fill();
+      g.fillStyle = "#1a1f2b"; g.fillRect(x - 8, y - 22, 6, 22); g.fillRect(x + 2, y - 22, 6, 22);
+      g.fillStyle = lg(x - 12, 0, x + 12, 0, [[0, cols[i][0]], [0.5, "#4a6fd0"], [1, cols[i][0]]]); rr(g, x - 12, y - 46, 24, 28, 6); g.fill(); g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1; g.stroke();
+      g.fillStyle = cols[i][1]; g.fillRect(x - 12, y - 33, 24, 3);
+      g.fillStyle = "#f1b48a"; g.beginPath(); g.arc(x, y - 53, 7.5, 0, 7); g.fill(); g.fillStyle = i === 1 ? "#d9a22a" : "#3a2410"; g.beginPath(); g.arc(x, y - 56, 7.6, Math.PI, 0); g.fill();
+      g.fillStyle = "#f1b48a"; g.fillRect(x - 6, y - 40, 12, 6); // руки захищають
+    }
   }
   function render() {
     g.setTransform(2, 0, 0, 2, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
@@ -216,9 +244,12 @@
     var bp = ballPos(), inFlight = !!ball, crossed = ball && ball.t >= ball.T && (rtype === "goal");
     // тінь м'яча на землі
     if (inFlight && st !== "result") { g.fillStyle = "rgba(0,0,0,.28)"; g.beginPath(); g.ellipse(bp.x, bp.gy, bp.r * 0.9, bp.r * 0.35, 0, 0, 7); g.fill(); } else if (!inFlight) { g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(BX, BY + 8, 14, 5, 0, 0, 7); g.fill(); }
-    if (crossed) { var q = Math.min(1, rt / 0.5); drawBall(bp.x + (bp.x - 180) * 0.1 * q, bp.y - 8 * q + rt * 18, bp.r * (1 - 0.15 * q), bp.rot); keeperDraw(); }
-    else { keeperDraw(); if (!(ball && ball.t >= ball.T && rtype === "post")) { /* під час польоту й після */ } drawBall(bp.x, bp.y + ((rtype === "save" && st === "result") ? Math.min(40, rt * rt * 200) : 0), bp.r, bp.rot); }
+    if (LV[lvl].wall && st !== "menu") wallDraw();
+    if (crossed) { var q = Math.min(1, rt / 0.5); drawBall(bp.x + (bp.x - 180) * 0.1 * q, bp.y - 8 * q + rt * 18, bp.r * (1 - 0.15 * q), bp.rot); keeperDraw(); g.globalAlpha = 0.55; net(); g.globalAlpha = 1; }
+    else { keeperDraw(); if (!(ball && ball.t >= ball.T && rtype === "post")) { /* під час польоту й після */ } drawBall(bp.x, bp.y, bp.r, bp.rot); }
     frame();
+    // дощ
+    if (LV[lvl].rain) { g.strokeStyle = "rgba(190,215,255,.45)"; g.lineWidth = 1; g.beginPath(); for (var rd = 0; rd < 70; rd++) { var rx = (rd * 53 + tm * 90) % 380 - 10, ry = (rd * 91 + tm * 420) % 500; g.moveTo(rx, ry); g.lineTo(rx - 3, ry + 11); } g.stroke(); }
     // приціл
     if (st === "aim") {
       var a = aim; g.strokeStyle = "rgba(255,230,90,.95)"; g.lineWidth = 2; g.beginPath(); g.arc(a.x, a.y, 11, 0, 7); g.stroke(); g.beginPath(); g.moveTo(a.x - 17, a.y); g.lineTo(a.x - 6, a.y); g.moveTo(a.x + 6, a.y); g.lineTo(a.x + 17, a.y); g.moveTo(a.x, a.y - 17); g.lineTo(a.x, a.y - 6); g.moveTo(a.x, a.y + 6); g.lineTo(a.x, a.y + 17); g.stroke();
@@ -228,49 +259,52 @@
       var py = my + mh * (1 - pm); g.fillStyle = "#fff"; rr(g, mx - 11, py - 3, 22, 6, 3); g.fill(); g.fillStyle = "#fff"; g.font = "bold 9px system-ui"; g.textAlign = "center"; g.fillText("СИЛА", mx, my - 12); g.textAlign = "left";
       if (first) { g.fillStyle = "rgba(0,0,0,.6)"; rr(g, 30, 424, 270, 40, 10); g.fill(); g.fillStyle = "#fff"; g.font = "bold 13px system-ui,sans-serif"; g.textAlign = "center"; g.fillText("Веди пальцем по воротах і відпусти,", 165, 441); g.fillText("щоб вдарити. Відпусти на потрібній силі!", 165, 457); g.textAlign = "left"; }
     }
+    if (st === "aim" && wnd) { g.textAlign = "center"; g.font = "bold 14px system-ui,sans-serif"; g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.7)"; var wt = "💨 " + (wnd > 0 ? "→ " : "← ") + Math.abs(Math.round(wnd / 3)); g.strokeText(wt, 180, 66); g.fillStyle = "#bfe6ff"; g.fillText(wt, 180, 66); g.textAlign = "left"; }
     g.lineJoin = "round"; g.textAlign = "center";
     fx.forEach(function (f) { g.globalAlpha = Math.max(0, 1 - f.t / f.l); g.font = "bold " + f.sz + "px system-ui,sans-serif"; g.lineWidth = 5; g.strokeStyle = "rgba(0,0,0,.75)"; g.strokeText(f.s, f.x, f.y - f.t * 12); g.fillStyle = f.c; g.fillText(f.s, f.x, f.y - f.t * 12); g.globalAlpha = 1; });
     g.textAlign = "left";
     conf.forEach(function (p) { g.fillStyle = p.c; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillRect(-3, -2, 6, 4); g.restore(); });
     // HUD
     g.fillStyle = lg(0, 6, 0, 42, [[0, "rgba(40,60,50,.8)"], [1, "rgba(10,20,15,.85)"]]); rr(g, 6, 6, 160, 36, 10); g.fill(); g.strokeStyle = "rgba(255,255,255,.28)"; g.lineWidth = 1.2; g.stroke();
-    for (var i = 0; i < 5; i++) { var cx = 22 + i * 28, rv = res[i]; g.beginPath(); g.arc(cx, 24, 10, 0, 7); g.fillStyle = rv === "goal" ? "#3fd07a" : (rv ? "#e63946" : "rgba(255,255,255,.22)"); g.fill(); g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = 1.2; g.stroke(); g.fillStyle = "#fff"; g.font = "bold 12px system-ui"; g.textAlign = "center"; g.fillText(rv === "goal" ? "✓" : (rv ? "✗" : ""), cx, 28.5); g.textAlign = "left"; }
+    for (var i = 0; i < shotsN; i++) { var cx = 20 + i * (shotsN > 5 ? 25 : 28), rv = res[i]; g.beginPath(); g.arc(cx, 24, 10, 0, 7); g.fillStyle = rv === "goal" ? "#3fd07a" : (rv ? "#e63946" : "rgba(255,255,255,.22)"); g.fill(); g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = 1.2; g.stroke(); g.fillStyle = "#fff"; g.font = "bold 12px system-ui"; g.textAlign = "center"; g.fillText(rv === "goal" ? "✓" : (rv ? "✗" : ""), cx, 28.5); g.textAlign = "left"; }
     g.fillStyle = lg(0, 6, 0, 42, [[0, "rgba(40,60,50,.8)"], [1, "rgba(10,20,15,.85)"]]); rr(g, W - 114, 6, 108, 36, 10); g.fill(); g.strokeStyle = "rgba(255,255,255,.28)"; g.stroke();
     g.font = "bold 12px system-ui"; g.fillStyle = "#cfe"; g.fillText("ГОЛИ " + goals + "/" + LV[lvl].need, W - 108, 21); g.fillStyle = "#ffd23f"; g.font = "bold 15px system-ui"; g.fillText("★ " + score, W - 108, 37);
   }
   /* ---------- логіка ---------- */
   function menu() {
-    st = "menu"; var lv = $("lv"); lv.innerHTML = "";
+    st = "menu"; META.clear($("ov")); var lv = $("lv"); lv.innerHTML = "";
     LV.forEach(function (L, i) { var b = document.createElement("button"); b.type = "button"; b.innerHTML = (i + 1) + ". " + L.n + "<small>" + L.d + " · рекорд " + (best[i] || 0) + "</small>"; b.onclick = function () { SFXLIB.ac(); start(i); }; lv.appendChild(b); });
     $("ov").hidden = false;
   }
   DIFF.mount($("ov"), $("lv"));
   DIFF.on(function () { applyDiff(); if (st === "menu") menu(); });
   function start(i) {
-    lvl = i; shot = 0; goals = 0; score = 0; res = []; $("ov").hidden = true; $("lvlname").textContent = "Рівень " + (i + 1) + ": " + LV[i].n;
+    lvl = i; shot = 0; goals = 0; score = 0; res = []; streak = 0; coinsRun = 0; perk = META.begin("goal"); shotsN = 5 + (perk.life ? 1 : 0); $("ov").hidden = true; $("lvlname").textContent = "Рівень " + (i + 1) + ": " + LV[i].n;
     if (!started) { started = true; try { if (window.trackPlay) window.trackPlay("goal"); } catch (e) {} }
     SFXLIB.tone(2600, 0.28, "square", 0.08, 0, 2400); reset();
   }
-  function reset() { ball = null; rtype = ""; kd = null; kp = { x: 180, y: 198, rot: 0 }; mood = "n"; aim = { x: 180, y: 200 }; aiming = false; st = "aim"; rt = 0; }
+  function reset() { var Lv = LV[lvl]; wnd = Lv.wind ? (Math.random() < 0.5 ? -1 : 1) * Lv.wind * (0.5 + Math.random() * 0.8) : 0; wallX = 180 + (Math.random() - 0.5) * 36; ball = null; rtype = ""; kd = null; kp = { x: 180, y: 198, rot: 0 }; mood = "n"; aim = { x: 180, y: 200 }; aiming = false; st = "aim"; rt = 0; }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function shoot() {
     if (st !== "aim") return; first = false; var L = LV[lvl], pw = pm, T = 1.05 - 0.5 * pw, er = pw * pw * 15;
+    er *= (L.slip || 1) * (curve ? 1.3 : 1);
     var tx = aim.x + rnd(-er, er), ty = aim.y + rnd(-er * 0.7, er * 0.7);
-    ball = { t: 0, T: T, tx: tx, ty: ty }; st = "shoot"; aiming = false;
-    var dx, dy; if (Math.random() < 0.1) { dx = 180; dy = 205; } else if (Math.random() < L.skill) { dx = tx + rnd(-20, 20); dy = ty + rnd(-12, 12); } else { dx = rnd(100, 260); dy = rnd(172, 230); }
+    var lf = Math.min(70, (BY - ty) * 0.25) * (1.35 - pw * 0.7);
+    ball = { t: 0, T: T + (L.wall ? 0.08 : 0), tx: tx, ty: ty, cv: curve, wd: wnd, lf: lf, fin: tx + wnd }; st = "shoot"; aiming = false;
+    var dx, dy; if (L.wall && Math.random() < 0.25) { dx = 180; dy = 205; } else if (Math.random() < 0.1) { dx = 180; dy = 205; } else if (Math.random() < L.skill) { dx = tx + rnd(-20, 20); dy = ty + rnd(-12, 12); } else { dx = rnd(100, 260); dy = rnd(172, 230); }
     kd = { x: Math.max(94, Math.min(266, dx)), y: Math.max(170, Math.min(232, dy)), dive: L.dive };
     SFXLIB.noise(0.12, 0.25, 600); SFXLIB.tone(160, 0.14, "triangle", 0.3, 0, 70);
   }
   function resolve() {
-    var L = LV[lvl], b = ball, inside = b.tx >= GL + 4 && b.tx <= GR - 4 && b.ty >= GT + 4 && b.ty <= GB;
+    var L = LV[lvl], b = ball; var TX = b.tx + b.wd; var inside = TX >= GL + 4 && TX <= GR - 4 && b.ty >= GT + 4 && b.ty <= GB;
     if (inside) {
-      var ex = (b.tx - kp.x) / L.reach, ey = (b.ty - kp.y) / (L.reach * 0.95);
-      if (ex * ex + ey * ey < 1) { rtype = "save"; mood = "joy"; SFXLIB.tone(110, 0.25, "sine", 0.4); SFXLIB.noise(0.15, 0.3, 300); fx.push({ s: "СЕЙВ!", x: 180, y: 320, c: "#ff5a64", sz: 42, t: 0, l: 1.3 }); fx.push({ s: "Артурович: «Не пройдеш!»", x: 180, y: 360, c: "#fff", sz: 15, t: 0, l: 1.3 }); }
-      else { rtype = "goal"; mood = "shock"; var top = b.ty < GT + 26 && (b.tx < GL + 38 || b.tx > GR - 38), pts = top ? 2 : 1; goals++; score += pts; shake = 0.25; SFXLIB.seq([523, 659, 784, 1047], 0.09, "triangle", 0.25); SFXLIB.noise(0.9, 0.18, 1500, "bandpass");
+      var ex = (TX - kp.x) / L.reach, ey = (b.ty - kp.y) / (L.reach * 0.95);
+      if (ex * ex + ey * ey < 1) { rtype = "save"; parry("save"); mood = "joy"; SFXLIB.tone(110, 0.25, "sine", 0.4); SFXLIB.noise(0.15, 0.3, 300); fx.push({ s: "СЕЙВ!", x: 180, y: 320, c: "#ff5a64", sz: 42, t: 0, l: 1.3 }); fx.push({ s: "Артурович: «Не пройдеш!»", x: 180, y: 360, c: "#fff", sz: 15, t: 0, l: 1.3 }); }
+      else { rtype = "goal"; mood = "shock"; var top = b.ty < GT + 26 && (TX < GL + 38 || TX > GR - 38), pts = top ? 2 : 1; streak++; if (streak >= 2) { pts++; fx.push({ s: "СЕРІЯ ×" + streak, x: 180, y: 275, c: "#ff9f1c", sz: 22, t: 0, l: 1.5 }); } goals++; score += pts; coinsRun += 2 + (top ? 2 : 0) + (streak >= 2 ? 1 : 0); shake = 0.25; SFXLIB.seq([523, 659, 784, 1047], 0.09, "triangle", 0.25); SFXLIB.noise(0.9, 0.18, 1500, "bandpass");
         fx.push({ s: top ? "ДЕВ'ЯТКА! +2" : "ГОЛ!", x: 180, y: 320, c: "#ffd23f", sz: 46, t: 0, l: 1.5 }); for (var i = 0; i < 40; i++) conf.push({ x: rnd(40, 320), y: rnd(-20, 100), vx: rnd(-30, 30), vy: rnd(60, 140), r: rnd(0, 6), vr: rnd(-8, 8), c: ["#ffd23f", "#e63946", "#2f6fd1", "#5fb08f", "#fff"][i % 5] }); }
-    } else if (b.tx > GL - 14 && b.tx < GR + 14 && b.ty > GT - 14 && b.ty < GB + 4 && (b.tx < GL + 4 || b.tx > GR - 4 || b.ty < GT + 4)) { rtype = "post"; SFXLIB.tone(1900, 0.35, "sine", 0.3); SFXLIB.tone(1200, 0.3, "sine", 0.15, 0.02); fx.push({ s: "ШТАНГА!", x: 180, y: 320, c: "#9ad0ff", sz: 40, t: 0, l: 1.3 }); }
+    } else if (TX > GL - 14 && TX < GR + 14 && b.ty > GT - 14 && b.ty < GB + 4 && (TX < GL + 4 || TX > GR - 4 || b.ty < GT + 4)) { rtype = "post"; parry("post"); SFXLIB.tone(1900, 0.35, "sine", 0.3); SFXLIB.tone(1200, 0.3, "sine", 0.15, 0.02); fx.push({ s: "ШТАНГА!", x: 180, y: 320, c: "#9ad0ff", sz: 40, t: 0, l: 1.3 }); }
     else { rtype = "wide"; SFXLIB.tone(180, 0.3, "sawtooth", 0.12, 0, 90); fx.push({ s: "МИМО!", x: 180, y: 320, c: "#ffb347", sz: 40, t: 0, l: 1.3 }); }
-    res.push(rtype === "goal" ? "goal" : "miss"); st = "result"; rt = 0;
+    if (rtype !== "goal") streak = 0; res.push(rtype === "goal" ? "goal" : "miss"); st = "result"; rt = 0;
   }
   function update(dt) {
     tm += dt; pm = 0.5 + 0.5 * Math.sin(tm * 2.6); if (shake > 0) shake -= dt;
@@ -279,22 +313,26 @@
     if (st === "aim") { kp.x = 180 + Math.sin(tm * 2) * 10; kp.rot = Math.sin(tm * 2) * 0.05; }
     if (st === "shoot") {
       ball.t += dt; var q = Math.max(0, Math.min(1, (ball.t - 0.1) / kd.dive)); q = q * q * (3 - 2 * q);
-      kp.x = 180 + (kd.x - 180) * q; kp.y = 198 + (kd.y - 205) * q * 0.9; kp.rot = ((kd.x - 180) / 90) * 1.0 * q;
-      if (ball.t >= ball.T) resolve();
+      kp.x = 180 + (kd.x - 180) * q; kp.y = 198 + (kd.y - 205) * q * 0.9 - Math.sin(Math.PI * q) * 9; kp.rot = ((kd.x - 180) / 90) * 1.25 * q;
+      var bq = ballPos();
+      if (LV[lvl].wall && !ball.pk && bq.u > 0.25 && bq.u < 0.9 && Math.abs(bq.x - wallX) < 42 && bq.y > 238 && bq.y < 304) {
+        parry("wall"); rtype = "wall"; mood = "n"; SFXLIB.noise(0.1, 0.3, 500); SFXLIB.tone(140, 0.15, "triangle", 0.3, 0, 80); fx.push({ s: "СТІНКА!", x: 180, y: 330, c: "#9ad0ff", sz: 40, t: 0, l: 1.3 }); streak = 0; res.push("miss"); st = "result"; rt = 0;
+      } else if (ball.t >= ball.T) resolve();
     } else if (st === "result") {
-      rt += dt; if (rtype === "post") { ball.t = ball.T; }
-      if (rt > 1.6) { shot++; if (shot >= 5) finish(); else reset(); }
+      rt += dt; if (ball && ball.pk) { var P = ball.pk; P.vy += 520 * dt; P.x += P.vx * dt; P.y += P.vy * dt; P.rot += dt * 9; if (P.y > P.gy + 28 + (P.kind === "wall" ? 40 : 0)) { P.y = P.gy + 28 + (P.kind === "wall" ? 40 : 0); P.vy *= -0.4; P.vx *= 0.7; } } else if (rtype === "post") { ball.t = ball.T; }
+      if (rt > 1.6) { shot++; if (shot >= shotsN) finish(); else reset(); }
     }
   }
   function finish() {
     st = "over"; var L = LV[lvl], win = goals >= L.need; if (score > (best[lvl] || 0)) { best[lvl] = score; try { localStorage.setItem("bus.goal.best", JSON.stringify(best)); } catch (e) {} }
     var last = win && lvl === LV.length - 1;
+    var rr0 = META.end("goal", { pts: Math.round((score * 12 + (win ? 40 + lvl * 25 : 0)) * DIFF.pick(0.7, 1, 1.4)), coins: coinsRun + (win ? 5 + lvl * 2 : 0) }); lastR = rr0;
     $("h").textContent = last ? "Ти переміг Артуровича!" : (win ? "Рівень пройдено!" : "Артурович відбився!");
-    $("txt").textContent = "Забито голів: " + goals + " з 5, очок: " + score + ". " + (last ? "Степанович: «Легенда ліцею! Артуровичу є над чим працювати на тренуваннях».": (win ? "Далі воротар буде кращим." : "Потрібно було забити щонайменше " + L.need + ". Спробуєш ще?"));
+    $("txt").textContent = "Забито голів: " + goals + " з " + shotsN + ", очок: " + score + ". " + (last ? "Степанович: «Легенда ліцею! Артуровичу є над чим працювати на тренуваннях».": (win ? "Далі воротар буде кращим." : "Потрібно було забити щонайменше " + L.need + ". Спробуєш ще?"));
     if (win) SFXLIB.seq([523, 659, 784, 1047, 1319], 0.1, "triangle", 0.22); else SFXLIB.seq([400, 330, 260], 0.14, "sawtooth", 0.13);
     var lv = $("lv"); lv.innerHTML = ""; var b1 = document.createElement("button"); b1.type = "button"; b1.textContent = win && lvl < LV.length - 1 ? "Наступний рівень" : "Ще раз"; b1.onclick = function () { SFXLIB.ac(); start(win && lvl < LV.length - 1 ? lvl + 1 : lvl); }; lv.appendChild(b1);
     var b2 = document.createElement("button"); b2.type = "button"; b2.textContent = "Усі рівні"; b2.onclick = function () { $("h").textContent = "Забий гол Артуровичу"; $("txt").textContent = "Обери рівень:"; menu(); }; lv.appendChild(b2);
-    $("ov").hidden = false;
+    META.gain(lastR, $("ov")); $("ov").hidden = false;
   }
 
   /* ---------- керування ---------- */
@@ -305,6 +343,7 @@
   cv.addEventListener("pointerup", function (e) { if (aiming) { setAim(e); shoot(); } aiming = false; });
   cv.addEventListener("pointercancel", function () { aiming = false; });
   addEventListener("keydown", function (e) { if (st !== "aim") return; var k = e.key; if (k === "ArrowLeft") aim.x = Math.max(55, aim.x - 8); else if (k === "ArrowRight") aim.x = Math.min(305, aim.x + 8); else if (k === "ArrowUp") aim.y = Math.max(128, aim.y - 6); else if (k === "ArrowDown") aim.y = Math.min(262, aim.y + 6); else if (k === " " || k === "Enter") shoot(); else return; e.preventDefault(); });
+  Array.prototype.forEach.call(document.querySelectorAll("#cb button"), function (b) { b.addEventListener("pointerdown", function (e) { e.stopPropagation(); e.preventDefault(); curve = +b.getAttribute("data-c"); Array.prototype.forEach.call(document.querySelectorAll("#cb button"), function (x) { x.classList.toggle("on", x === b); }); SFXLIB.ac(); }); });
   SFXLIB.bind($("snd"));
   var last = 0; function loop(t) { var dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t; update(dt); render(); requestAnimationFrame(loop); }
   menu(); requestAnimationFrame(loop);
