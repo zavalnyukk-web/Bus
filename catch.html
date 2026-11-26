@@ -267,52 +267,141 @@
     el(Ex, Ey, 7, 7, SK[1]); // лікоть
     hand(Hx, Hy, handAng, open);
   }
-  function fizruk() {
-    if (!artReady()) return fizrukOld();
-    var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, s = 0.5, ub = Math.sin(tm * 6) * 0.9, big = shock > 0, happy = joy > 0;
-    var HD = big ? ART["head-wave"] : happy ? ART["head-win"] : ART["head-thumb"];
-    var lean = side * 0.045 + Math.sin(tm * 3) * 0.008, pvx = X, pvy = FY + (262 - 480) * s;
-    function W(lx, ly) { var dx = lx * s, dy = (ly - 262) * s, c = Math.cos(lean), sn = Math.sin(lean); return [pvx + dx * c - dy * sn, pvy + ub + dx * sn + dy * c]; }
-    el(X, FY + 1, 44, 7, "rgba(0,0,0,.38)");
-    // ноги (фото)
-    g.save(); g.translate(X, FY); g.scale(s, s); g.drawImage(ART.legs, -98, 264 - 480); g.restore();
-    // вільна рука (за тулубом, якщо опущена)
-    var f = -side, S2 = W(f * 61, 132), E2, H2, ha = 0;
-    if (big) { E2 = [S2[0] + f * 22, S2[1] + 6]; H2 = [S2[0] + f * 42, S2[1] - 12]; ha = f * 1.2; }
-    else if (happy) { E2 = [S2[0] + f * 17, S2[1] + 2]; H2 = [S2[0] + f * 24, S2[1] - 32]; ha = f * 0.25; }
-    else { var sw = Math.sin(tm * 3) * 1.2; E2 = [S2[0] + f * 8 + sw, S2[1] + 31]; H2 = [S2[0] + f * 6 + sw * 1.6, S2[1] + 63 + ub]; ha = Math.PI; }
-    var drawFree = function () { sleeveArm(S2[0], S2[1], E2[0], E2[1], H2[0], H2[1], ha + (big || happy ? 0 : 0), false); };
-    // тулуб
-    g.save(); g.translate(pvx, pvy + ub); g.scale(s, s); g.rotate(lean); g.translate(0, 0);
-    var T = function (y) { return y - 262; };
-    g.beginPath(); g.moveTo(-50, T(276)); g.quadraticCurveTo(-56, T(215), -59, T(160)); g.quadraticCurveTo(-64, T(128), -42, T(116)); g.quadraticCurveTo(0, T(106), 42, T(116)); g.quadraticCurveTo(64, T(128), 59, T(160)); g.quadraticCurveTo(56, T(215), 50, T(276)); g.quadraticCurveTo(0, T(284), -50, T(276)); g.closePath();
-    g.fillStyle = lg(-60, 0, 60, 0, [[0, "#7f848c"], [0.3, "#b3b7bd"], [0.62, "#a5a9b0"], [1, "#767b83"]]); g.fill(); g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 2; g.stroke();
-    g.save(); g.clip(); g.fillStyle = "rgba(0,0,0,.16)"; g.fillRect(-60, T(262), 120, 30); // низ у тіні
-    g.strokeStyle = "rgba(0,0,0,.13)"; g.lineWidth = 3; g.beginPath(); g.moveTo(-34, T(170)); g.quadraticCurveTo(-18, T(200), -30, T(250)); g.moveTo(36, T(168)); g.quadraticCurveTo(22, T(205), 34, T(252)); g.stroke();
-    g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 4; g.beginPath(); g.moveTo(-8, T(140)); g.quadraticCurveTo(-14, T(190), -10, T(240)); g.stroke(); g.restore();
-    // шия
-    g.fillStyle = lg(0, T(96), 0, T(126), [[0, "#c98a62"], [1, "#e6a57c"]]); rr(g, -17, T(94), 34, 34, 10); g.fill();
-    // комір і планка
-    g.fillStyle = lg(0, T(110), 0, T(140), [[0, "#d7dadf"], [1, "#a9adb3"]]);
-    g.beginPath(); g.moveTo(-30, T(112)); g.lineTo(-9, T(106)); g.lineTo(-2, T(138)); g.lineTo(-18, T(128)); g.closePath(); g.fill(); g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.4; g.stroke();
-    g.beginPath(); g.moveTo(30, T(112)); g.lineTo(9, T(106)); g.lineTo(2, T(138)); g.lineTo(18, T(128)); g.closePath(); g.fill(); g.stroke();
-    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, T(134)); g.lineTo(0, T(170)); g.stroke();
-    el(0, T(147), 2.4, 2.4, "#6c7078"); el(0, T(160), 2.4, 2.4, "#6c7078");
-    // шнурок з медаллю (як на фото)
-    g.strokeStyle = "#d9dde2"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(-14, T(112)); g.quadraticCurveTo(-6, T(150), 20, T(176)); g.moveTo(14, T(112)); g.quadraticCurveTo(14, T(150), 20, T(176)); g.stroke();
-    el(21, T(188), 13, 13, rg(18, T(184), 1, 14, [[0, "#fff4b0"], [0.6, "#f2c230"], [1, "#b0841a"]])); g.strokeStyle = "#8a6612"; g.lineWidth = 1.4; g.beginPath(); g.arc(21, T(188), 13, 0, 7); g.stroke();
-    // голова (фото)
-    var hw = HD.naturalWidth, hh = HD.naturalHeight, hx = HD === ART["head-win"] ? -53 : HD === ART["head-wave"] ? -42 : -45;
-    g.save(); g.translate(0, T(104)); g.rotate(-lean * 1.5 + side * 0.07 + (big ? 0 : Math.sin(tm * 2.2) * 0.012)); g.drawImage(HD, hx, -hh + 6); g.restore();
+  var GR = ["#7d828a", "#b9bdc4", "#8e939b"];
+  function sleeve(Sx, Sy, Ex, Ey, Hx, Hy, ha, open, mus) {
+    var ang = Math.atan2(Hy - Ey, Hx - Ex), ux = Ex - Sx, uy = Ey - Sy, ul = Math.hypot(ux, uy) || 1, nx = -uy / ul, ny = ux / ul;
+    g.strokeStyle = "rgba(0,0,0,.25)"; g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = 24; g.beginPath(); g.moveTo(Sx + 2, Sy + 3); g.lineTo(Ex + 2, Ey + 3); g.lineTo(Hx + 2, Hy + 3); g.stroke();
+    limb(Ex, Ey, Hx, Hy, 17, 12, SK, SK); // передпліччя (м'язисте)
+    el(Ex + (Hx - Ex) * 0.3, Ey + (Hy - Ey) * 0.3, 8.5, 7, SK[1], ang); // біцепс-вигин передпліччя
+    var wx = Hx - Math.cos(ang) * 5, wy = Hy - Math.sin(ang) * 5; // фіолетовий браслет
+    g.strokeStyle = "#7b3fc4"; g.lineWidth = 4.2; g.beginPath(); g.moveTo(wx - Math.sin(ang) * 6.5, wy + Math.cos(ang) * 6.5); g.lineTo(wx + Math.sin(ang) * 6.5, wy - Math.cos(ang) * 6.5); g.stroke();
+    var sx2 = Sx + ux * 0.7, sy2 = Sy + uy * 0.7;
+    seg(sx2, sy2, Ex, Ey, 16, SK[1]); // плече (шкіра)
+    el(Ex, Ey, 8, 8, SK[1]);
+    limb(Sx, Sy, sx2, sy2, 28, 24, GR, GR); // рукав
+    g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.3; g.beginPath(); g.arc(sx2, sy2, 11.5, Math.atan2(uy, ux) - 1.5, Math.atan2(uy, ux) + 1.5); g.stroke();
+    el(Sx - nx * 4, Sy - ny * 4, 9, 11, "rgba(255,255,255,.14)", Math.atan2(uy, ux));
+    g.save(); g.translate(Hx, Hy); g.scale(1.1, 1.1); g.translate(-Hx, -Hy); hand(Hx, Hy, ha, open); g.restore();
+  }
+  function kicker(x0, y0, x1, y1, w0, w1, left, nch) {
+    limb(x0, y0, x1, y1, w0, w1, ["#101216", "#33363f", "#16181d"], ["#101216", "#33363f", "#16181d"]);
+    var dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L, sd = left ? -1 : 1;
+    g.strokeStyle = "rgba(255,255,255,.88)"; g.lineWidth = 1.7; g.lineCap = "round"; g.lineJoin = "round";
+    for (var i = 0; i < nch; i++) { var t = 0.2 + i * (0.6 / nch), px = x0 + dx * t + nx * sd * (w0 / 2 - 3.5), py = y0 + dy * t + ny * sd * (w0 / 2 - 3.5); g.beginPath(); g.moveTo(px - 2.6 * sd, py - 3.4); g.lineTo(px, py); g.lineTo(px - 2.6 * sd, py + 3.4); g.stroke(); }
+    // шов
+    g.strokeStyle = "rgba(255,255,255,.1)"; g.lineWidth = 6; g.beginPath(); g.moveTo(x0 - nx * 3, y0 - ny * 3); g.lineTo(x1 - nx * 2, y1 - ny * 2); g.stroke();
+  }
+  function shoe(x, y, sd) {
+    g.save(); g.translate(x, y); g.scale(sd, 1);
+    el(0, 3, 17, 5, "rgba(0,0,0,.35)");
+    g.beginPath(); g.moveTo(-9, -8); g.quadraticCurveTo(-11, 2, -9, 6); g.lineTo(14, 6); g.quadraticCurveTo(20, 5, 18, 1); g.quadraticCurveTo(12, -4, 4, -6); g.quadraticCurveTo(-2, -10, -9, -8); g.closePath();
+    g.fillStyle = lg(0, -9, 0, 7, [[0, "#555a63"], [1, "#25272c"]]); g.fill();
+    g.fillStyle = "#f4f4f2"; rr(g, -10, 4, 30, 4, 2); g.fill();
+    g.strokeStyle = "#f4f4f2"; g.lineWidth = 1.7; for (var i = 0; i < 3; i++) { g.beginPath(); g.moveTo(-3 + i * 2.6, -4 + i * 0.4); g.lineTo(1 + i * 3.4, 2); g.stroke(); }
+    g.strokeStyle = "rgba(220,220,220,.8)"; g.lineWidth = 0.9; for (var j = 0; j < 3; j++) { g.beginPath(); g.moveTo(5 + j * 3, -4 + j * 0.4); g.lineTo(7 + j * 3, -1 + j * 0.8); g.stroke(); }
     g.restore();
-    drawFree();
+  }
+  function headNew(hx, hy, rot, big, happy) {
+    g.save(); g.translate(hx, hy); g.rotate(rot);
+    // вуха
+    [-1, 1].forEach(function (sd) { el(sd * 30, 3, 6, 10, lg(0, -8, 0, 12, [[0, "#f6c19d"], [1, "#d68f66"]])); el(sd * 30, 3, 2.6, 6, "#c47e58"); });
+    // голова
+    g.beginPath(); g.ellipse(0, 0, 30, 34, 0, 0, 7); g.fillStyle = rg(-9, -14, 3, 46, [[0, "#ffe4cb"], [0.5, "#f6bb95"], [1, "#d58d63"]]); g.fill(); g.strokeStyle = "rgba(100,50,22,.5)"; g.lineWidth = 1.4; g.stroke();
+    el(-10, -25, 12, 5, "rgba(255,255,255,.55)", -0.4); // блиск лисини
+    // борода
+    g.save(); g.beginPath(); g.ellipse(0, 0, 30, 34, 0, 0, 7); g.clip();
+    g.fillStyle = lg(0, 2, 0, 38, [[0, "#e6702f"], [0.6, "#c4531d"], [1, "#8f360d"]]);
+    g.beginPath(); g.moveTo(-32, -2); g.bezierCurveTo(-34, 46, 34, 46, 32, -2); g.bezierCurveTo(26, 12, 17, 15, 0, 15); g.bezierCurveTo(-17, 15, -26, 12, -32, -2); g.fill();
+    g.strokeStyle = "rgba(120,40,8,.4)"; g.lineWidth = 1; for (var q = -22; q <= 22; q += 5) { g.beginPath(); g.moveTo(q, 17 + Math.abs(q) * 0.15); g.lineTo(q * 1.08, 34); g.stroke(); }
+    g.strokeStyle = "rgba(255,170,100,.35)"; for (var q2 = -16; q2 <= 16; q2 += 8) { g.beginPath(); g.moveTo(q2, 19); g.lineTo(q2 * 1.1, 32); g.stroke(); }
+    g.restore();
+    // вуса
+    g.fillStyle = "#c7561e"; g.beginPath(); g.moveTo(-17, 15); g.quadraticCurveTo(-9, 6, 0, 12); g.quadraticCurveTo(9, 6, 17, 15); g.quadraticCurveTo(9, 18, 0, 16); g.quadraticCurveTo(-9, 18, -17, 15); g.fill();
+    // рот
+    if (big) { el(0, 24, 6.5, 8, "#4d1010"); g.fillStyle = "#fbfbf6"; rr(g, -6, 17.5, 12, 4.5, 2); g.fill(); el(0, 29, 4, 2.5, "#c0443c"); }
+    else {
+      var mw = happy ? 15 : 12.5, md = happy ? 15 : 11;
+      g.beginPath(); g.moveTo(-mw, 17); g.quadraticCurveTo(0, 17 + md * 1.6, mw, 17); g.quadraticCurveTo(0, 15, -mw, 17); g.fillStyle = "#5a1414"; g.fill();
+      g.save(); g.clip(); g.fillStyle = "#fbfbf6"; g.fillRect(-mw, 16, mw * 2, 5.5); g.fillStyle = "rgba(0,0,0,.18)"; for (var tq = -mw + 3; tq < mw; tq += 3.8) g.fillRect(tq, 16, 0.7, 5.5); el(0, 29, 6, 3.5, "#c0443c"); g.restore();
+    }
+    // ніс і щоки
+    el(0, 5, 5.2, 6.4, "rgba(200,110,78,.65)"); el(-1.5, 3, 2.3, 3, "rgba(255,230,210,.6)");
+    el(-17, 8, 7, 4, "rgba(255,110,90,.25)"); el(17, 8, 7, 4, "rgba(255,110,90,.25)");
+    // очі
+    [-1, 1].forEach(function (sd) {
+      var ex = sd * 12, ey = -6;
+      if (happy && !big) { g.strokeStyle = "#3a1c0a"; g.lineWidth = 2.6; g.lineCap = "round"; g.beginPath(); g.arc(ex, ey + 2, 6, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+      else { var ry = big ? 8.4 : 6.4; el(ex, ey, 7.4, ry, "#fff"); g.strokeStyle = "rgba(0,0,0,.4)"; g.lineWidth = 1; g.beginPath(); g.ellipse(ex, ey, 7.4, ry, 0, 0, 7); g.stroke(); el(ex - sd * 0.6, ey + 0.6, 4, 4.4, rg(ex, ey, 0, 4.4, [[0, "#6fb0e6"], [1, "#2c5f93"]])); el(ex - sd * 0.6, ey + 0.8, 2, 2.2, "#0a0a0a"); el(ex - 1.8, ey - 1.6, 1.3, 1.3, "#fff"); }
+      g.strokeStyle = "#8a3a10"; g.lineWidth = 3.6; g.lineCap = "round"; var by = big ? -19 : -15; g.beginPath(); g.moveTo(sd * 20, ey + by + 8); g.quadraticCurveTo(sd * 13, ey + by + (big ? 0 : 4), sd * 5, ey + by + (big ? 2 : 6)); g.stroke();
+    });
+    g.restore();
+  }
+  var CJ = {}; ["crouch", "jump"].forEach(function (n) { var im = new Image(); im.src = "art-c-" + n + ".png"; CJ[n] = im; });
+  var AN = { crouch: { x: 265, y: 178 }, jump: { x: 58, y: 35 } }, hP = { x: null, y: 0 };
+  function fizruk() {
+    var ok = CJ.crouch.complete && CJ.crouch.naturalWidth && CJ.jump.complete && CJ.jump.naturalWidth;
+    if (!ok) return fizrukDrawn();
+    var C = CH[pos], side = pos < 2 ? -1 : 1, up = C.by < 335, nm = up ? "jump" : "crouch", im = CJ[nm], k = 0.4;
+    var tx = C.bx - side * 4, ty = C.by + (up ? 0 : 2);
+    if (hP.x === null) { hP.x = tx; hP.y = ty; }
+    hP.x += (tx - hP.x) * 0.25; hP.y += (ty - hP.y) * 0.25;
+    var flip = up ? side > 0 : side < 0, ax = flip ? im.naturalWidth - AN[nm].x : AN[nm].x;
+    var bob = (joy > 0 ? -Math.abs(Math.sin(tm * 18)) * 6 : 0) + (shock > 0 ? Math.sin(tm * 40) * 2 : 0);
+    var dx = hP.x - ax * k, dy = hP.y - AN[nm].y * k + bob, feet = Math.min(474, dy + im.naturalHeight * k);
+    basket(C.bx, C.by);
+    el(dx + im.naturalWidth * k * 0.5, Math.min(472, feet + 2), 38, 7, "rgba(0,0,0,.35)");
+    g.save(); if (flip) { g.translate(dx + im.naturalWidth * k, dy); g.scale(-k, k); } else { g.translate(dx, dy); g.scale(k, k); }
+    g.drawImage(im, 0, 0); g.restore();
+  }
+  function fizrukDrawn() {
+    var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, big = shock > 0, happy = joy > 0;
+    var bob = Math.sin(tm * 6) * 1.3, crouch = 4 + (happy ? -4 : 0) + bob * 0.5, lean = side * 0.05, hipY = 346 + crouch, shY = 290 + crouch;
+    el(X, FY + 1, 52, 8, "rgba(0,0,0,.38)");
+    // ноги (широка стійка, як на малюнку)
+    var kn = 6 + crouch * 0.6;
+    kicker(X - 15, hipY, X - 24 - kn * 0.4, 396, 36, 29, true, 3); kicker(X - 24 - kn * 0.4, 396, X - 27, 428, 29, 22, true, 2);
+    kicker(X + 15, hipY, X + 24 + kn * 0.4, 396, 36, 29, false, 3); kicker(X + 24 + kn * 0.4, 396, X + 27, 428, 29, 22, false, 2);
+    g.save(); g.translate(X - 28, 436); g.scale(1.35, 1.35); g.translate(-(X - 28), -436); shoe(X - 28, 436, -1); g.restore(); g.save(); g.translate(X + 28, 436); g.scale(1.35, 1.35); g.translate(-(X + 28), -436); shoe(X + 28, 436, 1); g.restore();
+    g.fillStyle = "#fff"; g.font = "bold 19px Arial,sans-serif"; g.textAlign = "center"; g.strokeStyle = "rgba(0,0,0,.45)"; g.lineWidth = 2.5; g.strokeText("8", X - 24, 380); g.fillText("8", X - 24, 380); g.textAlign = "left";
+    // тулуб
+    g.save(); g.translate(X, hipY); g.rotate(lean); g.translate(-X, -hipY);
+    var top = shY - 4;
+    g.beginPath(); g.moveTo(X - 27, hipY + 6); g.quadraticCurveTo(X - 33, shY + 38, X - 38, top + 12); g.quadraticCurveTo(X - 38, top, X - 24, top - 2); g.quadraticCurveTo(X, top - 7, X + 24, top - 2); g.quadraticCurveTo(X + 38, top, X + 38, top + 12); g.quadraticCurveTo(X + 33, shY + 38, X + 27, hipY + 6); g.quadraticCurveTo(X, hipY + 12, X - 27, hipY + 6); g.closePath();
+    g.fillStyle = lg(X - 38, 0, X + 38, 0, [[0, "#7a7f87"], [0.28, "#b8bcc3"], [0.62, "#a6aab1"], [1, "#72777f"]]); g.fill(); g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1.6; g.stroke();
+    g.save(); g.clip(); g.fillStyle = "rgba(0,0,0,.13)"; g.fillRect(X - 40, hipY - 8, 80, 22); g.strokeStyle = "rgba(0,0,0,.12)"; g.lineWidth = 3; g.beginPath(); g.moveTo(X - 18, shY + 12); g.quadraticCurveTo(X - 10, shY + 30, X - 20, hipY - 6); g.moveTo(X + 20, shY + 12); g.quadraticCurveTo(X + 12, shY + 32, X + 22, hipY - 8); g.stroke();
+    g.fillStyle = "rgba(255,255,255,.16)"; g.beginPath(); g.ellipse(X - 14, shY + 14, 13, 8, -0.3, 0, 7); g.fill(); g.beginPath(); g.ellipse(X + 14, shY + 14, 13, 8, 0.3, 0, 7); g.fill(); g.restore();
+    // комір
+    g.fillStyle = lg(0, top - 4, 0, top + 20, [[0, "#d9dce1"], [1, "#a9adb4"]]); g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(X - 17, top - 4); g.lineTo(X - 3, top - 5); g.lineTo(X, top + 18); g.lineTo(X - 7, top + 12); g.closePath(); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(X + 17, top - 4); g.lineTo(X + 3, top - 5); g.lineTo(X, top + 18); g.lineTo(X + 7, top + 12); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.moveTo(X, top + 16); g.lineTo(X, top + 34); g.stroke(); el(X, top + 24, 1.8, 1.8, "#666b73");
+    // номер 8 на грудях і логотип
+    g.fillStyle = "#fff"; g.font = "bold 22px Arial,sans-serif"; g.textAlign = "center"; g.strokeStyle = "rgba(0,0,0,.5)"; g.lineWidth = 3; g.strokeText("8", X + 22, shY + 27); g.fillText("8", X + 22, shY + 27);
+    g.strokeStyle = "#1a1c20"; g.lineWidth = 2.2; g.lineCap = "round"; g.lineJoin = "round"; for (var cv2 = 0; cv2 < 2; cv2++) { g.beginPath(); g.moveTo(X - 28, shY + 17 + cv2 * 5); g.lineTo(X - 24, shY + 21 + cv2 * 5); g.lineTo(X - 20, shY + 17 + cv2 * 5); g.stroke(); } g.textAlign = "left";
+    // шнурок і свисток
+    g.strokeStyle = "#17181c"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(X - 12, top - 3); g.quadraticCurveTo(X - 14, top + 26, X - 3, shY + 32); g.moveTo(X + 12, top - 3); g.quadraticCurveTo(X + 8, top + 26, X - 3, shY + 32); g.stroke();
+    g.fillStyle = lg(X - 8, 0, X + 4, 0, [[0, "#1b1d22"], [0.5, "#4a4e58"], [1, "#16171b"]]); rr(g, X - 9, shY + 30, 14, 9, 3); g.fill(); rr(g, X - 5, shY + 36, 8, 8, 3); g.fill(); g.fillStyle = "rgba(255,255,255,.35)"; g.fillRect(X - 7, shY + 32, 7, 1.6);
+    // шия
+    g.fillStyle = lg(0, top - 12, 0, top + 4, [[0, "#c98a62"], [1, "#e6a57c"]]); g.save(); g.globalCompositeOperation = "destination-over"; rr(g, X - 14, top - 18, 28, 26, 8); g.fill(); g.restore();
+    // голова (великий, мультяшні пропорції)
+    var HD = big ? ART["head-wave"] : happy ? ART["head-win"] : ART["head-thumb"];
+    if (artReady()) { var hs = 0.66, hw = HD.naturalWidth * hs, hh = HD.naturalHeight * hs, cx0 = HD === ART["head-win"] ? 0.5 : 0.47; g.save(); g.translate(X, top + 8); g.rotate(side * 0.08 - lean * 1.2 + Math.sin(tm * 2.2) * 0.012); g.drawImage(HD, -hw * cx0, -hh, hw, hh); g.restore(); }
+    else headNew(X, top - 36, side * 0.08 - lean * 1.2, big, happy);
+    g.restore();
+    // плечі з урахуванням нахилу
+    function SH(dx) { var c = Math.cos(lean), sn = Math.sin(lean), px = dx, py = shY + 2 - hipY; return [X + px * c - py * sn, hipY + px * sn + py * c]; }
+    // вільна рука
+    var f = -side, S2 = SH(f * 34), E2, H2, ha = Math.PI;
+    if (big) { E2 = [S2[0] + f * 24, S2[1] + 10]; H2 = [S2[0] + f * 44, S2[1] - 10]; ha = f * 1.3; }
+    else if (happy) { E2 = [S2[0] + f * 22, S2[1] - 2]; H2 = [S2[0] + f * 24, S2[1] - 36]; ha = 0; }
+    else { var sw = Math.sin(tm * 3) * 1.2; E2 = [S2[0] + f * 14 + sw, S2[1] + 24]; H2 = [S2[0] + f * 6 + sw, S2[1] + 44 + bob * 0.3]; ha = Math.PI; }
+    sleeve(S2[0], S2[1], E2[0], E2[1], H2[0], H2[1], ha, false);
     // рука, що ловить кошик
-    var S1 = W(side * 61, 132), Bx = C.bx - side * 9, By = C.by + 5, dx = Bx - S1[0], dy = By - S1[1], d = Math.hypot(dx, dy), L = Math.max(36, d * 0.56), hgt = Math.sqrt(Math.max(0, L * L - d * d / 4)), nx = -dy / d, ny = dx / d;
+    var S1 = SH(side * 34), Bx = C.bx - side * 9, By = C.by + 5, dx = Bx - S1[0], dy = By - S1[1], d = Math.hypot(dx, dy), L = Math.max(40, d * 0.56), hgt = Math.sqrt(Math.max(0, L * L - d * d / 4)), nx = -dy / d, ny = dx / d;
     if (ny < 0) { nx = -nx; ny = -ny; }
     var E1 = [S1[0] + dx / 2 + nx * hgt, S1[1] + dy / 2 + ny * hgt];
-    var rest = Math.atan2(By - E1[1], Bx - E1[0]) + Math.PI / 2;
     basket(C.bx, C.by);
-    sleeveArm(S1[0], S1[1], E1[0], E1[1], Bx, By, rest * 0.35, true);
+    sleeve(S1[0], S1[1], E1[0], E1[1], Bx, By, (Math.atan2(By - E1[1], Bx - E1[0]) + Math.PI / 2) * 0.35, true);
   }
   function fizrukOld() {
     var C = CH[pos], side = pos < 2 ? -1 : 1, X = 180, FY = FL, ub = Math.sin(tm * 6) * 1.1, big = shock > 0, happy = joy > 0;
