@@ -253,7 +253,8 @@ function routeName(){
   var nm=t.rt.filter(function(x){return x!=='school'&&x!=='garage';}).map(function(x){var q=stopById(x);return q?q.name:'';}).filter(function(x,i,a){return x&&a.indexOf(x)===i;});
   return 'Особливий: '+(nm.join(', ')||'без зупинок');
 }
-function buildRoute(mode,ids){
+function buildRoute(mode,ids,ordered){
+  if(ordered){var pk=ids.filter(function(x,i){return stopById(x)&&ids.indexOf(x)===i;});return mode==='morning'?pk.concat(['school']):['school'].concat(pk).concat(['garage']);}
   var base=routeTokens(mode),seen={},order=[];
   base.forEach(function(x){if(x!=='school'&&x!=='garage'&&!seen[x]){seen[x]=1;order.push(x);}});
   var pick=order.filter(function(x){return ids.indexOf(x)>=0;});
@@ -265,10 +266,10 @@ function rtApply(v){
   if(v==='def')delete t.rt;
   else{
     ids=v.indexOf('s:')===0?[v.slice(2)]:v.slice(2).split(',');
-    t.rt=buildRoute(t.mode,ids);
+    t.rt=buildRoute(t.mode,ids,v.indexOf('m:')===0);
   }
   t.st={};t.idx=0;t.done=false;t.taken=null;
-  ui.rtOpen=false;ui.rtSel={};ui.warn=null;save();
+  ui.rtOpen=false;ui.rtOrder=[];ui.warn=null;save();
 }
 function routeHtml(){
   var t=S.trip,d=S.data,h='<div class="card"><div class="lbl">Маршрут</div><div class="addrow" style="align-items:center"><div style="flex:1;min-width:0;font-weight:600;overflow-wrap:anywhere">'+esc(routeName())+'</div><button type="button" class="btn sm'+(ui.rtOpen?'':' pri')+'" data-act="rtopen">'+(ui.rtOpen?'Закрити':'Змінити маршрут')+'</button></div>';
@@ -278,10 +279,14 @@ function routeHtml(){
     h+='<button type="button" class="btn wide" data-act="rtset" data-v="def">Звичайний маршрут</button>';
     h+='<div class="hint">Поїхати тільки на одну зупинку:</div><div style="display:flex;flex-wrap:wrap;gap:8px">';
     d.stops.forEach(function(s){h+='<button type="button" class="btn sm" data-act="rtset" data-v="s:'+esc(s.id)+'">'+esc(s.name)+'</button>';});
-    h+='</div><div class="hint">Або відмітьте кілька зупинок:</div>';
-    ui.rtSel=ui.rtSel||{};
-    d.stops.forEach(function(s){h+='<label style="display:flex;align-items:center;gap:10px;min-height:44px;font-size:16px"><input type="checkbox" data-act="rttog" data-id="'+esc(s.id)+'"'+(ui.rtSel[s.id]?' checked':'')+' style="width:22px;height:22px"> '+esc(s.name)+'</label>';});
-    h+='<button type="button" class="btn pri wide" data-act="rtapply">Застосувати вибрані</button>';
+    h+='</div><div class="hint">Або складіть свій порядок: натискайте зупинки по черзі (1, 2, 3…). Повторне натискання прибирає зупинку.</div>';
+    ui.rtOrder=(ui.rtOrder||[]).filter(function(x){return !!stopById(x);});
+    d.stops.forEach(function(s){
+      var n=ui.rtOrder.indexOf(s.id)+1;
+      h+='<button type="button" class="btn wide" data-act="rttog" data-id="'+esc(s.id)+'" style="display:flex;align-items:center;gap:12px;justify-content:flex-start;text-align:left'+(n?';border-color:var(--accent,#f2b705)':'')+'"><span style="flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:2px solid currentColor;font-weight:700">'+(n||'')+'</span><span>'+esc(s.name)+'</span></button>';
+    });
+    if(ui.rtOrder.length)h+='<div class="addrow"><button type="button" class="btn sm" data-act="rtrev">Навпаки</button><button type="button" class="btn sm" data-act="rtclr">Скинути</button></div>';
+    h+='<button type="button" class="btn pri wide" data-act="rtapply"'+(ui.rtOrder.length?'':' disabled')+'>Застосувати маршрут'+(ui.rtOrder.length?' ('+ui.rtOrder.length+')':'')+'</button>';
   }
   return h+'</div>';
 }
@@ -1372,7 +1377,9 @@ app.addEventListener('click',function(e){
     else{S.trip=newTrip(v);save();}
     render();return;
   }
-  if(a==='rttog'){ui.rtSel=ui.rtSel||{};ui.rtSel[id]=!!e.target.checked;return;}
+  if(a==='rttog'){ui.rtOrder=ui.rtOrder||[];var ix=ui.rtOrder.indexOf(id);if(ix>=0)ui.rtOrder.splice(ix,1);else ui.rtOrder.push(id);render();return;}
+  if(a==='rtrev'){ui.rtOrder=(ui.rtOrder||[]).slice().reverse();render();return;}
+  if(a==='rtclr'){ui.rtOrder=[];render();return;}
   if(a==='rtopen'){ui.rtOpen=!ui.rtOpen;render();return;}
   if(a==='rtset'){
     if(Object.keys(t.st).length&&ui.confirm!=='rt:'+v){ui.confirm='rt:'+v;}
@@ -1380,7 +1387,7 @@ app.addEventListener('click',function(e){
     render();return;
   }
   if(a==='rtapply'){
-    var ids=Object.keys(ui.rtSel||{}).filter(function(x){return ui.rtSel[x];});
+    var ids=(ui.rtOrder||[]).slice();
     if(!ids.length)return;
     rtApply('m:'+ids.join(','));render();return;
   }
